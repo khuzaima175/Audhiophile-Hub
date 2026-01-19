@@ -263,53 +263,55 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 animate-in fade-in duration-200 safe-area-top safe-area-bottom">
       <div
-        className="bg-[#0A0A0A] w-full max-w-4xl rounded-2xl border border-audio-border shadow-2xl shadow-audio-accent/5 flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200"
+        className="bg-[#0A0A0A] w-full max-w-4xl rounded-2xl border border-audio-border shadow-2xl shadow-audio-accent/5 flex flex-col max-h-[85vh] max-h-modal-mobile animate-in zoom-in-95 duration-200"
         role="dialog"
       >
 
         {/* Header */}
-        <div className="flex justify-between items-center px-8 py-6 border-b border-audio-border bg-[#050505]">
-          <div className="flex gap-8">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`text-sm font-bold tracking-wide transition-all uppercase pb-1 ${activeTab === 'profile' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-            >
-              Profile
-            </button>
-            <button
-              onClick={() => setActiveTab('eq')}
-              className={`text-sm font-bold tracking-wide transition-all uppercase flex items-center gap-2 pb-1 ${activeTab === 'eq' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-            >
-              <EqIcon /> EQ Library
-            </button>
-            <button
-              onClick={() => setActiveTab('gear')}
-              className={`text-sm font-bold tracking-wide transition-all uppercase flex items-center gap-2 pb-1 ${activeTab === 'gear' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-            >
-              <HeadphonesIcon /> Gear
-            </button>
-            <button
-              onClick={() => setActiveTab('memory')}
-              className={`text-sm font-bold tracking-wide transition-all uppercase pb-1 ${activeTab === 'memory' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-            >
-              Manual Facts
-            </button>
-            <button
-              onClick={() => setActiveTab('knowledge')}
-              className={`text-sm font-bold tracking-wide transition-all uppercase pb-1 ${activeTab === 'knowledge' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-            >
-              AI Knowledge
-            </button>
+        <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-6 border-b border-audio-border bg-[#050505] flex-shrink-0">
+          <div className="flex-1 overflow-x-auto scrollbar-hide mr-2">
+            <div className="flex gap-4 md:gap-8 min-w-max">
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase pb-1 whitespace-nowrap ${activeTab === 'profile' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+              >
+                Profile
+              </button>
+              <button
+                onClick={() => setActiveTab('eq')}
+                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase flex items-center gap-1 md:gap-2 pb-1 whitespace-nowrap ${activeTab === 'eq' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+              >
+                <EqIcon /> <span className="hidden sm:inline">EQ</span> Library
+              </button>
+              <button
+                onClick={() => setActiveTab('gear')}
+                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase flex items-center gap-1 md:gap-2 pb-1 whitespace-nowrap ${activeTab === 'gear' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+              >
+                <HeadphonesIcon /> Gear
+              </button>
+              <button
+                onClick={() => setActiveTab('memory')}
+                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase pb-1 whitespace-nowrap ${activeTab === 'memory' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+              >
+                <span className="sm:hidden">Facts</span><span className="hidden sm:inline">Manual Facts</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('knowledge')}
+                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase pb-1 whitespace-nowrap ${activeTab === 'knowledge' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+              >
+                <span className="sm:hidden">AI</span><span className="hidden sm:inline">AI Knowledge</span>
+              </button>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-audio-highlight text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-audio-highlight text-gray-500 hover:text-white transition-colors flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scroll-touch">
           {activeTab === 'profile' && (
             <div className="space-y-8 max-w-2xl mx-auto">
               <div className="space-y-6">
@@ -556,17 +558,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
 
           {activeTab === 'gear' && (
-            <div className="space-y-6 max-w-4xl mx-auto">
-              <div className="flex justify-between items-center mb-6">
-                <p className="text-sm text-gray-400">Track your audio gear collection - IEMs, headphones, DACs, and more.</p>
-                <div className="flex gap-2">
+            <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
+                <p className="text-xs sm:text-sm text-gray-400">Track your audio gear collection - IEMs, headphones, DACs, and more.</p>
+                <div className="flex flex-wrap gap-2">
                   {/* Battle Mode Toggle */}
                   <button
                     onClick={() => {
                       setBattleMode(!battleMode);
                       if (battleMode) setSelectedForBattle([]);
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${battleMode
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider ${battleMode
                       ? 'bg-red-500/20 border border-red-500/50 text-red-400'
                       : 'bg-audio-surface border border-audio-border text-gray-400 hover:text-white hover:border-gray-500'
                       }`}
@@ -577,14 +579,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   {battleMode && selectedForBattle.length >= 2 && (
                     <button
                       onClick={handleStartBattle}
-                      className="flex items-center gap-2 bg-audio-accent border border-audio-accent text-black px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider animate-in zoom-in-95"
+                      className="flex items-center gap-1.5 bg-audio-accent border border-audio-accent text-black px-3 py-1.5 rounded-lg transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider animate-in zoom-in-95"
                     >
                       ⚔️ Battle! ({selectedForBattle.length})
                     </button>
                   )}
                   <button
                     onClick={() => setIsAddingGear(true)}
-                    className="flex items-center gap-2 bg-audio-accent/10 border border-audio-accent/50 text-audio-accent hover:bg-audio-accent hover:text-black px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider"
+                    className="flex items-center gap-1.5 bg-audio-accent/10 border border-audio-accent/50 text-audio-accent hover:bg-audio-accent hover:text-black px-3 py-1.5 rounded-lg transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider"
                   >
                     <PlusIcon /> Add Gear
                   </button>
@@ -616,8 +618,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     <p className="text-[10px] text-gray-500 mt-1">Just enter the name — AI will research the specs</p>
                   </div>
 
-                  {/* Optional fields - collapsed into one row */}
-                  <div className="grid grid-cols-4 gap-3 mb-4">
+                  {/* Optional fields - collapsed into grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-gray-600 uppercase">Type</label>
                       <select

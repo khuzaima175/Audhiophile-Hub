@@ -51,3 +51,35 @@ body {
 .prose-table tr:hover td {
   background-color: #1A1A1A;
 }
+
+/* Mobile scroll utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area support for mobile browsers */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Fix for iOS momentum scrolling */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile viewport height fix */
+@supports (height: 100dvh) {
+  .h-screen-mobile {
+    height: 100dvh;
+  }
+  .max-h-modal-mobile {
+    max-height: 85dvh;
+  }
+}

@@ -409,7 +409,7 @@ const App: React.FC = () => {
   const activeMessages = sessions.find(s => s.id === currentSessionId)?.messages || [];
 
   return (
-    <div className="flex h-screen bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">
+    <div className="flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar
@@ -472,7 +472,7 @@ const App: React.FC = () => {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-auto p-4 md:p-8 space-y-2 scroll-smooth bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 space-y-2 scroll-smooth scroll-touch bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]">
           {activeMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-2xl mx-auto animate-in fade-in duration-500">
               <div className="w-20 h-20 bg-gradient-to-br from-audio-surface to-black rounded-2xl border border-audio-border flex items-center justify-center text-audio-accent shadow-2xl mb-2">
@@ -539,7 +539,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Input Area */}
-        <div className="p-6 bg-audio-base border-t border-audio-border">
+        <div className="p-4 md:p-6 bg-audio-base border-t border-audio-border safe-area-bottom">
           <div className="max-w-4xl mx-auto relative group">
 
             {/* Toolbar */}
