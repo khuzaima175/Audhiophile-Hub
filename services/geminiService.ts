@@ -181,22 +181,67 @@ export const generateSessionSummary = async (session: ChatSession): Promise<Know
     ${transcript.substring(0, 30000)} // Limit tokens
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt,
-    config: { responseMimeType: "application/json" }
-  });
+  // Try models in order until one succeeds
+  let lastError: Error | null = null;
 
-  const data = JSON.parse(response.text || "{}");
+  for (let modelIndex = 0; modelIndex < MODELS.length; modelIndex++) {
+    const currentModel = MODELS[modelIndex];
 
-  return {
-    id: uuidv4(),
-    sourceSessionId: session.id,
-    topic: data.topic || session.title,
-    summary: data.summary || "No summary generated.",
-    keyFacts: data.keyFacts || [],
-    timestamp: Date.now()
-  };
+    try {
+      const response = await ai.models.generateContent({
+        model: currentModel,
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
+      });
+
+      // Safely parse JSON with fallback
+      let data: { topic?: string; summary?: string; keyFacts?: string[] } = {};
+      try {
+        data = JSON.parse(response.text || "{}");
+      } catch (parseError) {
+        console.warn("Failed to parse JSON response, using defaults:", parseError);
+        // Try to extract info from raw text if JSON parsing fails
+        data = {
+          topic: session.title,
+          summary: response.text?.substring(0, 200) || "Summary generation failed.",
+          keyFacts: []
+        };
+      }
+
+      return {
+        id: uuidv4(),
+        sourceSessionId: session.id,
+        topic: data.topic || session.title,
+        summary: data.summary || "No summary generated.",
+        keyFacts: data.keyFacts || [],
+        timestamp: Date.now()
+      };
+
+    } catch (error: any) {
+      console.error(`Model ${currentModel} failed for session summary:`, error);
+      lastError = error;
+
+      const errorMessage = error.message || String(error);
+      const isQuotaError = errorMessage.includes('429') ||
+        errorMessage.includes('quota') ||
+        errorMessage.includes('RESOURCE_EXHAUSTED');
+
+      // If quota error and we have more models to try, continue to next model
+      if (isQuotaError && modelIndex < MODELS.length - 1) {
+        console.log(`Quota exceeded for ${currentModel}, trying fallback: ${MODELS[modelIndex + 1]}`);
+        continue;
+      }
+
+      // If not a quota error or no more fallbacks, try next model anyway
+      if (modelIndex < MODELS.length - 1) {
+        console.log(`Error with ${currentModel}, trying fallback: ${MODELS[modelIndex + 1]}`);
+        continue;
+      }
+    }
+  }
+
+  // If all models failed, throw the error so the caller can handle it
+  throw new Error(`Failed to summarize session: ${lastError?.message || "Unknown error"}`);
 };
 
 export const generateStreamResponse = async (

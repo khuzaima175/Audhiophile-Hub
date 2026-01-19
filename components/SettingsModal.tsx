@@ -809,14 +809,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {knowledgeBase.map((entry, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-audio-border bg-audio-surface/50 hover:bg-audio-surface transition-colors cursor-default">
+                  <div key={entry.id || i} className="flex items-start gap-3 p-3 rounded-lg border border-audio-border bg-audio-surface/50 hover:bg-audio-surface transition-colors cursor-default">
                     <div className="mt-1 text-gray-500"><LinkIcon /></div>
                     <div className="overflow-hidden">
-                      <h4 className="text-xs font-medium text-gray-200 truncate">{entry.topic || entry.title}</h4>
+                      <h4 className="text-xs font-medium text-gray-200 truncate">{entry.topic}</h4>
                       <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{entry.summary}</p>
-                      <div className="flex gap-2 mt-2">
-                        <span className="text-[9px] bg-black/50 px-1.5 py-0.5 rounded text-gray-400">{entry.category || 'General'}</span>
-                        <span className="text-[9px] bg-black/50 px-1.5 py-0.5 rounded text-gray-400">{new Date(entry.timestamp || entry.crawledAt).toLocaleDateString()}</span>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {entry.keyFacts && entry.keyFacts.length > 0 && (
+                          <span className="text-[9px] bg-purple-900/30 px-1.5 py-0.5 rounded text-purple-400">{entry.keyFacts.length} facts</span>
+                        )}
+                        <span className="text-[9px] bg-black/50 px-1.5 py-0.5 rounded text-gray-400">{new Date(entry.timestamp).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>

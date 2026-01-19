@@ -13,25 +13,30 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #050505; 
+  background: #050505;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #333; 
+  background: #333;
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #D4AF37; 
+  background: #D4AF37;
 }
 
 /* Markdown Table Styling */
 .prose-table {
   width: 100%;
-  min-width: 600px; /* Force scroll on small screens */
+  min-width: 600px;
+  /* Force scroll on small screens */
   border-collapse: collapse;
   margin: 1rem 0;
   font-size: 0.9rem;
 }
+
 .prose-table th {
   background-color: #1E1E1E;
   color: #D4AF37;
@@ -40,14 +45,17 @@ body {
   padding: 0.75rem;
   border-bottom: 1px solid #D4AF37;
 }
+
 .prose-table td {
   padding: 0.75rem;
   border-bottom: 1px solid #2A2A2A;
   color: #CCCCCC;
 }
+
 .prose-table tr:last-child td {
   border-bottom: none;
 }
+
 .prose-table tr:hover td {
   background-color: #1A1A1A;
 }
@@ -57,6 +65,7 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -65,6 +74,7 @@ body {
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
 .safe-area-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -74,11 +84,24 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Horizontal touch scrolling for toolbars */
+.scroll-x-touch {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+}
+
+.scroll-x-touch>* {
+  scroll-snap-align: start;
+}
+
 /* Mobile viewport height fix */
 @supports (height: 100dvh) {
   .h-screen-mobile {
     height: 100dvh;
   }
+
   .max-h-modal-mobile {
     max-height: 85dvh;
   }

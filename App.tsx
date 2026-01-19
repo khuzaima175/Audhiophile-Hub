@@ -543,9 +543,10 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto relative group">
 
             {/* Toolbar */}
-            <div className="flex items-center gap-2 mb-3 pl-1 overflow-x-auto pb-2 scrollbar-thin">
+            <div className="flex items-center gap-2 mb-3 pl-1 overflow-x-auto pb-2 scrollbar-thin scroll-x-touch">
               <button
                 onClick={() => fileInputRef.current?.click()}
+                title="Attach an image for analysis (e.g., frequency response graph)"
                 className={`p-2 rounded-lg border transition-colors flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${attachedImage ? 'bg-audio-accent/20 border-audio-accent text-audio-accent' : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
                   }`}
               >
@@ -562,6 +563,7 @@ const App: React.FC = () => {
 
               <button
                 onClick={() => setIsDeepThinking(!isDeepThinking)}
+                title="Enable deeper analysis with extended thinking time for complex questions"
                 className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isDeepThinking
                   ? 'bg-purple-900/30 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
                   : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
@@ -574,6 +576,7 @@ const App: React.FC = () => {
 
               <button
                 onClick={() => setIsAdvancedAnalysis(!isAdvancedAnalysis)}
+                title="Use technical terminology and measurement data (THD, Impulse Response, SINAD)"
                 className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isAdvancedAnalysis
                   ? 'bg-cyan-900/30 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
                   : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
@@ -586,6 +589,7 @@ const App: React.FC = () => {
 
               <button
                 onClick={handleAutoEQFromGraph}
+                title="Upload a frequency response graph to generate EQ settings targeting the Crinacle IEF curve"
                 className="p-2 rounded-lg border border-audio-accent/30 bg-audio-surface text-audio-accent hover:bg-audio-accent hover:text-black transition-colors flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0"
               >
                 <EqIcon />
