@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #050505;
+  color: #E5E5E5;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #050505; 
+}
+::-webkit-scrollbar-thumb {
+  background: #333; 
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37; 
+}
+
+/* Markdown Table Styling */
+.prose-table {
+  width: 100%;
+  min-width: 600px; /* Force scroll on small screens */
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+.prose-table th {
+  background-color: #1E1E1E;
+  color: #D4AF37;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid #D4AF37;
+}
+.prose-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #2A2A2A;
+  color: #CCCCCC;
+}
+.prose-table tr:last-child td {
+  border-bottom: none;
+}
+.prose-table tr:hover td {
+  background-color: #1A1A1A;
+}

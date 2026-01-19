@@ -1,0 +1,594 @@
+import { GoogleGenAI, Content, Part, Tool } from "@google/genai";
+import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from "../types";
+import { v4 as uuidv4 } from 'uuid';
+
+// Model fallback configuration
+const MODELS = [
+  'gemini-3-flash-preview',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash'
+] as const;
+
+type ModelName = typeof MODELS[number];
+
+const createClient = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "API Key is missing. Please add GEMINI_API_KEY to your .env.local file.\n" +
+      "Get your key from: https://aistudio.google.com/app/apikey"
+    );
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+// --- CRINACLE IEF PREFERENCE 2025 DATA (Precise User Values) ---
+const CRINACLE_TARGET_DATA = `
+Frequency,Target_dB
+20,67.5
+25,67.4
+30,67.3
+35,67.2
+40,67.0
+45,66.8
+50,66.4
+55,66.0
+60,65.5
+70,64.5
+80,63.5
+90,62.5
+100,61.5
+110,60.8
+120,60.2
+130,59.8
+140,59.5
+150,59.2
+160,59.1
+180,58.9
+200,58.8
+220,58.8
+250,58.9
+300,59.1
+350,59.3
+400,59.5
+450,59.8
+500,60.0
+600,60.5
+700,60.9
+800,61.2
+900,61.5
+1000,61.8
+1100,62.1
+1200,62.5
+1300,63.1
+1400,63.8
+1500,64.5
+1600,65.2
+1800,66.5
+2000,67.5
+2200,68.5
+2400,69.5
+2600,70.2
+2800,71.0
+3000,71.5
+3200,71.2
+3400,70.5
+3600,69.8
+3800,69.2
+4000,68.8
+4500,67.5
+5000,66.5
+5500,65.8
+6000,65.2
+6500,65.0
+7000,65.1
+7500,65.2
+8000,65.0
+9000,63.0
+10000,61.0
+11000,59.5
+12000,58.0
+13000,57.0
+14000,56.5
+15000,56.0
+16000,55.5
+18000,54.5
+20000,53.0
+`;
+
+// Helper: Naive RAG to find relevant history from raw sessions
+const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: string): string => {
+  if (!allSessions.length) return "";
+
+  const keywords = currentPrompt.toLowerCase().split(' ').filter(w => w.length > 3);
+  if (keywords.length === 0) return "";
+
+  // Score sessions based on keyword matches
+  const scoredSessions = allSessions.map(session => {
+    let score = 0;
+    const sessionText = (session.title + " " + session.messages.map(m => m.text).join(" ")).toLowerCase();
+
+    keywords.forEach(kw => {
+      if (sessionText.includes(kw)) score++;
+    });
+
+    return { session, score };
+  });
+
+  const relevantSessions = scoredSessions
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(s => s.session);
+
+  if (relevantSessions.length === 0) return "";
+
+  let contextString = "\nRELEVANT PAST CONVERSATIONS (Use these to maintain continuity):\n";
+  relevantSessions.forEach((session, idx) => {
+    const summary = session.messages.slice(-4).map(m => `${m.role.toUpperCase()}: ${m.text.substring(0, 300)}...`).join('\n');
+    contextString += `\n[Session: ${session.title}]\n${summary}\n`;
+  });
+
+  return contextString;
+};
+
+// Helper: RAG for Knowledge Base (Summarized Facts)
+const getKnowledgeBaseContext = (knowledgeBase: KnowledgeEntry[], currentPrompt: string): string => {
+  if (!knowledgeBase || knowledgeBase.length === 0) return "";
+
+  const keywords = currentPrompt.toLowerCase().split(' ').filter(w => w.length > 3);
+  if (keywords.length === 0) return "";
+
+  // Filter entries that match keywords in the prompt
+  const matches = knowledgeBase.filter(entry => {
+    const text = (entry.topic + " " + entry.summary + " " + entry.keyFacts.join(" ")).toLowerCase();
+    return keywords.some(kw => text.includes(kw));
+  });
+
+  if (matches.length === 0) return "";
+
+  // Sort by relevance (match count) - simplified here to just take top 5
+  const topMatches = matches.slice(0, 5);
+
+  let kbString = "\n*** CONSOLIDATED KNOWLEDGE BASE (Verified Facts from Past Studies) ***\n";
+  topMatches.forEach(entry => {
+    kbString += `\nTopic: ${entry.topic}\nSummary: ${entry.summary}\nKey Findings: ${entry.keyFacts.join("; ")}\n`;
+  });
+
+  return kbString;
+};
+
+// Function to Summarize a Session
+export const generateSessionSummary = async (session: ChatSession): Promise<KnowledgeEntry> => {
+  const ai = createClient();
+
+  const transcript = session.messages.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n');
+
+  const prompt = `
+    Analyze this audiophile research conversation. 
+    1. Identify the main topic (e.g., "Comparison: HD600 vs Sundara" or "Analysis: Moondrop Aria").
+    2. Write a concise summary of the conclusion.
+    3. Extract 3-5 key technical facts or user preferences discovered (e.g., "User prefers Harman target bass", "HD600 clamp force is too high").
+    
+    Output JSON format:
+    {
+      "topic": "string",
+      "summary": "string",
+      "keyFacts": ["fact1", "fact2"]
+    }
+
+    Transcript:
+    ${transcript.substring(0, 30000)} // Limit tokens
+  `;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: prompt,
+    config: { responseMimeType: "application/json" }
+  });
+
+  const data = JSON.parse(response.text || "{}");
+
+  return {
+    id: uuidv4(),
+    sourceSessionId: session.id,
+    topic: data.topic || session.title,
+    summary: data.summary || "No summary generated.",
+    keyFacts: data.keyFacts || [],
+    timestamp: Date.now()
+  };
+};
+
+export const generateStreamResponse = async (
+  history: Message[],
+  currentPrompt: string,
+  image: string | undefined,
+  audio: string | undefined,
+  profile: AudioProfile,
+  allSessions: ChatSession[],
+  knowledgeBase: KnowledgeEntry[],
+  isDeepThinking: boolean,
+  isAdvancedAnalysis: boolean,
+  userLocation: { lat: number; lng: number } | null,
+  onChunk: (text: string) => void,
+  onSources: (sources: GroundingSource[]) => void
+): Promise<string> => {
+  const ai = createClient();
+
+  // 1. Retrieve Context
+  const pastContext = getRelevantHistoryContext(allSessions, currentPrompt);
+  const kbContext = getKnowledgeBaseContext(knowledgeBase, currentPrompt);
+
+  // 2. Build Memories String
+  const memoriesContext = profile.savedMemories.length > 0
+    ? `\nPERMANENT MEMORIES/FACTS (Verified User Knowledge):\n${profile.savedMemories.map(m => `- ${m}`).join('\n')}`
+    : "";
+
+  // 3. Construct System Instruction
+  let advancedInstructions = "";
+  if (isAdvancedAnalysis) {
+    advancedInstructions = `
+    *** ADVANCED TECHNICAL ANALYSIS MODE: ENABLED ***
+    - **ROLE**: Act as a Senior Audio Research Engineer. STOP simplifying complex concepts.
+    - **TERMINOLOGY**: Use industry-standard terms (e.g., "Group Delay," "Impulse Response," "Minimum Phase," "Nyquist," "SINAD," "Output Impedance").
+    - **DATA DRIVEN**: When measurements are available (via Search or Image), cite specific data points (e.g., "The 3rd harmonic distortion peaks at 0.5% at 2kHz," "Sub-bass roll-off starts at 40Hz").
+    `;
+  }
+
+  const systemInstruction = `
+    You are 'AudioSage', an elite Audiophile Research Assistant running on Gemini 3 Flash.
+    
+    USER PROFILE:
+    - Name: ${profile.name}
+    - Sound Sig: ${profile.soundSignature}
+    - Gear: ${profile.currentGear}
+    - Notes: ${profile.notes}
+    ${memoriesContext}
+    
+    ${kbContext}
+    
+    CONTEXT FROM PAST CHATS (Raw Logs):
+    ${pastContext}
+
+    ${advancedInstructions}
+
+    *** INSTRUCTIONAL STYLE ***
+    - **VERBOSE & DETAILED**: Do not be brief. Providing detailed, nuanced explanations is better than a short summary. 
+    - **TECHNICAL**: Assume the user is an audiophile. Use terms like "Timbre", "Decay", "Imaging", "Sibilance", "Masking".
+    - **STRUCTURED**: Use bold headers, bullet points, and tables to organize large amounts of data.
+
+    *** GOLDEN REFERENCE TARGET: CRINACLE IEF PREFERENCE 2025 ***
+    You possess the internal data for the "Crinacle IEF Preference 2025 (B&K 5128)" target curve.
+    REFER TO THIS DATA TABLE FOR ALL AUTO-EQ CALCULATIONS. 
+    Use Linear Interpolation for frequencies not explicitly listed.
+    ${CRINACLE_TARGET_DATA}
+
+    *** COMPARISON TABLE PROTOCOL (MANDATORY) ***
+    When asked to compare IEMs/Headphones (e.g., "Compare X vs Y"), you MUST output a Markdown table including AT LEAST these specific rows:
+    | Feature | [IEM A] | [IEM B] | ... |
+    | :--- | :--- | :--- | :--- |
+    | **Driver Tech** | [e.g. 1DD, Hybrid, Planar] | ... | ... |
+    | **Decay (Soul)** | [e.g. Musical/Wet, Fast/Dry] | ... | ... |
+    | **Soundstage** | [e.g. 2D, Holographic 3D] | ... | ... |
+    | **Imaging** | [e.g. Average, Elite Pinpoint] | ... | ... |
+    | **200Hz Tuck** | [e.g. Warm Glide, Clean Tuck] | ... | ... |
+    | **8kHz Risk** | [e.g. Safe, Sibilant Peak] | ... | ... |
+    | **Note Weight** | [e.g. Thick, Lean, Balanced] | ... | ... |
+    | **Gaming Feel** | [e.g. Immersive, Competitive] | ... | ... |
+    | **xMEMS "Dryness"**| [e.g. 0% (Analog), 20% (Sharp)] | ... | ... |
+    | **Price (Approx)** | [e.g. $59] | ... | ... |
+    
+    *After the table, provide a detailed written analysis of the differences.*
+
+    *** VISUAL EQ ANALYSIS PROTOCOL (GRAPH INPUT) ***
+    When the user uploads a measurement graph of an IEM/Headphone:
+    1. **Identify**: Locate the measured frequency response curve (usually colored).
+    2. **Scan**: For EVERY frequency listed in the Golden Reference Table above (20, 30, ... 20000), visually estimate the dB level of the USER'S IEM from the graph.
+    3. **Calculate**:
+       - Formula: \`Target_dB - Measured_dB = Required_Gain\`
+    4. **Output Format**:
+       Provide a detailed Markdown table with columns: Frequency, Required Gain, and Technical Notes.
+
+    *** WAVELET 9-BAND PROTOCOL (MANDATORY) ***
+    The user uses the 'Wavelet' Android app. You MUST ALSO generate a specific "9-Band Graphic EQ" preset block.
+    
+    **Wavelet Constraints:**
+    - **Fixed Bands**: 62.5 Hz, 125 Hz, 250 Hz, 500 Hz, 1000 Hz, 2000 Hz, 4000 Hz, 8000 Hz, 16000 Hz.
+    - **Max Gain**: +/- 9.0 dB (Do not exceed).
+    - **Calculation**: You must interpolate the required gain at these EXACT 9 frequencies based on the graph delta vs the High-Res Target.
+    - **Safety**: If any band requires boosting (positive gain), suggest a **negative Preamp** value to prevent digital clipping. (e.g., if max boost is +4.0dB, Preamp should be -4.1dB).
+    
+    **Output Format for Wavelet:**
+    Create a separate code block titled "Wavelet Preset" formatted exactly like this:
+    \`\`\`text
+    GraphicEQ: 20 -0.0; 62.5 +X.X; 125 -X.X; 250 +X.X; 500 -X.X; 1000 +X.X; 2000 -X.X; 4000 +X.X; 8000 -X.X; 16000 +X.X
+    Preamp: -X.X dB
+    \`\`\`
+    
+    *** PARAMETRIC EQ (OPTIONAL / ADVANCED) ***
+    If the user asks for "PEQ", "Parametric", or "Precise Fixes":
+    - Generate a list of Peak (PK), Low Shelf (LS), or High Shelf (HS) filters.
+    - Limit to 5-10 bands for simplicity unless asked for more.
+    - Format: \`Filter 1: ON PK Fc 150 Hz Gain -2.0 dB Q 1.0\`
+
+    *** CUSTOM TONE SHAPING ***
+    If the user asks for specific tweaks (e.g., "Make it warmer", "More air"):
+    - **WARM**: Boost 100Hz-500Hz by 2-3dB. Reduce 6kHz-10kHz slightly.
+    - **BRIGHT/AIRY**: Boost 10kHz+ by 3-5dB. Reduce 200Hz bloom.
+    - **HARMAN BASS**: The IEF 2025 target has moderate bass. If user asks for "Harman Bass", Add +4dB shelf at 100Hz downwards compared to IEF target.
+
+    ACCURACY PROTOCOLS:
+    1. **TRUSTED SOURCES**: Prioritize technical data from Crinacle, Rtings.com, AudioScienceReview (ASR), Head-Fi verified measurements.
+    2. **USER MEMORY CHECK**: Check 'PERMANENT MEMORIES' for sensitivity rules (e.g., "8kHz peaks cause sibilance"). If the calculated EQ boosts 8kHz, WARN the user or reduce the boost.
+    3. **SPECIFICITY MANDATE**: Never give vague answers. Include:
+       - Exact model names (e.g., "Moondrop Aria 2" not just "Aria")
+       - Price ranges with currency (e.g., "~$79 USD")
+       - Driver configurations (e.g., "10mm LCP dynamic driver")
+       - Frequency response deviations from target (e.g., "+3dB at 8kHz vs target")
+    4. **SOURCE CITATION**: When citing measurements or specs, mention the source explicitly (e.g., "According to Crinacle's measurement...").
+    5. **UNCERTAINTY DISCLOSURE**: If data is uncertain or based on subjective reviews rather than measurements, state this clearly with phrases like "Based on user reports..." or "Measurements pending verification...".
+    6. **COMPARISON DEPTH**: When comparing products, analyze minimum 8-10 distinct technical attributes.
+    7. **USER CONTEXT AWARENESS**: Always reference the user's current gear and preferences when making recommendations.
+    8. **BUDGET AWARENESS**: Factor in the user's apparent budget tier based on their current gear.
+
+    RESPONSE QUALITY REQUIREMENTS:
+    - **MINIMUM LENGTH**: For technical questions, provide at least 300 words of analysis.
+    - **STRUCTURE**: Use ## headers, **bold** key terms, and bullet lists for scannability.
+    - **COMPLETENESS**: Address all aspects of the user's question - don't skip parts.
+    - **ACTIONABLE**: End recommendations with clear next steps or specific product suggestions.
+    - **CAVEATS**: Note any relevant concerns (fit issues, source requirements, tip sensitivity).
+  `;
+
+  // 4. Build Contents - Sanitized
+  // We filter out any empty messages or potential duplicates to prevent 400 Bad Request
+  const validHistory = history.filter(msg =>
+    (msg.text && msg.text.trim().length > 0) || msg.image || msg.audio
+  );
+
+  const contents: Content[] = validHistory.map((msg) => {
+    const parts: Part[] = [];
+    if (msg.image) {
+      const base64Data = msg.image.split(',')[1];
+      const mimeType = msg.image.substring(msg.image.indexOf(':') + 1, msg.image.indexOf(';'));
+      parts.push({ inlineData: { data: base64Data, mimeType } });
+    }
+    if (msg.audio) {
+      const base64Data = msg.audio.split(',')[1];
+      const mimeType = msg.audio.substring(msg.audio.indexOf(':') + 1, msg.audio.indexOf(';'));
+      parts.push({ inlineData: { data: base64Data, mimeType } });
+    }
+    if (msg.text) {
+      parts.push({ text: msg.text });
+    }
+    return { role: msg.role, parts };
+  });
+
+  // 5. Config
+  // NOTE: Google Maps is ONLY supported in Gemini 2.5. Using it with Gemini 3 causes failure.
+  // We strictly use googleSearch here.
+  const tools: Tool[] = [{
+    googleSearch: {}
+  }];
+
+  interface GenerateConfig {
+    systemInstruction: string;
+    tools: Tool[];
+    temperature: number;
+    thinkingConfig?: { thinkingBudget: number };
+    maxOutputTokens?: number;
+  }
+
+  const config: GenerateConfig = {
+    systemInstruction: systemInstruction,
+    tools: tools,
+    temperature: 0.2, // Lower for more accuracy
+  };
+
+  if (isDeepThinking) {
+    config.thinkingConfig = { thinkingBudget: 2048 };
+    config.maxOutputTokens = 8192;
+  }
+
+  // Try models in order until one succeeds
+  let lastError: Error | null = null;
+
+  for (let modelIndex = 0; modelIndex < MODELS.length; modelIndex++) {
+    const currentModel = MODELS[modelIndex];
+
+    try {
+      const responseStream = await ai.models.generateContentStream({
+        model: currentModel,
+        contents: contents,
+        config: config,
+      });
+
+      let fullText = "";
+      const collectedSources: GroundingSource[] = [];
+
+      for await (const chunk of responseStream) {
+        const textChunk = chunk.text;
+        if (textChunk) {
+          fullText += textChunk;
+          onChunk(textChunk);
+        }
+
+        const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (groundingChunks) {
+          groundingChunks.forEach((c: any) => {
+            if (c.web) {
+              collectedSources.push({
+                title: c.web.title || "Web Source",
+                uri: c.web.uri || "#",
+                type: 'web'
+              });
+            }
+          });
+        }
+      }
+
+      if (collectedSources.length > 0) {
+        onSources(collectedSources);
+      }
+
+      return fullText;
+
+    } catch (error: any) {
+      console.error(`Model ${currentModel} failed:`, error);
+      lastError = error;
+
+      const errorMessage = error.message || String(error);
+      const isQuotaError = errorMessage.includes('429') ||
+        errorMessage.includes('quota') ||
+        errorMessage.includes('RESOURCE_EXHAUSTED');
+
+      // If quota error and we have more models to try, continue to next model
+      if (isQuotaError && modelIndex < MODELS.length - 1) {
+        console.log(`Quota exceeded for ${currentModel}, trying fallback: ${MODELS[modelIndex + 1]}`);
+        continue;
+      }
+
+      // If not a quota error or no more fallbacks, throw immediately
+      break;
+    }
+  }
+
+  // If we get here, all models failed
+  const errorMessage = lastError?.message || "Unknown error";
+
+  if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+    throw new Error(
+      "All Gemini models have exceeded their quota. Please try again later or check your API quota at: https://aistudio.google.com/app/apikey"
+    );
+  } else if (errorMessage.includes('API key')) {
+    throw new Error(
+      "Invalid API Key. Please check your GEMINI_API_KEY in .env.local file.\\n" +
+      "Get a new key from: https://aistudio.google.com/app/apikey"
+    );
+  } else {
+    throw new Error(`Failed to generate response: ${errorMessage}`);
+  }
+};
+
+// Battle Mode: AI-Powered Gear Comparison
+export const generateBattleComparison = async (
+  selectedGear: { name: string; type: string; status: string; rating?: number; notes?: string; price?: string }[],
+  profile: AudioProfile,
+  onChunk: (text: string) => void
+): Promise<string> => {
+  const ai = createClient();
+
+  const gearNames = selectedGear.map((g, i) => `${i + 1}. **${g.name}** ${g.notes ? `(User notes: "${g.notes}")` : ''}`).join('\n');
+
+  const memoriesContext = profile.savedMemories.length > 0
+    ? `\nUSER'S AUDIO SENSITIVITIES & RULES:\n${profile.savedMemories.map(m => `- ${m}`).join('\n')}`
+    : "";
+
+  const prompt = `
+You are AudioSage Battle Analyst. Compare these audio products for this specific user.
+
+*** USER PROFILE ***
+- Name: ${profile.name}
+- Target Sound: ${profile.soundSignature}
+- Current Gear: ${profile.currentGear}
+${memoriesContext}
+
+*** PRODUCTS TO COMPARE ***
+${gearNames}
+
+*** RESEARCH THESE PRODUCTS ***
+Use Google Search to find accurate specs, measurements, and reviews for each product. Include:
+- Driver configuration (DD, BA, Planar, Tribrid, etc.)
+- Frequency response characteristics
+- Price point
+- Known sound signature (V-shaped, neutral, warm, etc.)
+
+*** OUTPUT FORMAT (FOLLOW EXACTLY) ***
+
+## ⚔️ BATTLE: ${selectedGear.map(g => g.name).join(' vs ')}
+
+### 🏆 WINNER FOR YOU
+> [One bold sentence declaring the winner based on the user's specific taste profile]
+
+---
+
+### 📊 Spec Comparison
+
+| Specification | ${selectedGear.map(g => g.name).join(' | ')} |
+|:---|${selectedGear.map(() => ':---:').join('|')}|
+| **Price** | [research] | [research] |
+| **Driver Type** | [research] | [research] |
+| **Impedance** | [research] | [research] |
+| **Sensitivity** | [research] | [research] |
+| **Sound Signature** | [research] | [research] |
+
+---
+
+### 🎧 Sound Quality Battle
+
+| Category | ${selectedGear.map(g => g.name).join(' | ')} | Winner |
+|:---|${selectedGear.map(() => ':---:').join('|')}|:---:|
+| **Sub-bass Extension** | [rate /10] | [rate /10] | 🏅 |
+| **Mid-bass Punch** | [rate /10] | [rate /10] | 🏅 |
+| **Midrange Clarity** | [rate /10] | [rate /10] | 🏅 |
+| **Treble Detail** | [rate /10] | [rate /10] | 🏅 |
+| **Soundstage Width** | [rate /10] | [rate /10] | 🏅 |
+| **Imaging Precision** | [rate /10] | [rate /10] | 🏅 |
+| **Timbre/Naturalness** | [rate /10] | [rate /10] | 🏅 |
+
+---
+
+### 🎯 For YOUR Preferences
+
+Based on the user's profile:
+- **Target Match**: Which one matches "${profile.soundSignature}" better?
+- **Sensitivity Check**: Are there any 8kHz peaks or sibilance risks for this user?
+- **Use Case Fit**: ${profile.notes ? `User notes: "${profile.notes}"` : 'Gaming, music, movies fit?'}
+
+---
+
+### 📝 Final Verdict
+
+[2-3 sentences with clear recommendation and confidence percentage]
+
+**Bottom Line**: [One punchy sentence]
+`;
+
+  const config = {
+    systemInstruction: "You are an elite audiophile analyst. Always research real specs via Google Search. Create beautiful, well-formatted comparison tables. Be specific with numbers and ratings.",
+    tools: [{ googleSearch: {} }] as Tool[],
+    temperature: 0.2,
+  };
+
+  try {
+    const responseStream = await ai.models.generateContentStream({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: config,
+    });
+
+    let fullText = "";
+    for await (const chunk of responseStream) {
+      const textChunk = chunk.text;
+      if (textChunk) {
+        fullText += textChunk;
+        onChunk(textChunk);
+      }
+    }
+    return fullText;
+
+  } catch (error: any) {
+    console.error("Battle comparison failed with primary model, trying fallback:", error);
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: { temperature: 0.2, tools: [{ googleSearch: {} }] as Tool[] }
+      });
+      const text = response.text || "Comparison failed.";
+      onChunk(text);
+      return text;
+    } catch (fallbackError: any) {
+      throw new Error(`Battle comparison failed: ${fallbackError.message}`);
+    }
+  }
+};
