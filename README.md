@@ -35,7 +35,7 @@ Whether you're looking for your next pair of IEMs or trying to tune your current
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (Latest LTS recommended)
-- A [Gemini API Key](https://aistudio.google.com/app/apikey)
+- A [Gemini API Key](https://ai.google.dev/) (Get it from Google AI)
 
 ### Installation
 
