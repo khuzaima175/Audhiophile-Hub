@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Model fallback configuration
 const MODELS = [
   'gemini-3-flash-preview',
+  'gemini-2.0-flash-thinking-exp',
   'gemini-2.5-flash',
   'gemini-2.0-flash'
 ] as const;
@@ -409,8 +410,6 @@ export const generateStreamResponse = async (
   });
 
   // 5. Config
-  // NOTE: Google Maps is ONLY supported in Gemini 2.5. Using it with Gemini 3 causes failure.
-  // We strictly use googleSearch here.
   const tools: Tool[] = [{
     googleSearch: {}
   }];
@@ -423,28 +422,39 @@ export const generateStreamResponse = async (
     maxOutputTokens?: number;
   }
 
-  const config: GenerateConfig = {
+  const baseConfig: GenerateConfig = {
     systemInstruction: systemInstruction,
     tools: tools,
     temperature: 0.2, // Lower for more accuracy
   };
 
+  // Prioritize models based on mode
+  let modelCandidates = [...MODELS];
   if (isDeepThinking) {
-    config.thinkingConfig = { thinkingBudget: 2048 };
-    config.maxOutputTokens = 8192;
+    // If deep thinking is requested, prioritize the thinking model
+    const thinkingModel = 'gemini-2.0-flash-thinking-exp';
+    modelCandidates = [thinkingModel, ...MODELS.filter(m => m !== thinkingModel)];
   }
 
   // Try models in order until one succeeds
   let lastError: Error | null = null;
 
-  for (let modelIndex = 0; modelIndex < MODELS.length; modelIndex++) {
-    const currentModel = MODELS[modelIndex];
+  for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex++) {
+    const currentModel = modelCandidates[modelIndex];
+    const currentConfig = { ...baseConfig };
+
+    // Apply thinking config ONLY if the model supports it (heuristic: name contains 'thinking')
+    // and deep thinking was requested.
+    if (isDeepThinking && currentModel.includes('thinking')) {
+      currentConfig.thinkingConfig = { thinkingBudget: 2048 };
+      currentConfig.maxOutputTokens = 8192;
+    }
 
     try {
       const responseStream = await ai.models.generateContentStream({
         model: currentModel,
         contents: contents,
-        config: config,
+        config: currentConfig,
       });
 
       let fullText = "";
@@ -478,21 +488,19 @@ export const generateStreamResponse = async (
       return fullText;
 
     } catch (error: any) {
-      console.error(`Model ${currentModel} failed:`, error);
+      console.warn(`Model ${currentModel} failed:`, error);
       lastError = error;
 
       const errorMessage = error.message || String(error);
-      const isQuotaError = errorMessage.includes('429') ||
-        errorMessage.includes('quota') ||
-        errorMessage.includes('RESOURCE_EXHAUSTED');
 
-      // If quota error and we have more models to try, continue to next model
-      if (isQuotaError && modelIndex < MODELS.length - 1) {
-        console.log(`Quota exceeded for ${currentModel}, trying fallback: ${MODELS[modelIndex + 1]}`);
+      // Fallback Logic: Try next model on ANY error (Quota, Overloaded, Intervals, or Invalid Config)
+      // This ensures if gemini-3 fails (e.g. doesn't support 'thinking' yet), we fall back to gemini-2.0-thinking
+      if (modelIndex < modelCandidates.length - 1) {
+        console.warn(`Falling back to ${modelCandidates[modelIndex + 1]}`);
         continue;
       }
 
-      // If not a quota error or no more fallbacks, throw immediately
+      // If no more models, break loop and throw
       break;
     }
   }

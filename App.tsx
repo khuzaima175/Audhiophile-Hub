@@ -540,7 +540,7 @@ const App: React.FC = () => {
 
         {/* Input Area */}
         <div className="p-4 md:p-6 bg-audio-base border-t border-audio-border safe-area-bottom">
-          <div className="max-w-5xl mx-auto relative group">
+          <div className="max-w-7xl mx-auto relative group">
 
             {/* Toolbar */}
             <div className="mb-3 pl-1 -mx-1 px-1 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-x-touch" style={{ WebkitOverflowScrolling: 'touch' }}>

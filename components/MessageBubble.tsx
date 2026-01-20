@@ -150,7 +150,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
   return (
     <div className={`flex w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`w-full max-w-5xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col ${isUser
+        className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col ${isUser
           ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%]'
           : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm'
           }`}
