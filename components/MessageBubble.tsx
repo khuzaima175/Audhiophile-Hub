@@ -148,9 +148,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
   }
 
   return (
-    <div className={`flex w-full mb-8 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`w-full max-w-4xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col relative group/bubble ${isUser
+        className={`w-full max-w-5xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col ${isUser
           ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%]'
           : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm'
           }`}
@@ -174,11 +174,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
 
         {/* Action Bar for AI Messages */}
         {!isUser && !message.isThinking && message.text && (
-          <div className="absolute -bottom-8 right-0 opacity-0 group-hover/bubble:opacity-100 transition-opacity flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t border-audio-border/50">
             {/* Copy Button */}
             <button
               onClick={handleCopy}
-              className={`flex items-center gap-1.5 px-2.5 py-1 bg-audio-surface border border-audio-border rounded-full text-[10px] transition-colors shadow-lg ${copied ? 'text-green-400 border-green-500/50' : 'text-audio-muted hover:text-white hover:border-white'}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-audio-surface border border-audio-border rounded-lg text-[10px] transition-colors ${copied ? 'text-green-400 border-green-500/50' : 'text-audio-muted hover:text-white hover:border-white'}`}
               title="Copy response"
             >
               <CopyIcon />
@@ -189,7 +189,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
             {onSaveToNotes && (
               <button
                 onClick={handleSaveToNotes}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-audio-surface border border-audio-border rounded-full text-[10px] text-audio-muted hover:text-audio-accent hover:border-audio-accent transition-colors shadow-lg"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-audio-surface border border-audio-border rounded-lg text-[10px] text-audio-muted hover:text-audio-accent hover:border-audio-accent transition-colors"
                 title="Save key fact to notes"
               >
                 <BookmarkIcon />
@@ -201,7 +201,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
             {onVerify && (
               <button
                 onClick={() => onVerify("Verify the facts in the last response using Google Search.")}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-audio-surface border border-audio-border rounded-full text-[10px] text-audio-muted hover:text-audio-accent hover:border-audio-accent transition-colors shadow-lg"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-audio-surface border border-audio-border rounded-lg text-[10px] text-audio-muted hover:text-audio-accent hover:border-audio-accent transition-colors"
               >
                 <CheckIcon />
                 <span>Verify</span>
@@ -212,7 +212,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
             {onVerify && (
               <button
                 onClick={() => onVerify("Expand on this with more technical details.")}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-audio-surface border border-audio-border rounded-full text-[10px] text-audio-muted hover:text-white hover:border-white transition-colors shadow-lg"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-audio-surface border border-audio-border rounded-lg text-[10px] text-audio-muted hover:text-white hover:border-white transition-colors"
               >
                 <BrainIcon />
                 <span>More</span>

@@ -58,6 +58,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [battleAnalysis, setBattleAnalysis] = useState('');
   const [isBattleLoading, setIsBattleLoading] = useState(false);
 
+  // Expanded Knowledge State
+  const [expandedKnowledgeId, setExpandedKnowledgeId] = useState<string | null>(null);
+
   // Trigger AI Battle Comparison
   const handleStartBattle = async () => {
     if (selectedForBattle.length < 2) return;
@@ -271,7 +274,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Header */}
         <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-6 border-b border-audio-border bg-[#050505] flex-shrink-0">
-          <div className="flex-1 overflow-x-auto scrollbar-hide mr-2">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-x-touch mr-2 -mx-2 px-2" style={{ WebkitOverflowScrolling: 'touch' }}>
             <div className="flex gap-4 md:gap-8 min-w-max">
               <button
                 onClick={() => setActiveTab('profile')}
@@ -807,22 +810,95 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {knowledgeBase.map((entry, i) => (
-                  <div key={entry.id || i} className="flex items-start gap-3 p-3 rounded-lg border border-audio-border bg-audio-surface/50 hover:bg-audio-surface transition-colors cursor-default">
-                    <div className="mt-1 text-gray-500"><LinkIcon /></div>
-                    <div className="overflow-hidden">
-                      <h4 className="text-xs font-medium text-gray-200 truncate">{entry.topic}</h4>
-                      <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{entry.summary}</p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {entry.keyFacts && entry.keyFacts.length > 0 && (
-                          <span className="text-[9px] bg-purple-900/30 px-1.5 py-0.5 rounded text-purple-400">{entry.keyFacts.length} facts</span>
-                        )}
-                        <span className="text-[9px] bg-black/50 px-1.5 py-0.5 rounded text-gray-400">{new Date(entry.timestamp).toLocaleDateString()}</span>
+              <div className="grid grid-cols-1 gap-3">
+                {knowledgeBase.map((entry, i) => {
+                  const isExpanded = expandedKnowledgeId === (entry.id || `kb-${i}`);
+                  return (
+                    <div
+                      key={entry.id || i}
+                      onClick={() => setExpandedKnowledgeId(isExpanded ? null : (entry.id || `kb-${i}`))}
+                      className={`p-4 rounded-lg border transition-all cursor-pointer ${isExpanded
+                        ? 'border-audio-accent bg-audio-accent/5'
+                        : 'border-audio-border bg-audio-surface/50 hover:bg-audio-surface hover:border-audio-accent/50'
+                        }`}
+                    >
+                      {/* Header Row */}
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 transition-colors ${isExpanded ? 'text-audio-accent' : 'text-gray-500'}`}>
+                          <LinkIcon />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-sm font-medium text-white truncate">{entry.topic}</h4>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {entry.keyFacts && entry.keyFacts.length > 0 && (
+                                <span className="text-[9px] bg-purple-900/30 px-1.5 py-0.5 rounded text-purple-400">{entry.keyFacts.length} facts</span>
+                              )}
+                              <span className="text-[9px] bg-black/50 px-1.5 py-0.5 rounded text-gray-400">{new Date(entry.timestamp).toLocaleDateString()}</span>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className={`text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                              >
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            </div>
+                          </div>
+                          {!isExpanded && (
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{entry.summary}</p>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Expanded Content */}
+                      {isExpanded && (
+                        <div className="mt-4 ml-7 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                          {/* Full Summary */}
+                          <div>
+                            <label className="text-[10px] font-bold text-audio-accent uppercase tracking-wider block mb-1">Summary</label>
+                            <p className="text-sm text-gray-300 leading-relaxed bg-black/30 rounded-lg p-3 border border-audio-border/50">
+                              {entry.summary}
+                            </p>
+                          </div>
+
+                          {/* Key Facts */}
+                          {entry.keyFacts && entry.keyFacts.length > 0 && (
+                            <div>
+                              <label className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-2">Key Facts ({entry.keyFacts.length})</label>
+                              <ul className="space-y-1.5">
+                                {entry.keyFacts.map((fact, fi) => (
+                                  <li key={fi} className="flex items-start gap-2 text-xs text-gray-400">
+                                    <span className="text-purple-400 mt-0.5">•</span>
+                                    <span>{fact}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Metadata */}
+                          <div className="flex items-center gap-4 pt-2 border-t border-audio-border/30">
+                            <span className="text-[10px] text-gray-600">
+                              <strong className="text-gray-500">Created:</strong> {new Date(entry.timestamp).toLocaleString()}
+                            </span>
+                            {entry.sourceSessionId && (
+                              <span className="text-[10px] text-gray-600">
+                                <strong className="text-gray-500">Source:</strong> Chat Session
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

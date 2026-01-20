@@ -87,13 +87,18 @@ body {
 /* Horizontal touch scrolling for toolbars */
 .scroll-x-touch {
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
   scroll-behavior: smooth;
-  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
 }
 
-.scroll-x-touch>* {
-  scroll-snap-align: start;
+/* Thin scrollbar for subtle horizontal scroll indicators */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
 }
 
 /* Mobile viewport height fix */

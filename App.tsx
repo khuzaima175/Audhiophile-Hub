@@ -540,61 +540,63 @@ const App: React.FC = () => {
 
         {/* Input Area */}
         <div className="p-4 md:p-6 bg-audio-base border-t border-audio-border safe-area-bottom">
-          <div className="max-w-4xl mx-auto relative group">
+          <div className="max-w-5xl mx-auto relative group">
 
             {/* Toolbar */}
-            <div className="flex items-center gap-2 mb-3 pl-1 overflow-x-auto pb-2 scrollbar-thin scroll-x-touch">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach an image for analysis (e.g., frequency response graph)"
-                className={`p-2 rounded-lg border transition-colors flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${attachedImage ? 'bg-audio-accent/20 border-audio-accent text-audio-accent' : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
-                  }`}
-              >
-                <PaperclipIcon />
-                <span className="hidden sm:inline">{attachedImage ? 'Image Attached' : 'Attach'}</span>
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                className="hidden"
-                accept="image/*"
-              />
+            <div className="mb-3 pl-1 -mx-1 px-1 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-x-touch" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex items-center gap-2 min-w-max pb-1">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach an image for analysis (e.g., frequency response graph)"
+                  className={`p-2 rounded-lg border transition-colors flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${attachedImage ? 'bg-audio-accent/20 border-audio-accent text-audio-accent' : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
+                    }`}
+                >
+                  <PaperclipIcon />
+                  <span className="hidden sm:inline">{attachedImage ? 'Image Attached' : 'Attach'}</span>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  accept="image/*"
+                />
 
-              <button
-                onClick={() => setIsDeepThinking(!isDeepThinking)}
-                title="Enable deeper analysis with extended thinking time for complex questions"
-                className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isDeepThinking
-                  ? 'bg-purple-900/30 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
-                  : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
-                  }`}
-              >
-                <BrainIcon />
-                <span className="hidden sm:inline">Deep Research</span>
-                {isDeepThinking && <span className="flex h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse ml-1" />}
-              </button>
+                <button
+                  onClick={() => setIsDeepThinking(!isDeepThinking)}
+                  title="Enable deeper analysis with extended thinking time for complex questions"
+                  className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isDeepThinking
+                    ? 'bg-purple-900/30 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                    : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
+                    }`}
+                >
+                  <BrainIcon />
+                  <span className="hidden sm:inline">Deep Research</span>
+                  {isDeepThinking && <span className="flex h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse ml-1" />}
+                </button>
 
-              <button
-                onClick={() => setIsAdvancedAnalysis(!isAdvancedAnalysis)}
-                title="Use technical terminology and measurement data (THD, Impulse Response, SINAD)"
-                className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isAdvancedAnalysis
-                  ? 'bg-cyan-900/30 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
-                  : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
-                  }`}
-              >
-                <ActivityIcon />
-                <span className="hidden sm:inline">Tech Analysis</span>
-                {isAdvancedAnalysis && <span className="flex h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse ml-1" />}
-              </button>
+                <button
+                  onClick={() => setIsAdvancedAnalysis(!isAdvancedAnalysis)}
+                  title="Use technical terminology and measurement data (THD, Impulse Response, SINAD)"
+                  className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isAdvancedAnalysis
+                    ? 'bg-cyan-900/30 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
+                    : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
+                    }`}
+                >
+                  <ActivityIcon />
+                  <span className="hidden sm:inline">Tech Analysis</span>
+                  {isAdvancedAnalysis && <span className="flex h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse ml-1" />}
+                </button>
 
-              <button
-                onClick={handleAutoEQFromGraph}
-                title="Upload a frequency response graph to generate EQ settings targeting the Crinacle IEF curve"
-                className="p-2 rounded-lg border border-audio-accent/30 bg-audio-surface text-audio-accent hover:bg-audio-accent hover:text-black transition-colors flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0"
-              >
-                <EqIcon />
-                <span className="hidden sm:inline">Auto-EQ</span>
-              </button>
+                <button
+                  onClick={handleAutoEQFromGraph}
+                  title="Upload a frequency response graph to generate EQ settings targeting the Crinacle IEF curve"
+                  className="p-2 rounded-lg border border-audio-accent/30 bg-audio-surface text-audio-accent hover:bg-audio-accent hover:text-black transition-colors flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0"
+                >
+                  <EqIcon />
+                  <span className="hidden sm:inline">Auto-EQ</span>
+                </button>
+              </div>
             </div>
 
             {/* Attachment Preview */}
