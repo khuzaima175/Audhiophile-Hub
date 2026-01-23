@@ -274,7 +274,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Header */}
         <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-6 border-b border-audio-border bg-[#050505] flex-shrink-0">
-          <div className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-x-touch mr-2 -mx-2 px-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-x-touch mobile-scroll-fix mr-2 -mx-2 px-2" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
             <div className="flex gap-4 md:gap-8 min-w-max">
               <button
                 onClick={() => setActiveTab('profile')}
@@ -314,7 +314,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scroll-touch">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scroll-touch mobile-scroll-fix" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
           {activeTab === 'profile' && (
             <div className="space-y-8 max-w-2xl mx-auto">
               <div className="space-y-6">

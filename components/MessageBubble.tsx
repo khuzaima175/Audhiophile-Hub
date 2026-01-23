@@ -100,7 +100,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
     const body = dataRows.slice(1).map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
 
     return (
-      <div key={key} className="w-full overflow-x-auto my-4 rounded-lg border border-audio-border shadow-md bg-[#080808] -mx-2 px-2">
+      <div key={key} className="w-full overflow-x-auto my-4 rounded-lg border border-audio-border shadow-md bg-[#080808] -mx-2 px-2 scroll-x-touch" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}>
         <table className="prose-table w-full min-w-[700px]">
           <thead>
             <tr>

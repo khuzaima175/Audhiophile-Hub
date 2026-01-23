@@ -87,9 +87,22 @@ body {
 /* Horizontal touch scrolling for toolbars */
 .scroll-x-touch {
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x pan-y;
+  touch-action: manipulation;
   scroll-behavior: smooth;
   overscroll-behavior-x: contain;
+  scroll-snap-type: none;
+}
+
+/* Fix for mobile scroll containers */
+.mobile-scroll-fix {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y pinch-zoom;
+  overscroll-behavior: contain;
+}
+
+/* Unrestricted touch for scrollable areas */
+.touch-pan-all {
+  touch-action: auto;
 }
 
 /* Thin scrollbar for subtle horizontal scroll indicators */
