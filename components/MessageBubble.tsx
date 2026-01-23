@@ -100,7 +100,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
     const body = dataRows.slice(1).map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
 
     return (
-      <div key={key} className="w-full overflow-x-auto my-4 rounded-lg border border-audio-border shadow-md bg-[#080808] -mx-2 px-2 scroll-x-touch" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}>
+      <div key={key} className="w-full max-w-full overflow-x-auto my-4 rounded-lg border border-audio-border shadow-md bg-[#080808] -mx-2 px-2 scroll-x-touch" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}>
         <table className="prose-table w-full min-w-[700px]">
           <thead>
             <tr>
@@ -150,7 +150,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
   return (
     <div className={`flex w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col ${isUser
+        className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 ${isUser
           ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%]'
           : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm'
           }`}
