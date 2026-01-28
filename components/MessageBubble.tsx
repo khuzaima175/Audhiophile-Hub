@@ -78,7 +78,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
         }
 
         nodes.push(
-          <div key={`${blockIdx}-line-${i}`} className="min-h-[1.5rem] mb-1">
+          <div key={`${blockIdx}-line-${i}`} className="min-h-[1.5rem] mb-1 break-words overflow-hidden">
             {formatInlineMarkdown(line)}
           </div>
         );
@@ -89,7 +89,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
         nodes.push(renderTable(tableRows, `${blockIdx}-table-end`));
       }
 
-      return <div key={blockIdx}>{nodes}</div>;
+      return <div key={blockIdx} className="w-full max-w-full overflow-hidden">{nodes}</div>;
     });
   };
 
@@ -180,11 +180,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
 
   return (
     <>
-      <div className={`flex w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex w-full max-w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
         <div
           className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 overflow-hidden ${isUser
             ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%]'
-            : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm'
+            : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm max-w-full'
             }`}
         >
           {/* Attachments */}
@@ -200,7 +200,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
             </div>
           )}
 
-          <div className="leading-relaxed text-[15px] font-light tracking-wide">
+          <div className="leading-relaxed text-[15px] font-light tracking-wide break-words overflow-hidden w-full min-w-0">
             {renderContent(message.text || (message.audio && !message.text ? "*Voice Message Sent*" : ""))}
           </div>
 
