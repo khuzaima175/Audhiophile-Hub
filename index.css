@@ -27,29 +27,28 @@ body {
   background: #D4AF37;
 }
 
-/* Markdown Table Styling */
+/* Markdown Table Styling - Scrollable on mobile */
 .prose-table {
-  width: 100%;
-  min-width: 600px;
-  /* Force scroll on small screens */
   border-collapse: collapse;
-  margin: 1rem 0;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .prose-table th {
-  background-color: #1E1E1E;
+  background-color: #1A1A1A;
   color: #D4AF37;
   font-weight: 600;
   text-align: left;
-  padding: 0.75rem;
-  border-bottom: 1px solid #D4AF37;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid #D4AF37;
+  position: sticky;
+  top: 0;
 }
 
 .prose-table td {
-  padding: 0.75rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid #2A2A2A;
   color: #CCCCCC;
+  vertical-align: top;
 }
 
 .prose-table tr:last-child td {
@@ -57,7 +56,17 @@ body {
 }
 
 .prose-table tr:hover td {
-  background-color: #1A1A1A;
+  background-color: #151515;
+}
+
+/* First column sticky for better table navigation */
+.prose-table th:first-child,
+.prose-table td:first-child {
+  position: sticky;
+  left: 0;
+  background-color: #0A0A0A;
+  z-index: 1;
+  border-right: 1px solid #2A2A2A;
 }
 
 /* Mobile scroll utilities */
