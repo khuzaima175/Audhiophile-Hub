@@ -1,0 +1,8 @@
+{
+  "name": "AudioSage - Audiophile Research Assistant",
+  "description": "A specialized AI research tool for audiophiles using Gemini 3 Flash. Features Google Search grounding for accuracy, persistent chat history, and a personalized sound profile system to remember your tuning preferences.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
