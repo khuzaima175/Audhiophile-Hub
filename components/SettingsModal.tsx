@@ -923,7 +923,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
       {/* Battle Mode Comparison Modal */}
       {showComparison && (
-<<<<<<< HEAD
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-lg p-4 animate-in fade-in duration-200"
           style={{ touchAction: 'none' }}
@@ -934,12 +933,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             {/* Header */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-audio-border bg-gradient-to-r from-red-900/20 to-transparent flex-shrink-0">
-=======
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-lg p-4 animate-in fade-in duration-200">
-          <div className="bg-[#0A0A0A] w-full max-w-4xl rounded-2xl border border-audio-accent/30 shadow-2xl shadow-audio-accent/10 overflow-hidden animate-in zoom-in-95">
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-audio-border bg-gradient-to-r from-red-900/20 to-transparent">
->>>>>>> d39309b656e737220848729d1724a6c43fea4e68
               <div className="flex items-center gap-3">
                 <SwordsIcon />
                 <h2 className="text-lg font-bold text-white">Battle Mode Comparison</h2>
@@ -953,11 +946,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             {/* AI Analysis Content */}
-<<<<<<< HEAD
             <div className="flex-1 overflow-y-auto overflow-x-auto p-6" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
-=======
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
->>>>>>> d39309b656e737220848729d1724a6c43fea4e68
               {/* Fighter Cards Header */}
               <div className="flex gap-4 mb-6">
                 {selectedForBattle.map((id, idx) => {
@@ -1002,22 +991,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       // Horizontal rules
                       if (line.trim() === '---') return <hr key={i} className="border-audio-border my-4" />;
 
-<<<<<<< HEAD
                       // Table rows - render as styled scrollable table
-=======
-                      // Table rows - render as styled table
->>>>>>> d39309b656e737220848729d1724a6c43fea4e68
                       if (line.startsWith('|') && line.endsWith('|')) {
                         const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
                         const isHeader = line.includes('---');
                         if (isHeader) return null; // Skip separator rows
                         const isHeaderRow = i > 0 && !battleAnalysis.split('\n')[i - 1]?.includes('|'); // First row after non-table
                         return (
-<<<<<<< HEAD
                           <div key={i} className={`grid gap-2 py-2 px-2 text-xs border-b border-audio-border/30 min-w-max ${isHeaderRow ? 'bg-audio-surface font-bold text-white' : 'text-gray-300'}`} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(100px, 1fr))` }}>
-=======
-                          <div key={i} className={`grid gap-2 py-2 px-2 text-xs border-b border-audio-border/30 ${isHeaderRow ? 'bg-audio-surface font-bold text-white' : 'text-gray-300'}`} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
->>>>>>> d39309b656e737220848729d1724a6c43fea4e68
                             {cells.map((cell, ci) => (
                               <div key={ci} className={`${ci === 0 ? 'text-left' : 'text-center'} ${cell.includes('🏅') ? 'text-audio-accent font-bold' : ''}`}>
                                 {cell.replace(/\*\*/g, '')}
@@ -1054,11 +1035,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             {/* Footer */}
-<<<<<<< HEAD
             <div className="px-6 py-4 border-t border-audio-border bg-[#050505] flex justify-end flex-shrink-0">
-=======
-            <div className="px-6 py-4 border-t border-audio-border bg-[#050505] flex justify-end">
->>>>>>> d39309b656e737220848729d1724a6c43fea4e68
               <button
                 onClick={() => setShowComparison(false)}
                 className="px-6 py-2 rounded-lg text-sm font-bold bg-audio-accent text-black hover:bg-[#E5C150] transition-colors"
