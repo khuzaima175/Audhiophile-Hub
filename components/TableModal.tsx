@@ -12,6 +12,7 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
   if (!isOpen) return null;
 
   return (
+<<<<<<< HEAD
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-8 animate-in fade-in duration-200"
       style={{ touchAction: 'none' }}
@@ -22,6 +23,12 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
         role="dialog"
         onClick={(e) => e.stopPropagation()}
         style={{ touchAction: 'auto' }}
+=======
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-8 animate-in fade-in duration-200">
+      <div 
+        className="bg-[#0A0A0A] w-full max-w-6xl rounded-2xl border border-audio-border shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+        role="dialog"
+>>>>>>> d39309b656e737220848729d1724a6c43fea4e68
       >
         {/* Header */}
         <div className="flex justify-between items-center px-4 py-3 border-b border-audio-border bg-[#050505] rounded-t-2xl">
@@ -29,7 +36,11 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
             <MaximizeIcon />
             <span className="font-bold text-sm uppercase tracking-wide">{title}</span>
           </div>
+<<<<<<< HEAD
           <button
+=======
+          <button 
+>>>>>>> d39309b656e737220848729d1724a6c43fea4e68
             onClick={onClose}
             className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
           >
@@ -38,6 +49,7 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
         </div>
 
         {/* Content - Scrollable Area */}
+<<<<<<< HEAD
         <div
           className="flex-1 table-scroll-container !overflow-auto p-4 md:p-6 custom-scrollbar bg-[#080808]"
         >
@@ -46,6 +58,17 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
           </div>
         </div>
 
+=======
+        <div 
+          className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar bg-[#080808]"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="min-w-max">
+             {children}
+          </div>
+        </div>
+        
+>>>>>>> d39309b656e737220848729d1724a6c43fea4e68
         {/* Mobile Hint Footer */}
         <div className="md:hidden py-2 px-4 bg-[#050505] border-t border-audio-border text-center rounded-b-2xl">
           <p className="text-[10px] text-gray-500">Swipe → to view more columns</p>
@@ -56,4 +79,7 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
 };
 
 export default TableModal;
+<<<<<<< HEAD
 
+=======
+>>>>>>> d39309b656e737220848729d1724a6c43fea4e68
