@@ -12,16 +12,10 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-8 animate-in fade-in duration-200"
-      style={{ touchAction: 'none' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-8 animate-in fade-in duration-200">
       <div
         className="bg-[#0A0A0A] w-full max-w-6xl rounded-2xl border border-audio-border shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
         role="dialog"
-        onClick={(e) => e.stopPropagation()}
-        style={{ touchAction: 'auto' }}
       >
         {/* Header */}
         <div className="flex justify-between items-center px-4 py-3 border-b border-audio-border bg-[#050505] rounded-t-2xl">
@@ -39,7 +33,8 @@ const TableModal: React.FC<TableModalProps> = ({ isOpen, onClose, title = "Compa
 
         {/* Content - Scrollable Area */}
         <div
-          className="flex-1 table-scroll-container !overflow-auto p-4 md:p-6 custom-scrollbar bg-[#080808]"
+          className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar bg-[#080808]"
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="min-w-max">
             {children}

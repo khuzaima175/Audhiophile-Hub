@@ -2,12 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Prevent horizontal overflow on mobile - use clip instead of hidden
-   so nested scroll containers still work for tables */
+/* Prevent horizontal overflow on mobile */
 html,
 body {
   max-width: 100vw;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 body {
@@ -67,27 +66,14 @@ body {
   background-color: #151515;
 }
 
-/* First column sticky - only on screens wide enough for it to be useful */
-@media (min-width: 768px) {
-
-  .prose-table th:first-child,
-  .prose-table td:first-child {
-    position: sticky;
-    left: 0;
-    background-color: #0A0A0A;
-    z-index: 1;
-    border-right: 1px solid #2A2A2A;
-  }
-}
-
-/* Proper isolated horizontal scroll container for tables on mobile */
-.table-scroll-container {
-  -webkit-overflow-scrolling: touch;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scroll-behavior: smooth;
-  scrollbar-width: thin;
+/* First column sticky for better table navigation */
+.prose-table th:first-child,
+.prose-table td:first-child {
+  position: sticky;
+  left: 0;
+  background-color: #0A0A0A;
+  z-index: 1;
+  border-right: 1px solid #2A2A2A;
 }
 
 /* Mobile scroll utilities */

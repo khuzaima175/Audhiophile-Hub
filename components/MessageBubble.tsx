@@ -89,7 +89,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
         nodes.push(renderTable(tableRows, `${blockIdx}-table-end`));
       }
 
-      return <div key={blockIdx} className="w-full max-w-full">{nodes}</div>;
+      return <div key={blockIdx} className="w-full max-w-full overflow-hidden">{nodes}</div>;
     });
   };
 
@@ -102,7 +102,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
     const body = dataRows.slice(1).map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
 
     const tableContent = (
-      <table className="prose-table min-w-max">
+      <table className="prose-table w-max">
         <thead>
           <tr>
             {header.map((h, i) => <th key={i} className="whitespace-nowrap">{h}</th>)}
@@ -130,13 +130,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
         </div>
 
         <div
-          className="w-full table-scroll-container rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
-          onTouchStart={(e) => {
-            // Let horizontal scroll work without being captured by parent
-            const el = e.currentTarget;
-            if (el.scrollWidth > el.clientWidth) {
-              e.stopPropagation();
-            }
+          className="w-full overflow-x-auto overscroll-x-contain rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x',
+            scrollbarWidth: 'thin'
           }}
         >
           {tableContent}
@@ -184,9 +182,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
     <>
       <div className={`flex w-full max-w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
         <div
-          className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 ${isUser
-            ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%] overflow-hidden'
-            : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm max-w-full overflow-x-visible overflow-y-hidden'
+          className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 overflow-hidden ${isUser
+            ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%]'
+            : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm max-w-full'
             }`}
         >
           {/* Attachments */}
@@ -202,7 +200,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
             </div>
           )}
 
-          <div className="leading-relaxed text-[15px] font-light tracking-wide break-words w-full min-w-0">
+          <div className="leading-relaxed text-[15px] font-light tracking-wide break-words overflow-hidden w-full min-w-0">
             {renderContent(message.text || (message.audio && !message.text ? "*Voice Message Sent*" : ""))}
           </div>
 
