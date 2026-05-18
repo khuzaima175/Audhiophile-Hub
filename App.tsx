@@ -30,10 +30,11 @@ const App: React.FC = () => {
   const [activeModel, setActiveModel] = useState<string>('gemini-3-flash-preview');
 
   const formatModelName = (modelName: string): string => {
-    if (modelName.includes('gemini-3-flash')) return 'GEMINI-3.0-FLASH';
-    if (modelName.includes('gemini-2.5-flash')) return 'GEMINI-2.5-FLASH';
-    if (modelName.includes('thinking')) return 'GEMINI-2.0-THINKING';
-    if (modelName.includes('gemini-2.0-flash')) return 'GEMINI-2.0-FLASH';
+    if (modelName.includes('gemini-3-flash-preview')) return 'GEMINI-3 FLASH';
+    if (modelName.includes('gemini-3-flash')) return 'GEMINI-3 FLASH';
+    if (modelName.includes('gemini-2.5-flash')) return 'GEMINI-2.5 FLASH';
+    if (modelName.includes('gemini-2.0-flash-lite')) return 'GEMINI-2.0 FLASH LITE';
+    if (modelName.includes('gemini-2.0-flash')) return 'GEMINI-2.0 FLASH';
     return modelName.toUpperCase();
   };
 
@@ -61,7 +62,8 @@ const App: React.FC = () => {
       if (parsed.savedMemories.length === 0 && parsed.name === "Audiophile") {
         setProfile(DEFAULT_PROFILE);
       } else {
-        setProfile(parsed);
+        // Merge with DEFAULT_PROFILE to backfill any missing fields (e.g. technicalPrefs added in newer versions)
+        setProfile({ ...DEFAULT_PROFILE, ...parsed });
       }
     } else {
       setProfile(DEFAULT_PROFILE);
@@ -659,7 +661,7 @@ const App: React.FC = () => {
           <div className="text-center mt-3 flex justify-center items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-audio-accent opacity-50"></div>
             <p className="text-[10px] text-gray-600 font-mono">
-              GROUNDED WITH GOOGLE SEARCH • MULTIMODAL • MAPS
+              GROUNDED WITH GOOGLE SEARCH • MULTIMODAL • RAG
             </p>
             <div className="w-1.5 h-1.5 rounded-full bg-audio-accent opacity-50"></div>
           </div>

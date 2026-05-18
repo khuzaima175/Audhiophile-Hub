@@ -26,7 +26,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: #2a2a2a;
   border-radius: 3px;
 }
 
@@ -34,49 +34,93 @@ body {
   background: #D4AF37;
 }
 
-/* Markdown Table Styling - Scrollable on mobile */
+/* ================================================
+   COMPARISON TABLE — Polished Design
+   ================================================ */
 .prose-table {
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  width: max-content;
+  min-width: 100%;
 }
 
+/* Header cells */
 .prose-table th {
-  background-color: #1A1A1A;
+  background-color: #111111;
   color: #D4AF37;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   text-align: left;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 1rem;
   border-bottom: 2px solid #D4AF37;
-  position: sticky;
-  top: 0;
+  white-space: nowrap;
 }
 
+/* Data cells */
 .prose-table td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #2A2A2A;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid #1e1e1e;
   color: #CCCCCC;
   vertical-align: top;
+  min-width: 120px;
+  white-space: normal;
+  word-break: break-word;
 }
 
+/* Last row — no bottom border */
 .prose-table tr:last-child td {
   border-bottom: none;
 }
 
-.prose-table tr:hover td {
-  background-color: #151515;
+/* Row alternating backgrounds */
+.prose-table tbody tr:nth-child(even) td {
+  background-color: #0d0d0d;
 }
 
-/* First column sticky for better table navigation */
+/* Row hover — entire row highlights together */
+.prose-table tbody tr:hover td {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+/* ── Sticky first column (Feature labels) ── */
 .prose-table th:first-child,
 .prose-table td:first-child {
   position: sticky;
   left: 0;
   background-color: #0A0A0A;
-  z-index: 1;
+  z-index: 2;
   border-right: 1px solid #2A2A2A;
+  color: #aaaaaa;
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
-/* Mobile scroll utilities */
+/* Header first child */
+.prose-table th:first-child {
+  background-color: #111111;
+  color: #D4AF37;
+  z-index: 3;
+}
+
+/* Sticky first column matches even-row bg */
+.prose-table tbody tr:nth-child(even) td:first-child {
+  background-color: #0d0d0d;
+}
+
+/* Sticky first column matches hover bg — fixes the "detached" look */
+.prose-table tbody tr:hover td:first-child {
+  background-color: #1a1a1a;
+  color: #cccccc;
+}
+
+/* ================================================
+   SCROLLBAR UTILITIES
+   ================================================ */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -130,6 +174,24 @@ body {
   height: 4px;
 }
 
+/* Custom scrollbar for sidebar sessions list */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e1e1e;
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
+}
+
 /* Mobile viewport height fix */
 @supports (height: 100dvh) {
   .h-screen-mobile {
@@ -139,4 +201,24 @@ body {
   .max-h-modal-mobile {
     max-height: 85dvh;
   }
+}
+
+/* ================================================
+   THINKING PULSE ANIMATION
+   ================================================ */
+@keyframes thinking-pulse {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.thinking-dot {
+  animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.4s;
 }

@@ -60,6 +60,7 @@ export interface AudioProfile {
   preferredGenres: string;
   currentGear: string;
   notes: string;
+  technicalPrefs: string; // Soundstage, imaging, separation details
   savedMemories: string[];
   eqLibrary: EQPreset[];
   gearLibrary: GearItem[]; // Favorites/wishlist tracking
@@ -71,6 +72,7 @@ export const DEFAULT_PROFILE: AudioProfile = {
   preferredGenres: "Pop, Vocal-focused, Electronic, Chill/Vibe, OSTs. Likes 'Deep thinking' music.",
   currentGear: "CCA Phoenix (Main), SoundPEATS Capsule 3 Pro+ (Commute), JCally JM6 Pro (DAC)",
   notes: "Prioritizes immersive soundstage (Dolby Atmos feel) for movies and gaming. Loves musicality. Uses two EQ presets on Phoenix - one for chill, one for vocals. Incoming: JCally JM6 Pro DAC.",
+  technicalPrefs: "Prioritizes: Wide holographic soundstage, precise 3D imaging, natural decay (avoids xMEMS). Sensitive to 8kHz sibilance and mid-bass bloat. Prefers wide-bore silicone tips for maximum soundstage.",
   savedMemories: [
     "TARGET CURVE: Crinacle IEF Preference 2025 (B&K 5128).",
     "SENSITIVITY: 8kHz peaks cause sibilance.",

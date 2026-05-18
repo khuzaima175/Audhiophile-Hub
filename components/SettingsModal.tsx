@@ -356,10 +356,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label className="text-xs font-bold text-audio-accent uppercase tracking-widest pl-1">Technical Preferences</label>
                   <textarea
                     name="technicalPrefs"
-                    value={formData.technicalPrefs}
+                    value={formData.technicalPrefs || ''}
                     onChange={handleChange}
                     className="w-full bg-audio-surface border border-audio-border rounded-xl px-5 py-4 text-white focus:outline-none focus:border-audio-accent/50 focus:ring-1 focus:ring-audio-accent/50 transition-all min-h-[120px] placeholder-gray-700 leading-relaxed"
-                    placeholder="Details about soundstage, imaging, separation, etc..."
+                    placeholder="Details about soundstage, imaging, separation, sensitivity rules..."
                   />
                 </div>
               </div>

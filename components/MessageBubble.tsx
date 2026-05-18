@@ -201,7 +201,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
           )}
 
           <div className="leading-relaxed text-[15px] font-light tracking-wide break-words overflow-hidden w-full min-w-0">
-            {renderContent(message.text || (message.audio && !message.text ? "*Voice Message Sent*" : ""))}
+            {message.isThinking ? (
+              <div className="flex items-center gap-1.5 py-1">
+                <span className="text-xs text-gray-500 mr-1">Thinking</span>
+                <span className="thinking-dot w-1.5 h-1.5 rounded-full bg-audio-accent inline-block"></span>
+                <span className="thinking-dot w-1.5 h-1.5 rounded-full bg-audio-accent inline-block"></span>
+                <span className="thinking-dot w-1.5 h-1.5 rounded-full bg-audio-accent inline-block"></span>
+              </div>
+            ) : (
+              renderContent(message.text || (message.audio && !message.text ? "*Voice Message Sent*" : ""))
+            )}
           </div>
 
           {/* Action Bar for AI Messages */}

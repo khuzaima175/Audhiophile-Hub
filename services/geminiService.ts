@@ -2,9 +2,9 @@ import { GoogleGenAI, Content, Part, Tool } from "@google/genai";
 import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from "../types";
 import { v4 as uuidv4 } from 'uuid';
 
-// Model fallback configuration
+// Model fallback configuration — gemini-3-flash-preview is the correct API identifier
 const MODELS = [
-  'gemini-3-flash',
+  'gemini-3-flash-preview',
   'gemini-2.5-flash',
   'gemini-2.0-flash'
 ] as const;
@@ -604,10 +604,10 @@ Based on the user's profile:
 
   try {
     if (onActiveModel) {
-      onActiveModel('gemini-3-flash');
+      onActiveModel('gemini-3-flash-preview');
     }
     const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: config,
     });
