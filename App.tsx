@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MessageBubble from './components/MessageBubble';
 import SettingsModal from './components/SettingsModal';
-import { SendIcon, SettingsIcon, PaperclipIcon, BrainIcon, XIcon, MicIcon, StopIcon, EqIcon, ActivityIcon, MenuIcon } from './components/Icon';
+import { SendIcon, SettingsIcon, PaperclipIcon, XIcon, MicIcon, StopIcon, EqIcon, ActivityIcon, MenuIcon } from './components/Icon';
 import { ChatSession, Message, AudioProfile, DEFAULT_PROFILE, GroundingSource, KnowledgeEntry } from './types';
 import { generateStreamResponse, generateSessionSummary } from './services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,11 +23,19 @@ const App: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // New State for Features
-  const [isDeepThinking, setIsDeepThinking] = useState(false);
   const [isAdvancedAnalysis, setIsAdvancedAnalysis] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | undefined>(undefined);
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [activeModel, setActiveModel] = useState<string>('gemini-3-flash-preview');
+
+  const formatModelName = (modelName: string): string => {
+    if (modelName.includes('gemini-3-flash')) return 'GEMINI-3.0-FLASH';
+    if (modelName.includes('gemini-2.5-flash')) return 'GEMINI-2.5-FLASH';
+    if (modelName.includes('thinking')) return 'GEMINI-2.0-THINKING';
+    if (modelName.includes('gemini-2.0-flash')) return 'GEMINI-2.0-FLASH';
+    return modelName.toUpperCase();
+  };
 
   // Audio Recording State
   const [isRecording, setIsRecording] = useState(false);
@@ -304,7 +312,6 @@ const App: React.FC = () => {
 
     // Reset Input State
     const imageToSend = attachedImage;
-    const thinkingMode = isDeepThinking;
     const advancedMode = isAdvancedAnalysis;
 
     setInput('');
@@ -343,7 +350,6 @@ const App: React.FC = () => {
         profile,
         sessions,
         knowledgeBase, // Pass Knowledge Base
-        thinkingMode,
         advancedMode,
         userLocation,
         (chunk) => {
@@ -360,6 +366,9 @@ const App: React.FC = () => {
         },
         (sources) => {
           collectedSources.push(...sources);
+        },
+        (model) => {
+          setActiveModel(model);
         }
       );
 
@@ -385,7 +394,7 @@ const App: React.FC = () => {
           const updatedMessages = s.messages.map(m =>
             m.id === botMessageId ? {
               ...m,
-              text: `**Connection Error**: ${errorMessage}\n\nPlease check your API Key and ensure it is valid for Gemini 3 Flash.`,
+              text: `**Connection Error**: ${errorMessage}\n\nPlease check your API Key and ensure it is valid for Gemini models.`,
               isThinking: false
             } : m
           );
@@ -457,7 +466,7 @@ const App: React.FC = () => {
             <span className="font-bold text-white tracking-tight">AudioSage</span>
           </div>
           <div className="hidden md:block text-xs text-audio-muted font-mono tracking-wide">
-            MODEL: GEMINI-3-FLASH // STATUS: <span className="text-green-500">ONLINE</span>
+            MODEL: <span className="text-audio-accent">{formatModelName(activeModel)}</span> // STATUS: <span className="text-green-500">ONLINE</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -563,19 +572,6 @@ const App: React.FC = () => {
                 />
 
                 <button
-                  onClick={() => setIsDeepThinking(!isDeepThinking)}
-                  title="Enable deeper analysis with extended thinking time for complex questions"
-                  className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isDeepThinking
-                    ? 'bg-purple-900/30 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
-                    : 'bg-audio-surface border-audio-border text-gray-400 hover:text-white'
-                    }`}
-                >
-                  <BrainIcon />
-                  <span className="hidden sm:inline">Deep Research</span>
-                  {isDeepThinking && <span className="flex h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse ml-1" />}
-                </button>
-
-                <button
                   onClick={() => setIsAdvancedAnalysis(!isAdvancedAnalysis)}
                   title="Use technical terminology and measurement data (THD, Impulse Response, SINAD)"
                   className={`p-2 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-medium whitespace-nowrap flex-shrink-0 ${isAdvancedAnalysis
@@ -623,16 +619,14 @@ const App: React.FC = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder={isRecording ? "Listening..." : (isAdvancedAnalysis ? "Ask about THD, Impulse Response, or measurements..." : (isDeepThinking ? "Ask a complex question..." : "Ask about soundstage, imaging..."))}
+                placeholder={isRecording ? "Listening..." : (isAdvancedAnalysis ? "Ask about THD, Impulse Response, or measurements..." : "Ask about soundstage, imaging...")}
                 disabled={isGenerating || isRecording}
-                className={`w-full bg-[#0A0A0A] text-white placeholder-gray-600 border rounded-xl py-4 pl-6 pr-24 focus:outline-none transition-all shadow-lg relative z-10 ${isDeepThinking
-                  ? 'border-purple-500/50 focus:border-purple-500 focus:ring-purple-500/20'
-                  : isAdvancedAnalysis
-                    ? 'border-cyan-500/50 focus:border-cyan-500 focus:ring-cyan-500/20'
-                    : isRecording
-                      ? 'border-red-500/50 ring-1 ring-red-500/20'
-                      : 'border-audio-border focus:border-audio-accent focus:ring-audio-accent/50 focus:ring-1'
-                  }`}
+                className={`w-full bg-[#0A0A0A] text-white placeholder-gray-600 border rounded-xl py-4 pl-6 pr-24 focus:outline-none transition-all shadow-lg relative z-10 ${isAdvancedAnalysis
+                  ? 'border-cyan-500/50 focus:border-cyan-500 focus:ring-cyan-500/20'
+                  : isRecording
+                    ? 'border-red-500/50 ring-1 ring-red-500/20'
+                    : 'border-audio-border focus:border-audio-accent focus:ring-audio-accent/50 focus:ring-1'
+                }`}
               />
 
               <div className="absolute right-2 top-2 flex items-center gap-1 z-20">

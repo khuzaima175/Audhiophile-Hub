@@ -4,8 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Model fallback configuration
 const MODELS = [
-  'gemini-3-flash-preview',
-  'gemini-2.0-flash-thinking-exp',
+  'gemini-3-flash',
   'gemini-2.5-flash',
   'gemini-2.0-flash'
 ] as const;
@@ -253,11 +252,11 @@ export const generateStreamResponse = async (
   profile: AudioProfile,
   allSessions: ChatSession[],
   knowledgeBase: KnowledgeEntry[],
-  isDeepThinking: boolean,
   isAdvancedAnalysis: boolean,
   userLocation: { lat: number; lng: number } | null,
   onChunk: (text: string) => void,
-  onSources: (sources: GroundingSource[]) => void
+  onSources: (sources: GroundingSource[]) => void,
+  onActiveModel?: (model: string) => void
 ): Promise<string> => {
   const ai = createClient();
 
@@ -418,7 +417,6 @@ export const generateStreamResponse = async (
     systemInstruction: string;
     tools: Tool[];
     temperature: number;
-    thinkingConfig?: { thinkingBudget: number };
     maxOutputTokens?: number;
   }
 
@@ -430,11 +428,6 @@ export const generateStreamResponse = async (
 
   // Prioritize models based on mode
   let modelCandidates = [...MODELS];
-  if (isDeepThinking) {
-    // If deep thinking is requested, prioritize the thinking model
-    const thinkingModel = 'gemini-2.0-flash-thinking-exp';
-    modelCandidates = [thinkingModel, ...MODELS.filter(m => m !== thinkingModel)];
-  }
 
   // Try models in order until one succeeds
   let lastError: Error | null = null;
@@ -443,14 +436,10 @@ export const generateStreamResponse = async (
     const currentModel = modelCandidates[modelIndex];
     const currentConfig = { ...baseConfig };
 
-    // Apply thinking config ONLY if the model supports it (heuristic: name contains 'thinking')
-    // and deep thinking was requested.
-    if (isDeepThinking && currentModel.includes('thinking')) {
-      currentConfig.thinkingConfig = { thinkingBudget: 2048 };
-      currentConfig.maxOutputTokens = 8192;
-    }
-
     try {
+      if (onActiveModel) {
+        onActiveModel(currentModel);
+      }
       const responseStream = await ai.models.generateContentStream({
         model: currentModel,
         contents: contents,
@@ -526,7 +515,8 @@ export const generateStreamResponse = async (
 export const generateBattleComparison = async (
   selectedGear: { name: string; type: string; status: string; rating?: number; notes?: string; price?: string }[],
   profile: AudioProfile,
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  onActiveModel?: (model: string) => void
 ): Promise<string> => {
   const ai = createClient();
 
@@ -613,8 +603,11 @@ Based on the user's profile:
   };
 
   try {
+    if (onActiveModel) {
+      onActiveModel('gemini-3-flash');
+    }
     const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-flash',
       contents: prompt,
       config: config,
     });
@@ -632,6 +625,9 @@ Based on the user's profile:
   } catch (error: any) {
     console.error("Battle comparison failed with primary model, trying fallback:", error);
     try {
+      if (onActiveModel) {
+        onActiveModel('gemini-2.5-flash');
+      }
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
