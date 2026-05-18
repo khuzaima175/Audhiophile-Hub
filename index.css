@@ -35,8 +35,22 @@ body {
 }
 
 /* ================================================
-   COMPARISON TABLE — Polished Design
+   LAYOUT CONTAINMENT — prevents table overflow breaking layout
    ================================================ */
+
+/* Every direct child of the messages scroll container must stay within bounds */
+.messages-container > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Ensure flex children never escape their allocated width */
+.flex-col-contained {
+  min-width: 0;
+  overflow: hidden;
+}
+
+
 .prose-table {
   border-collapse: collapse;
   font-size: 0.8125rem;

@@ -89,7 +89,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
         nodes.push(renderTable(tableRows, `${blockIdx}-table-end`));
       }
 
-      return <div key={blockIdx} className="w-full max-w-full overflow-hidden">{nodes}</div>;
+      return <div key={blockIdx} className="w-full min-w-0">{nodes}</div>;
     });
   };
 

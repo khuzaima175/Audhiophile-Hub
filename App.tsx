@@ -474,7 +474,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className="flex-1 flex flex-col h-full relative min-w-0 overflow-hidden">
         {/* Header */}
         <header className="h-16 border-b border-audio-border flex items-center justify-between px-4 md:px-8 bg-audio-base/90 backdrop-blur z-10">
           <div className="flex items-center gap-3 md:hidden">
@@ -505,8 +505,8 @@ const App: React.FC = () => {
         <div
           ref={scrollContainerRef}
           onScroll={handleMessagesScroll}
-          className="flex-1 overflow-y-auto overflow-x-clip p-4 md:p-8 space-y-2 scroll-smooth bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]"
-          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+          className="messages-container flex-1 overflow-y-auto p-4 md:p-8 space-y-2 scroll-smooth bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505] w-full min-w-0"
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', contain: 'inline-size' }}
         >
           {activeMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-2xl mx-auto animate-in fade-in duration-500">
@@ -573,8 +573,8 @@ const App: React.FC = () => {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 md:p-6 bg-audio-base border-t border-audio-border safe-area-bottom">
-          <div className="max-w-7xl mx-auto relative group">
+        <div className="p-4 md:p-6 bg-audio-base border-t border-audio-border safe-area-bottom w-full min-w-0 overflow-hidden">
+          <div className="max-w-4xl mx-auto relative group w-full">
 
             {/* Toolbar */}
             <div className="mb-3 pl-1 -mx-1 px-1 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-x-touch mobile-scroll-fix" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
