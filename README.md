@@ -28,9 +28,6 @@ Whether you're looking for your next pair of IEMs or trying to tune your current
 * **🧠 Personalized RAG Knowledge Base**: Remembers your sound preferences, technical preferences, sensitive frequencies (e.g., 8kHz sibilance), and gear history to provide increasingly tailored advice.
 * **🎙️ Voice & Image Support**: Interact via voice commands or upload measurements directly for immediate visual parsing.
 * **🔬 Advanced Engineering Mode**: Toggle technical depth for detailed discussions on Group Delay, Impulse Response, and driver technology.
-* **📜 Smart Proximity Streaming Scroll**: Intelligently tracks user scroll position. If you scroll up to read earlier responses, auto-scrolling suspends. If you are near the bottom of the chat, auto-scroll gracefully handles incoming streamed text chunks.
-* **✨ Premium Dark-Gold Styling**: Styled with curated HSL color palettes and a customized scrollbar theme (`#D4AF37`) matching the dark luxury aesthetic.
-
 ---
 
 ## 🛠️ Tech Stack
