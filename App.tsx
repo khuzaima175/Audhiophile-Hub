@@ -44,7 +44,8 @@ const App: React.FC = () => {
   const audioChunks = useRef<Blob[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef(false);
 
   // Load data on mount
   useEffect(() => {
@@ -91,13 +92,31 @@ const App: React.FC = () => {
   }, [knowledgeBase]);
 
   // Scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (force = false) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    // Only auto-scroll if user is within 150px of bottom, or if forced (new session)
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (force || distanceFromBottom < 150) {
+      container.scrollTop = container.scrollHeight;
+    }
+  };
+
+  const handleMessagesScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    userScrolledUpRef.current = distanceFromBottom > 150;
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [sessions, currentSessionId, isGenerating]);
+  }, [sessions, currentSessionId]);
+
+  // Force scroll to bottom only when a new session is selected
+  useEffect(() => {
+    scrollToBottom(true);
+  }, [currentSessionId]);
 
   // Knowledge Base Actions
   const handleSummarizeHistory = async () => {
@@ -420,7 +439,7 @@ const App: React.FC = () => {
   const activeMessages = sessions.find(s => s.id === currentSessionId)?.messages || [];
 
   return (
-    <div className="flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-x-hidden overflow-y-hidden selection:bg-audio-accent selection:text-black touch-pan-all">
+    <div className="flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar
@@ -483,7 +502,12 @@ const App: React.FC = () => {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 space-y-2 scroll-smooth scroll-touch mobile-scroll-fix bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}>
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleMessagesScroll}
+          className="flex-1 overflow-y-auto overflow-x-clip p-4 md:p-8 space-y-2 scroll-smooth bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]"
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+        >
           {activeMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-2xl mx-auto animate-in fade-in duration-500">
               <div className="w-20 h-20 bg-gradient-to-br from-audio-surface to-black rounded-2xl border border-audio-border flex items-center justify-center text-audio-accent shadow-2xl mb-2">
@@ -546,7 +570,6 @@ const App: React.FC = () => {
               />
             ))
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}

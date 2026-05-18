@@ -130,11 +130,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
         </div>
 
         <div
-          className="w-full overflow-x-auto overscroll-x-contain rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
+          className="w-full overflow-x-auto rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
           style={{
             WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-x',
-            scrollbarWidth: 'thin'
+            overscrollBehavior: 'contain auto',
+            scrollbarWidth: 'thin',
+            maxWidth: '100%'
           }}
         >
           {tableContent}
@@ -182,9 +183,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
     <>
       <div className={`flex w-full max-w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
         <div
-          className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 overflow-hidden ${isUser
-            ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%]'
-            : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm max-w-full'
+          className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 ${isUser
+            ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%] overflow-hidden'
+            : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm max-w-full overflow-visible'
             }`}
         >
           {/* Attachments */}
@@ -200,7 +201,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
             </div>
           )}
 
-          <div className="leading-relaxed text-[15px] font-light tracking-wide break-words overflow-hidden w-full min-w-0">
+          <div className="leading-relaxed text-[15px] font-light tracking-wide break-words w-full min-w-0">
             {message.isThinking ? (
               <div className="flex items-center gap-1.5 py-1">
                 <span className="text-xs text-gray-500 mr-1">Thinking</span>
