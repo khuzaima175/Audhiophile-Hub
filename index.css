@@ -182,10 +182,26 @@ body {
 /* Thin scrollbar for subtle horizontal scroll indicators */
 .scrollbar-thin {
   scrollbar-width: thin;
+  scrollbar-color: #2a2a2a #050505;
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-  height: 4px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #080808;
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+  border: 1px solid #1a1a1a;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
 }
 
 /* Custom scrollbar for sidebar sessions list */
