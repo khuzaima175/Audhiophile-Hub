@@ -89,32 +89,41 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
     const header = dataRows[0].split('|').filter(c => c.trim()).map(c => c.trim());
     const body = dataRows.slice(1).map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
 
+    // Column widths: first col (feature labels) is narrow/fixed; data cols get a comfortable max-width
+    const colCount = header.length;
+    const dataColStyle: React.CSSProperties = {
+      minWidth: '160px',
+      maxWidth: '280px',
+      whiteSpace: 'normal',
+      wordBreak: 'break-word',
+      verticalAlign: 'top',
+    };
+    const featureColStyle: React.CSSProperties = {
+      minWidth: '120px',
+      maxWidth: '160px',
+      whiteSpace: 'nowrap',
+      verticalAlign: 'top',
+    };
+
     return (
       <div key={key} className="my-4 w-full max-w-full">
-        {/* Scroll wrapper — no expand button, no overlay */}
         <div
           className="w-full overflow-x-auto rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
-          style={{
-            WebkitOverflowScrolling: 'touch',
-            overscrollBehavior: 'contain auto',
-            scrollbarWidth: 'thin',
-            maxWidth: '100%',
-          }}
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}
         >
-          {/* Mobile-optimised table: tighter font, tighter padding */}
-          <table className="border-collapse w-max min-w-full">
+          <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: `${colCount * 220}px`, minWidth: '100%' }}>
+            <colgroup>
+              {header.map((_, i) => (
+                <col key={i} style={{ width: i === 0 ? '150px' : `${Math.floor((100 - 15) / (colCount - 1))}%` }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 {header.map((h, i) => (
                   <th
                     key={i}
-                    className={`
-                      bg-[#111111] text-audio-accent font-bold uppercase tracking-wide text-left
-                      border-b-2 border-audio-accent whitespace-nowrap
-                      /* mobile */ px-3 py-2 text-[10px]
-                      /* desktop */ md:px-4 md:py-2.5 md:text-[11px]
-                      ${i === 0 ? 'sticky left-0 z-[3] border-r border-[#2A2A2A]' : ''}
-                    `}
+                    style={i === 0 ? { ...featureColStyle, position: 'sticky', left: 0, zIndex: 3 } : { whiteSpace: 'nowrap' }}
+                    className="bg-[#111111] text-audio-accent font-bold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3 py-2.5 text-[10px] md:px-4 md:text-[11px]"
                   >
                     {h}
                   </th>
@@ -127,17 +136,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
                   {row.map((cell, cI) => (
                     <td
                       key={cI}
-                      className={`
-                        border-b border-[#1e1e1e] text-[#CCCCCC] align-top
-                        group-hover/row:bg-[#1a1a1a] group-hover/row:text-[#e0e0e0]
-                        /* mobile */ px-3 py-2 text-[11px] leading-snug min-w-[90px]
-                        /* desktop */ md:px-4 md:py-2.5 md:text-[12.5px] md:min-w-[120px]
-                        ${rI % 2 === 1 ? 'bg-[#0d0d0d]' : ''}
-                        ${cI === 0
-                          ? 'sticky left-0 z-[2] border-r border-[#2A2A2A] bg-[#0A0A0A] text-[#aaaaaa] font-semibold text-[10px] md:text-[11px] whitespace-nowrap group-hover/row:bg-[#1a1a1a] group-hover/row:text-[#cccccc]'
-                          : 'word-break: break-word'
-                        }
-                      `}
+                      style={
+                        cI === 0
+                          ? { ...featureColStyle, position: 'sticky', left: 0, zIndex: 2 }
+                          : dataColStyle
+                      }
+                      className={[
+                        'border-b border-[#1e1e1e] px-3 py-2.5 text-[11.5px] leading-relaxed md:px-4 md:text-[13px]',
+                        rI % 2 === 1 ? 'bg-[#0d0d0d]' : '',
+                        cI === 0
+                          ? 'bg-[#0A0A0A] text-[#aaaaaa] font-semibold text-[10.5px] md:text-[12px] border-r border-[#2A2A2A] group-hover/row:bg-[#1a1a1a] group-hover/row:text-[#cccccc]'
+                          : 'text-[#CCCCCC] group-hover/row:bg-[#1a1a1a] group-hover/row:text-[#e0e0e0]',
+                      ].join(' ')}
                     >
                       {formatInlineMarkdown(cell)}
                     </td>
@@ -148,10 +158,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
           </table>
         </div>
 
-        {/* Swipe hint — mobile only, subtle */}
-        <p className="md:hidden mt-1 text-center text-[9px] text-gray-600 tracking-wide">
-          ← swipe to see more →
-        </p>
+        {/* Swipe hint — mobile only */}
+        <p className="md:hidden mt-1 text-center text-[9px] text-gray-600 tracking-wide">← swipe to see more →</p>
       </div>
     );
   };
