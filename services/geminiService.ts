@@ -2,9 +2,9 @@ import { GoogleGenAI, Content, Part, Tool } from "@google/genai";
 import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from "../types";
 import { v4 as uuidv4 } from 'uuid';
 
-// Model fallback configuration — gemini-3-flash-preview is the correct API identifier
+// Model fallback configuration — gemini-3.5-flash is the correct API identifier
 const MODELS = [
-  'gemini-3-flash-preview',
+  'gemini-3.5-flash',
   'gemini-2.5-flash',
   'gemini-2.0-flash'
 ] as const;
@@ -281,7 +281,7 @@ export const generateStreamResponse = async (
   }
 
   const systemInstruction = `
-    You are 'AudioSage', an elite Audiophile Research Assistant running on Gemini 3 Flash.
+    You are 'AudioSage', an elite Audiophile Research Assistant running on Gemini 3.5 Flash.
     
     USER PROFILE:
     - Name: ${profile.name}
@@ -483,7 +483,7 @@ export const generateStreamResponse = async (
       const errorMessage = error.message || String(error);
 
       // Fallback Logic: Try next model on ANY error (Quota, Overloaded, Intervals, or Invalid Config)
-      // This ensures if gemini-3 fails (e.g. doesn't support 'thinking' yet), we fall back to gemini-2.0-thinking
+      // This ensures if gemini-3.5 fails (e.g. doesn't support 'thinking' yet), we fall back to gemini-2.0-thinking
       if (modelIndex < modelCandidates.length - 1) {
         console.warn(`Falling back to ${modelCandidates[modelIndex + 1]}`);
         continue;
@@ -604,10 +604,10 @@ Based on the user's profile:
 
   try {
     if (onActiveModel) {
-      onActiveModel('gemini-3-flash-preview');
+      onActiveModel('gemini-3.5-flash');
     }
     const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: config,
     });

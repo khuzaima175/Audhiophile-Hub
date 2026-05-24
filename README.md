@@ -14,7 +14,7 @@
 
 ## ✨ Overview
 
-AudioSage is a high-performance, AI-driven research assistant designed to help audiophiles make better gear decisions. Leveraging the power of Google's **Gemini 3 Flash**, it provides deep technical analysis, personalized parametric EQ profiles, and responsive product comparisons.
+AudioSage is a high-performance, AI-driven research assistant designed to help audiophiles make better gear decisions. Leveraging the power of Google's **Gemini 3.5 Flash**, it provides deep technical analysis, personalized parametric EQ profiles, and responsive product comparisons.
 
 Whether you're looking for your next pair of IEMs or trying to tune your current setup to the **Crinacle IEF Preference 2025** target, AudioSage has you covered.
 
@@ -34,7 +34,7 @@ Whether you're looking for your next pair of IEMs or trying to tune your current
 
 * **Frontend**: [React 19](https://react.dev/), [Vite](https://vitejs.dev/), [TypeScript](https://www.typescriptlang.org/)
 * **Styling**: [Tailwind CSS](https://tailwindcss.com/), Custom Vanilla CSS Containment Layouts
-* **AI Engine**: [Google Gemini SDK](https://ai.google.dev/) (Gemini 3 Flash / 2.5 Flash Fallback)
+* **AI Engine**: [Google Gemini SDK](https://ai.google.dev/) (Gemini 3.5 Flash / 2.5 Flash Fallback)
 * **Search**: Integrated Google Search Grounding for real-time spec verification and source listing.
 
 ---

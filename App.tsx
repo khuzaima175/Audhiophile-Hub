@@ -27,9 +27,10 @@ const App: React.FC = () => {
   const [attachedImage, setAttachedImage] = useState<string | undefined>(undefined);
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [activeModel, setActiveModel] = useState<string>('gemini-3-flash-preview');
+  const [activeModel, setActiveModel] = useState<string>('gemini-3.5-flash');
 
   const formatModelName = (modelName: string): string => {
+    if (modelName.includes('gemini-3.5-flash')) return 'GEMINI-3.5 FLASH';
     if (modelName.includes('gemini-3-flash-preview')) return 'GEMINI-3 FLASH';
     if (modelName.includes('gemini-3-flash')) return 'GEMINI-3 FLASH';
     if (modelName.includes('gemini-2.5-flash')) return 'GEMINI-2.5 FLASH';
