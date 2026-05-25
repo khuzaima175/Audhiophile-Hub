@@ -86,24 +86,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
     const dataRows = rows.filter(r => !r.includes('---'));
     if (dataRows.length === 0) return null;
 
-    const header = dataRows[0].split('|').filter(c => c.trim()).map(c => c.trim());
-    const body = dataRows.slice(1).map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
+    const allHeaders = dataRows[0].split('|').filter(c => c.trim()).map(c => c.trim());
+    const allBody = dataRows.slice(1).map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
 
-    // Column widths: first col (feature labels) is narrow/fixed; data cols get a comfortable max-width
-    const colCount = header.length;
-    const dataColStyle: React.CSSProperties = {
-      minWidth: '160px',
-      maxWidth: '280px',
-      whiteSpace: 'normal',
-      wordBreak: 'break-word',
-      verticalAlign: 'top',
-    };
-    const featureColStyle: React.CSSProperties = {
-      minWidth: '120px',
-      maxWidth: '160px',
-      whiteSpace: 'nowrap',
-      verticalAlign: 'top',
-    };
+    // Detect if first column is a "Feature/Attribute" label column — strip it, use as row labels
+    const firstHeaderLower = allHeaders[0]?.toLowerCase() ?? '';
+    const isFeatureCol = ['feature', 'attribute', 'spec', 'category', 'parameter', 'criteria'].includes(firstHeaderLower);
+
+    const headers = isFeatureCol ? allHeaders.slice(1) : allHeaders;
+    const body = isFeatureCol ? allBody.map(r => r.slice(1)) : allBody;
+    const rowLabels = isFeatureCol ? allBody.map(r => r[0] ?? '') : null;
+
+    const colCount = headers.length;
+    const colWidth = Math.max(110, Math.min(180, Math.floor(320 / colCount)));
 
     return (
       <div key={key} className="my-4 w-full max-w-full">
@@ -111,19 +106,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
           className="w-full overflow-x-auto rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}
         >
-          <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: `${colCount * 220}px`, minWidth: '100%' }}>
+          <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: `${colCount * colWidth}px`, minWidth: '100%' }}>
             <colgroup>
-              {header.map((_, i) => (
-                <col key={i} style={{ width: i === 0 ? '150px' : `${Math.floor((100 - 15) / (colCount - 1))}%` }} />
+              {headers.map((_, i) => (
+                <col key={i} style={{ width: `${colWidth}px` }} />
               ))}
             </colgroup>
             <thead>
               <tr>
-                {header.map((h, i) => (
+                {headers.map((h, i) => (
                   <th
                     key={i}
-                    style={i === 0 ? { ...featureColStyle, position: 'sticky', left: 0, zIndex: 3 } : { whiteSpace: 'nowrap' }}
-                    className="bg-[#111111] text-audio-accent font-bold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3 py-2.5 text-[10px] md:px-4 md:text-[11px]"
+                    className="bg-[#111111] text-audio-accent font-bold uppercase tracking-wider text-left border-b-2 border-audio-accent px-2.5 py-2 text-[10px]"
+                    style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                   >
                     {h}
                   </th>
@@ -132,34 +127,41 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onVerify, onSave
             </thead>
             <tbody>
               {body.map((row, rI) => (
-                <tr key={rI} className="group/row">
-                  {row.map((cell, cI) => (
-                    <td
-                      key={cI}
-                      style={
-                        cI === 0
-                          ? { ...featureColStyle, position: 'sticky', left: 0, zIndex: 2 }
-                          : dataColStyle
-                      }
-                      className={[
-                        'border-b border-[#1e1e1e] px-3 py-2.5 text-[11.5px] leading-relaxed md:px-4 md:text-[13px]',
-                        rI % 2 === 1 ? 'bg-[#0d0d0d]' : '',
-                        cI === 0
-                          ? 'bg-[#0A0A0A] text-[#aaaaaa] font-semibold text-[10.5px] md:text-[12px] border-r border-[#2A2A2A] group-hover/row:bg-[#1a1a1a] group-hover/row:text-[#cccccc]'
-                          : 'text-[#CCCCCC] group-hover/row:bg-[#1a1a1a] group-hover/row:text-[#e0e0e0]',
-                      ].join(' ')}
-                    >
-                      {formatInlineMarkdown(cell)}
-                    </td>
-                  ))}
-                </tr>
+                <React.Fragment key={rI}>
+                  {rowLabels && rowLabels[rI] && (
+                    <tr>
+                      <td
+                        colSpan={colCount}
+                        className="px-2.5 pt-2.5 pb-0.5 text-[9px] font-bold uppercase tracking-widest text-audio-accent/70 border-t border-[#1e1e1e]"
+                        style={{ background: '#0a0a0a', letterSpacing: '0.1em' }}
+                      >
+                        {rowLabels[rI]}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="group/row">
+                    {row.map((cell, cI) => (
+                      <td
+                        key={cI}
+                        className={[
+                          'px-2.5 py-2 text-[11px] leading-snug border-b border-[#181818]',
+                          rI % 2 === 1 ? 'bg-[#0d0d0d]' : 'bg-transparent',
+                          'text-[#CCCCCC] group-hover/row:bg-[#1a1a1a] group-hover/row:text-[#e0e0e0]',
+                        ].join(' ')}
+                        style={{ verticalAlign: 'top', wordBreak: 'break-word', whiteSpace: 'normal' }}
+                      >
+                        {formatInlineMarkdown(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                </React.Fragment>
               ))}
             </tbody>
           </table>
         </div>
-
-        {/* Swipe hint — mobile only */}
-        <p className="md:hidden mt-1 text-center text-[9px] text-gray-600 tracking-wide">← swipe to see more →</p>
+        {colCount > 2 && (
+          <p className="md:hidden mt-1 text-center text-[9px] text-gray-600 tracking-wide">← swipe to compare →</p>
+        )}
       </div>
     );
   };
