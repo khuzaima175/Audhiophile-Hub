@@ -321,7 +321,13 @@ export const generateStreamResponse = async (
     | **Price & Value (Approx)** | [e.g. 9.5/10 — ~$89 USD (Exceptional value for full DLC driver)] | [e.g. 8.8/10 — ~$129 USD (Competitive price for hybrid setup)] |
 
     *** FREQUENCY RESPONSE CURVE DATA GENERATION FOR COMPARISONS ***
-    Whenever comparing 2 or more audio products, you MUST include a \`\`\`json:fr_data code block at the very end of your response containing estimated frequency response points (20Hz to 20000Hz, normalized to 0.0dB at 1kHz) for each product being compared, so the UI can plot the real comparison curves:
+    Whenever comparing 2 or more audio products, you MUST include a \`\`\`json:fr_data code block at the very end of your response containing high-density estimated frequency response points (~35–45 log-spaced points across 20Hz–20000Hz, normalized to 0.0dB at 1kHz).
+    TEXTURE & REALISM RULES:
+    - Include the standard 31 ISO center points plus key acoustic inflection points (5.5k, 6.5k, 7.5k, 9k, 11k, 13k, 18k).
+    - Between 4kHz and 12kHz, include realistic resonance ripples of ±0.5dB to ±2dB (pinna combing / ear canal resonance).
+    - Never emit a flat or linear segment longer than one octave.
+    - Sub-bass shelves must show natural physical curvature down to 20Hz.
+    - Schema:
     \`\`\`json:fr_data
     {
       "title": "Acoustic Tuning: [Product A] vs [Product B] vs Crinacle IEF 2025 Target",
@@ -329,23 +335,41 @@ export const generateStreamResponse = async (
         {
           "name": "[Product A Name]",
           "color": "#F06543",
+          "provenance": "ai-estimate",
           "points": [
-            {"freq": 20, "gain": 8.0}, {"freq": 40, "gain": 7.5}, {"freq": 80, "gain": 6.2},
-            {"freq": 150, "gain": 4.0}, {"freq": 200, "gain": 2.5}, {"freq": 500, "gain": 0.5},
-            {"freq": 1000, "gain": 0.0}, {"freq": 2000, "gain": 5.0}, {"freq": 2800, "gain": 8.5},
-            {"freq": 3500, "gain": 7.2}, {"freq": 5000, "gain": 4.8}, {"freq": 8000, "gain": 8.5},
-            {"freq": 10000, "gain": 3.2}, {"freq": 15000, "gain": -1.5}, {"freq": 20000, "gain": -5.5}
+            {"freq": 20, "gain": 8.0}, {"freq": 25, "gain": 7.8}, {"freq": 31.5, "gain": 7.5},
+            {"freq": 40, "gain": 7.1}, {"freq": 50, "gain": 6.5}, {"freq": 63, "gain": 5.8},
+            {"freq": 80, "gain": 5.0}, {"freq": 100, "gain": 4.2}, {"freq": 125, "gain": 3.4},
+            {"freq": 160, "gain": 2.6}, {"freq": 200, "gain": 1.9}, {"freq": 250, "gain": 1.2},
+            {"freq": 315, "gain": 0.8}, {"freq": 400, "gain": 0.4}, {"freq": 500, "gain": 0.2},
+            {"freq": 630, "gain": 0.1}, {"freq": 800, "gain": 0.0}, {"freq": 1000, "gain": 0.0},
+            {"freq": 1250, "gain": 1.2}, {"freq": 1600, "gain": 2.8}, {"freq": 2000, "gain": 5.0},
+            {"freq": 2500, "gain": 7.4}, {"freq": 2800, "gain": 8.8}, {"freq": 3150, "gain": 8.6},
+            {"freq": 3500, "gain": 7.6}, {"freq": 4000, "gain": 6.2}, {"freq": 4500, "gain": 5.2},
+            {"freq": 5000, "gain": 4.6}, {"freq": 5500, "gain": 4.9}, {"freq": 6300, "gain": 5.5},
+            {"freq": 7000, "gain": 5.1}, {"freq": 8000, "gain": 8.5}, {"freq": 9000, "gain": 4.2},
+            {"freq": 10000, "gain": 2.8}, {"freq": 11500, "gain": 1.4}, {"freq": 13000, "gain": -0.8},
+            {"freq": 15000, "gain": -2.5}, {"freq": 18000, "gain": -5.0}, {"freq": 20000, "gain": -6.5}
           ]
         },
         {
           "name": "[Product B Name]",
           "color": "#E7B87A",
+          "provenance": "ai-estimate",
           "points": [
-            {"freq": 20, "gain": 5.0}, {"freq": 40, "gain": 4.8}, {"freq": 80, "gain": 4.0},
-            {"freq": 150, "gain": 2.5}, {"freq": 200, "gain": 1.0}, {"freq": 500, "gain": 0.2},
-            {"freq": 1000, "gain": 0.0}, {"freq": 2000, "gain": 6.0}, {"freq": 2800, "gain": 9.2},
-            {"freq": 3500, "gain": 7.8}, {"freq": 5000, "gain": 5.0}, {"freq": 8000, "gain": 4.2},
-            {"freq": 10000, "gain": 2.5}, {"freq": 15000, "gain": -2.0}, {"freq": 20000, "gain": -6.0}
+            {"freq": 20, "gain": 5.2}, {"freq": 25, "gain": 5.1}, {"freq": 31.5, "gain": 4.9},
+            {"freq": 40, "gain": 4.7}, {"freq": 50, "gain": 4.3}, {"freq": 63, "gain": 3.8},
+            {"freq": 80, "gain": 3.2}, {"freq": 100, "gain": 2.6}, {"freq": 125, "gain": 2.0},
+            {"freq": 160, "gain": 1.4}, {"freq": 200, "gain": 0.9}, {"freq": 250, "gain": 0.5},
+            {"freq": 315, "gain": 0.3}, {"freq": 400, "gain": 0.1}, {"freq": 500, "gain": 0.0},
+            {"freq": 630, "gain": 0.0}, {"freq": 800, "gain": 0.0}, {"freq": 1000, "gain": 0.0},
+            {"freq": 1250, "gain": 1.5}, {"freq": 1600, "gain": 3.4}, {"freq": 2000, "gain": 6.2},
+            {"freq": 2500, "gain": 8.5}, {"freq": 2800, "gain": 9.5}, {"freq": 3150, "gain": 9.2},
+            {"freq": 3500, "gain": 8.0}, {"freq": 4000, "gain": 6.5}, {"freq": 4500, "gain": 5.5},
+            {"freq": 5000, "gain": 4.8}, {"freq": 5500, "gain": 4.5}, {"freq": 6300, "gain": 4.2},
+            {"freq": 7000, "gain": 4.0}, {"freq": 8000, "gain": 4.2}, {"freq": 9000, "gain": 3.4},
+            {"freq": 10000, "gain": 2.2}, {"freq": 11500, "gain": 0.5}, {"freq": 13000, "gain": -1.2},
+            {"freq": 15000, "gain": -2.8}, {"freq": 18000, "gain": -5.2}, {"freq": 20000, "gain": -6.8}
           ]
         }
       ]

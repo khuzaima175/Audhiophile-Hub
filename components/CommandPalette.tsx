@@ -64,6 +64,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     const list: PaletteItem[] = [
       // Actions
       {
+        id: 'act-lab',
+        category: 'ACTIONS',
+        title: 'Open Graph Lab (Full-Screen Measurement Explorer)',
+        subtitle: 'Audition deltas, normalize curves, and export squig-grade plots',
+        icon: <WaveformIcon />,
+        action: () => {
+          labStore.setIsOpen(true);
+          onClose();
+        },
+      },
+      {
         id: 'act-new',
         category: 'ACTIONS',
         title: 'Start New Acoustic Research',

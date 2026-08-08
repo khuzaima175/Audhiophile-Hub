@@ -206,7 +206,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
           </p>
         </div>
 
-        {/* Dynamic Curve Toggle Badges */}
+        {/* Dynamic Curve Toggle Badges & Open in Lab */}
         <div className="flex flex-wrap items-center gap-1.5">
           {activeCurves.map((c, i) => {
             const isVisible = visibleIndices.has(i);
@@ -255,6 +255,32 @@ export const FRGraph: React.FC<FRGraphProps> = ({
               </button>
             );
           })}
+
+          {/* Open in Lab Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const labCurves = activeCurves.map((c, idx) => ({
+                id: `chat-curve-${idx}-${Date.now()}`,
+                name: c.name,
+                color: c.color,
+                points: c.points,
+                provenance: (c.isReference ? 'target' : 'ai-estimate') as any,
+                provenanceDetails: c.isReference ? 'Acoustic Target Reference' : 'AI Estimate • 40 pts',
+                pointsCount: c.points.length,
+                offset: 0,
+                visible: visibleIndices.has(idx),
+                solo: false,
+                isReference: c.isReference,
+                isTarget: c.isReference,
+              }));
+              labStore.openLab(labCurves);
+            }}
+            className="px-2.5 py-1 rounded-lg bg-audio-accent text-black font-mono font-bold text-[10.5px] hover:bg-audio-accent-bright shadow-glow-brass transition-all flex items-center gap-1"
+            title="Open these curves in the full-screen measurement Graph Lab"
+          >
+            <span>⤢ Open in Lab</span>
+          </button>
         </div>
       </div>
 

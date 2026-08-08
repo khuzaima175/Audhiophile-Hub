@@ -969,6 +969,49 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                 None
               </button>
             </div>
+
+            {/* Open in Lab Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const labCurves: any[] = [];
+                if (currentTarget && selectedTargetId !== 'none') {
+                  labCurves.push({
+                    id: `target-${currentTarget.id}`,
+                    name: currentTarget.shortName,
+                    color: currentTarget.color,
+                    points: currentTarget.points,
+                    provenance: 'target',
+                    provenanceDetails: 'Acoustic Target Reference',
+                    pointsCount: currentTarget.pointsCount || 400,
+                    offset: 0,
+                    visible: true,
+                    solo: false,
+                    isReference: true,
+                    isTarget: true,
+                  });
+                }
+                if (activeEqPoints.length > 0) {
+                  labCurves.push({
+                    id: `workbench-curve-${Date.now()}`,
+                    name: presetName || hardwareAssigned || 'Workbench EQ',
+                    color: '#E7B87A',
+                    points: activeEqPoints,
+                    provenance: 'eq-compensated',
+                    provenanceDetails: 'EQ Workbench Synthesized Response',
+                    pointsCount: activeEqPoints.length,
+                    offset: 0,
+                    visible: true,
+                    solo: false,
+                  });
+                }
+                labStore.openLab(labCurves, selectedTargetId);
+              }}
+              className="px-2.5 py-1 rounded-lg bg-audio-accent text-black font-mono font-bold text-[10px] hover:bg-audio-accent-bright shadow-glow-brass transition-all flex items-center gap-1"
+              title="Open current EQ & Target curves in full-screen Graph Lab"
+            >
+              <span>⤢ Open in Lab</span>
+            </button>
           </div>
         </div>
 

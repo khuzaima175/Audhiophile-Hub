@@ -185,6 +185,17 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
+        {/* Graph Lab Full-Screen Explorer Button */}
+        <button
+          onClick={() => labStore.setIsOpen(true)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-audio-signal hover:text-audio-text bg-[#111C16] hover:bg-audio-surface border border-audio-signal/60 hover:border-audio-signal px-3 py-1.5 rounded-lg transition-all uppercase tracking-wider font-mono shadow-glow-teal"
+          title="Open Graph Lab: Full-Screen Measurement-Grade Explorer"
+        >
+          <WaveformIcon />
+          <span className="hidden sm:inline">Graph Lab</span>
+          <span className="sm:hidden">Lab</span>
+        </button>
+
         {/* Knowledge Base Hardware Toggle Button */}
         <button
           onClick={onOpenKnowledgeBase}

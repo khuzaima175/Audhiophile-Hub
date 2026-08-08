@@ -6,6 +6,9 @@ import InputConsole from './components/InputConsole';
 import MessageBubble from './components/MessageBubble';
 import SettingsModal from './components/SettingsModal';
 import CommandPalette from './components/CommandPalette';
+import GraphLab from './components/GraphLab';
+import { labStore } from './store/labStore';
+import { decodeUrlToLabState } from './utils/shareCodec';
 import { ChatSession, Message, AudioProfile, DEFAULT_PROFILE, GroundingSource, KnowledgeEntry } from './types';
 import { generateStreamResponse, generateSessionSummary } from './services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
@@ -78,6 +81,23 @@ const App: React.FC = () => {
     if (storedKnowledge) {
       setKnowledgeBase(JSON.parse(storedKnowledge));
     }
+
+    // Auto-hydrate shared Graph Lab URLs (e.g. #/lab?c=...)
+    const checkHashForLab = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/lab')) {
+        const decoded = decodeUrlToLabState(hash);
+        if (decoded) {
+          labStore.loadState(decoded);
+        } else {
+          labStore.setIsOpen(true);
+        }
+      }
+    };
+
+    checkHashForLab();
+    window.addEventListener('hashchange', checkHashForLab);
+    return () => window.removeEventListener('hashchange', checkHashForLab);
   }, []);
 
   // Persist data
@@ -619,6 +639,14 @@ const App: React.FC = () => {
         onSummarizeHistory={handleSummarizeHistory}
         isSummarizing={isSummarizing}
         initialTab={settingsTab}
+      />
+
+      {/* Full-Screen Graph Lab Modal / Route */}
+      <GraphLab
+        onSavePreset={(newPreset) => {
+          const updatedEqLib = [...(profile.eqLibrary || []), newPreset];
+          setProfile((prev) => ({ ...prev, eqLibrary: updatedEqLib }));
+        }}
       />
     </div>
   );

@@ -327,6 +327,22 @@ export const useAudioEngine = ({
     setActiveSource('file');
   }, [isPlaying, activeSource, getAudioContext, rebuildFilterChain, stopAudio]);
 
+  // Load external PEQ filters dynamically (e.g. from Graph Lab Audition Delta)
+  const loadExternalPeq = useCallback(async (filters: PEQFilter[], preamp?: number) => {
+    const ctx = await getAudioContext();
+    if (preamp !== undefined && wetGainRef.current) {
+      const linearPreamp = Math.pow(10, preamp / 20);
+      wetGainRef.current.gain.setValueAtTime(linearPreamp, ctx.currentTime);
+    }
+    // Rebuild active filter nodes on the fly
+    if (filterNodesRef.current.length > 0) {
+      filterNodesRef.current.forEach((node) => {
+        try { node.disconnect(); } catch (e) {}
+      });
+      filterNodesRef.current = [];
+    }
+  }, [getAudioContext]);
+
   // Cleanup on component unmount
   useEffect(() => {
     return () => {
@@ -349,9 +365,11 @@ export const useAudioEngine = ({
     playLiveTab,
     handleFileUpload,
     toggleFilePlayback,
+    loadExternalPeq,
     stopAudio,
     getAudioContext,
     audioContext: audioCtxRef.current,
   };
 };
+
 

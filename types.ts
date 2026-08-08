@@ -210,3 +210,37 @@ export interface LiveTabTelemetry {
   sampleRate?: number;
   audioTracks?: number;
 }
+
+export type LabZoomRange = 'full' | 'bass' | 'mids' | 'treble';
+
+export type LabProvenanceType = 'measured' | 'target' | 'ai-estimate' | 'eq-compensated' | 'custom';
+
+export interface LabCurve {
+  id: string;
+  name: string;
+  color: string;
+  points: CurvePoint[];
+  provenance: LabProvenanceType;
+  provenanceDetails?: string;
+  pointsCount?: number;
+  offset: number; // dB vertical adjustment (-12 to +12)
+  visible: boolean;
+  solo: boolean;
+  isReference?: boolean;
+  isTarget?: boolean;
+  deltaCompensate?: boolean; // When true, subtracts from active target
+}
+
+export interface LabState {
+  isOpen: boolean;
+  curves: LabCurve[];
+  targetCurveId: string; // e.g. 'crinacle-ief-2025' or 'none'
+  normDb: number; // default 0.0 dB
+  normHz: number; // default 1000 Hz
+  zoomRange: LabZoomRange;
+  smoothing: SmoothingType;
+  deltaMode: boolean; // global DELTA mode: target flattens to 0dB, all curves show deviation
+  primaryCurveId: string | null;
+  auditionAId: string | null;
+  auditionBId: string | null;
+}
