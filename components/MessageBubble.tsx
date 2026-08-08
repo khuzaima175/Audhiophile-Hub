@@ -345,8 +345,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               {hasFrequencyData && (
                 <div className="my-4">
                   <FRGraph
-                    title="Acoustic Measurement vs Crinacle IEF 2025 Target"
-                    gearName="Calculated Tuning"
+                    title="Reference Target Overlay: IEF 2025 • Harman 2019 • HD600"
                     sibilanceAlert={message.text.toLowerCase().includes('8khz') || message.text.toLowerCase().includes('sibilan')}
                   />
                 </div>
