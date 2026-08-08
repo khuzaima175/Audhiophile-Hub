@@ -207,10 +207,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     });
   }, [resampledMeasuredPoints, currentTarget, selectedTargetId, maxAutoFilters, smoothing]);
 
-  // View Mode: 'filter' (raw EQ cuts/boosts) vs 'simulated' (Target + EQ Net Response)
-  const [eqViewMode, setEqViewMode] = useState<'filter' | 'simulated'>('filter');
+  // View Mode: 'iem' (Compare IEM vs Target) | 'filter' (Raw EQ Cuts/Boosts) | 'compensated' (Post-EQ Net)
+  const [eqViewMode, setEqViewMode] = useState<'iem' | 'filter' | 'compensated'>('iem');
 
-  // Calculate live composite curve points for pure EQ preview
+  // Calculate live composite curve points for pure EQ filter preview
   const compositeCurvePoints = useMemo(() => {
     return evaluateCompositeCurve(
       SYNTHESIS_FREQUENCIES,
@@ -220,8 +220,21 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     );
   }, [currentIsoBands, currentIsoGains, peqFilters, eqMode]);
 
-  // Simulated acoustic net response = Target + Filter (shows how EQ shapes towards reference)
-  const simulatedResponsePoints = useMemo(() => {
+  // Reconstructed Estimated IEM Acoustic Curve: IEM = Target - EQ_Filter (since AutoEQ Filter = Target - IEM)
+  // This allows direct positive visual comparison between the IEM's natural frequency response and the Target curve!
+  const estimatedIemPoints = useMemo(() => {
+    return compositeCurvePoints.map((p) => {
+      const targetDb = currentTarget && selectedTargetId !== 'none'
+        ? getInterpolatedTargetGain(p.freq, currentTarget.points)
+        : 0;
+      // If EQ cut is -4.9dB against a +6.5dB target, IEM has +11.4dB natural bass!
+      const iemDb = targetDb - p.gain;
+      return { freq: p.freq, gain: parseFloat(iemDb.toFixed(2)) };
+    });
+  }, [compositeCurvePoints, currentTarget, selectedTargetId]);
+
+  // Post-EQ Compensated Response = Target + Filter
+  const compensatedResponsePoints = useMemo(() => {
     return compositeCurvePoints.map((p) => {
       const targetDb = currentTarget && selectedTargetId !== 'none'
         ? getInterpolatedTargetGain(p.freq, currentTarget.points)
@@ -230,10 +243,12 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     });
   }, [compositeCurvePoints, currentTarget, selectedTargetId]);
 
-  // Active displayed EQ curve based on view mode
+  // Active displayed EQ curve based on selected view mode
   const activeEqPoints = useMemo(() => {
-    return eqViewMode === 'simulated' ? simulatedResponsePoints : compositeCurvePoints;
-  }, [eqViewMode, simulatedResponsePoints, compositeCurvePoints]);
+    if (eqViewMode === 'iem') return estimatedIemPoints;
+    if (eqViewMode === 'compensated') return compensatedResponsePoints;
+    return compositeCurvePoints;
+  }, [eqViewMode, estimatedIemPoints, compensatedResponsePoints, compositeCurvePoints]);
 
   // AUTO-RANGE Y-AXIS (Accommodates Harman, measured deep bass, and corrected curves)
   const { minY, maxY, yTicks } = useMemo(() => {
@@ -256,7 +271,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     maxY,
   }), [minY, maxY]);
 
-  // Generate SVG path for live manual EQ curve
+  // Generate SVG path for active curve
   const compositeSvgPath = useMemo(() => {
     return generateSvgPathFromPoints(activeEqPoints, workbenchViewport, minY, maxY);
   }, [activeEqPoints, workbenchViewport, minY, maxY]);
@@ -885,8 +900,20 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
 
           {/* View Mode Toggle & Target Reference Chips */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Display Mode: Filter vs Simulated Net */}
+            {/* Display Mode Switch: IEM vs Target | Filter Cuts | Post-EQ Net */}
             <div className="flex items-center bg-[#18130F] p-0.5 rounded-lg border border-audio-border/80">
+              <button
+                type="button"
+                onClick={() => setEqViewMode('iem')}
+                className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-semibold transition-all ${
+                  eqViewMode === 'iem'
+                    ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
+                    : 'text-audio-muted hover:text-audio-text'
+                }`}
+                title="Direct visual comparison: Compare your IEM's natural frequency response against the Target Curve"
+              >
+                IEM vs Target
+              </button>
               <button
                 type="button"
                 onClick={() => setEqViewMode('filter')}
@@ -895,21 +922,21 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                     ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
                     : 'text-audio-muted hover:text-audio-text'
                 }`}
-                title="View raw corrective EQ filter cuts and boosts applied to your audio"
+                title="View raw corrective EQ slider attenuation cuts and boosts"
               >
                 EQ Filter (Cuts)
               </button>
               <button
                 type="button"
-                onClick={() => setEqViewMode('simulated')}
+                onClick={() => setEqViewMode('compensated')}
                 className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-semibold transition-all ${
-                  eqViewMode === 'simulated'
+                  eqViewMode === 'compensated'
                     ? 'bg-audio-signal text-black font-bold shadow-glow-teal'
                     : 'text-audio-muted hover:text-audio-text'
                 }`}
                 title="View simulated acoustic response (Target + EQ Net Tuning)"
               >
-                Simulated Net FR
+                Post-EQ Net
               </button>
             </div>
 
@@ -1160,7 +1187,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1.5 text-audio-accent font-semibold">
               <span className="w-2.5 h-[2px] bg-audio-accent" />
-              {eqViewMode === 'simulated' ? 'Simulated Net FR (Target + EQ)' : 'EQ Filter Cuts/Boosts (Solid Brass)'}
+              {eqViewMode === 'iem'
+                ? 'Estimated IEM Sound (Solid Brass)'
+                : eqViewMode === 'compensated'
+                ? 'Post-EQ Net Response (Solid Brass)'
+                : 'EQ Filter Cuts/Boosts (Solid Brass)'}
             </span>
             {selectedTargetId !== 'none' && (
               <span className="flex items-center gap-1.5 text-audio-signal font-semibold">
