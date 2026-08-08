@@ -167,6 +167,7 @@ export interface MeasurementData {
   sampleCount: number;
   smoothing: SmoothingType;
   headerComments?: string[];
+  isGraphicEQ?: boolean; // true when parsed from GraphicEQ/AutoEQ format
 }
 
 export interface AutoPeqFitOptions {
@@ -237,6 +238,7 @@ export interface LabCurve {
   isTarget?: boolean;
   deltaCompensate?: boolean; // When true, subtracts from active target
   isInverted?: boolean; // When true, inverts/reconstructs raw filter cuts into positive IEM response
+  isFilterCurve?: boolean; // When true, this is a corrective filter (GraphicEQ/AutoEQ), not a raw IEM measurement
 }
 
 export interface LabState {

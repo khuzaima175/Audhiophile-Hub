@@ -111,11 +111,11 @@ export const LabToolbar: React.FC<LabToolbarProps> = ({ onExportCsv, onToast }) 
             type="button"
             onClick={() => labStore.setViewMode('reconstructed')}
             className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all ${
-              labState.viewMode === 'reconstructed' || !labState.viewMode
+              labState.viewMode === 'reconstructed'
                 ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
                 : 'text-audio-muted hover:text-audio-text'
             }`}
-            title="Reconstruct natural positive IEM frequency response (Target - Filter cuts)"
+            title="Invert filter curves: show IEM's deviation above original target (target-independent)"
           >
             IEM vs Target
           </button>
@@ -123,11 +123,11 @@ export const LabToolbar: React.FC<LabToolbarProps> = ({ onExportCsv, onToast }) 
             type="button"
             onClick={() => labStore.setViewMode('rawFilter')}
             className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all ${
-              labState.viewMode === 'rawFilter'
+              labState.viewMode === 'rawFilter' || !labState.viewMode
                 ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
                 : 'text-audio-muted hover:text-audio-text'
             }`}
-            title="View raw corrective EQ slider/filter negative attenuation cuts"
+            title="View raw corrective EQ slider/filter correction values"
           >
             Filter Cuts
           </button>

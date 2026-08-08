@@ -115,9 +115,11 @@ export const parseMeasurementFile = (
 
   const headerComments: string[] = [];
   const rawReadings: { freq: number; spl: number }[] = [];
+  let isGraphicEQ = false;
 
   // 1. Check if the content is in GraphicEQ format (e.g. "GraphicEQ: 20 -4.8; 25 -4.2; ...")
-  if (textContent.includes('GraphicEQ:') || (textContent.includes(';') && !textContent.includes('\n'))) {
+  if (textContent.includes('GraphicEQ:') || textContent.toLowerCase().includes('graphiceq:')) {
+    isGraphicEQ = true;
     const cleaned = textContent.replace(/GraphicEQ\s*:/i, '').trim();
     const pairs = cleaned.split(';');
 
@@ -137,9 +139,27 @@ export const parseMeasurementFile = (
     }
   }
 
+  // Also try: single line with semicolons but no GraphicEQ prefix
+  if (rawReadings.length < 5 && textContent.includes(';') && !textContent.includes('\n')) {
+    rawReadings.length = 0;
+    isGraphicEQ = true;
+    const pairs = textContent.trim().split(';');
+    for (let pair of pairs) {
+      const tokens = pair.trim().split(/[\s,]+/).filter((t) => t.length > 0);
+      if (tokens.length >= 2) {
+        const freq = parseFloat(tokens[0]);
+        const spl = parseFloat(tokens[1]);
+        if (!isNaN(freq) && !isNaN(spl) && freq >= 5 && freq <= 96000) {
+          rawReadings.push({ freq, spl });
+        }
+      }
+    }
+  }
+
   // 2. If GraphicEQ didn't yield enough points, fallback to line-by-line CSV / TSV / Space parser
   if (rawReadings.length < 5) {
     rawReadings.length = 0; // reset
+    isGraphicEQ = false;
     const lines = textContent.split(/\r?\n/);
 
     for (let line of lines) {
@@ -148,6 +168,7 @@ export const parseMeasurementFile = (
 
       // Handle lines that contain GraphicEQ inside a multi-line file
       if (trimmed.toLowerCase().startsWith('graphiceq:')) {
+        isGraphicEQ = true;
         const subPairs = trimmed.replace(/graphiceq\s*:/i, '').split(';');
         for (let pair of subPairs) {
           const tokens = pair.trim().split(/[\s,]+/).filter((t) => t.length > 0);
@@ -217,8 +238,29 @@ export const parseMeasurementFile = (
   // Sort chronologically by frequency
   rawReadings.sort((a, b) => a.freq - b.freq);
 
-  // 1 kHz Datum Normalization
-  // Find measurement value at 1 kHz (or user-chosen datum)
+  // For GraphicEQ / AutoEQ filter files: DO NOT normalize.
+  // These values are absolute correction gains — normalizing them would distort the filter shape.
+  // For raw measurements (CSV/TSV/REW): normalize to 0 dB at datum frequency.
+  if (isGraphicEQ) {
+    const rawPoints: MeasurementPoint[] = rawReadings.map((r) => ({
+      freq: r.freq,
+      gain: parseFloat(r.spl.toFixed(2)),
+      rawSpl: parseFloat(r.spl.toFixed(2)),
+    }));
+
+    return {
+      name: fileName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
+      rawPoints,
+      smoothedPoints: rawPoints, // GraphicEQ data is already "smoothed" by the EQ algorithm
+      normOffset: 0,
+      sampleCount: rawPoints.length,
+      smoothing: 'RAW',
+      headerComments,
+      isGraphicEQ: true,
+    };
+  }
+
+  // Standard measurement normalization (1 kHz datum)
   const normOffset = interpolateSplAtFreq(
     normDatumFreq,
     rawReadings.map((r) => ({ freq: r.freq, gain: r.spl }))
@@ -241,5 +283,6 @@ export const parseMeasurementFile = (
     sampleCount: rawPoints.length,
     smoothing,
     headerComments,
+    isGraphicEQ: false,
   };
 };

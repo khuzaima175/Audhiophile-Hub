@@ -80,6 +80,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   const displayCurves = useMemo(() => {
     return labState.curves.map((curve) => {
       const isTargetCurve = curve.isTarget;
+      const isFilter = curve.isFilterCurve;
 
       // Base anchor gain at normalization frequency
       const normGain = getInterpolatedTargetGain(labState.normHz, curve.points);
@@ -92,24 +93,43 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           // DELTA Mode: deviation from target
           const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
           dispGain = isTargetCurve ? 0 : rawGain - targetGain + curve.offset;
+
         } else if (curve.deltaCompensate && activeTarget && !isTargetCurve) {
           // Individual Delta Compensate
           const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
           dispGain = rawGain - targetGain + curve.offset;
+
         } else if ((curve.isInverted || labState.viewMode === 'reconstructed') && !isTargetCurve) {
-          // Reconstruct IEM response from AutoEQ filter cuts (Target - Filter)
-          if (activeTarget) {
+          // "IEM vs Target" — Reconstruction / Inversion
+          // For FILTER curves (GraphicEQ/AutoEQ): simply negate the raw correction values.
+          //   If filter = -7 dB at 5.6k → IEM is 7 dB ABOVE whatever target the filter was made for.
+          //   This is always correct regardless of which target is currently selected.
+          // For RAW measurements: this mode doesn't apply (they're already positive IEM curves).
+          if (isFilter) {
+            dispGain = -rawGain + curve.offset;
+          } else if (activeTarget) {
+            // For non-filter raw curves, show deviation above/below target
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-            dispGain = targetGain - rawGain + curve.offset;
+            dispGain = rawGain - targetGain + curve.offset;
           } else {
             dispGain = -rawGain + curve.offset;
           }
+
         } else if (labState.viewMode === 'netPostEq' && activeTarget && !isTargetCurve) {
-          // Post-EQ Net Result
+          // Post-EQ Net: show the target curve directly (flat reference)
           const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
           dispGain = targetGain + curve.offset;
+
+        } else if (labState.viewMode === 'rawFilter' && !isTargetCurve) {
+          // "Filter Cuts" — show raw correction values as-is
+          // For filter curves: raw negative attenuation cuts
+          // For measurements: normalized response
+          const normalized = rawGain - normGain + labState.normDb;
+          dispGain = normalized + curve.offset;
+
         } else {
-          // Normalization: disp = raw - raw(normHz) + normDb + offset
+          // Default: Normalization
+          // disp = raw - raw(normHz) + normDb + offset
           const normalized = rawGain - normGain + labState.normDb;
           dispGain = isTargetCurve ? rawGain : normalized + curve.offset;
         }
@@ -256,21 +276,25 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       if (parsed && parsed.rawPoints.length > 0) {
         const colors = ['#E7B87A', '#F06543', '#72B01D', '#3F88C5', '#D1495B', '#9D4EDD'];
         const color = colors[(labState.curves.length - 1) % colors.length] || '#E7B87A';
+        const isFilter = !!parsed.isGraphicEQ;
         const newCurve: LabCurve = {
           id: `measured-${Date.now()}`,
           name: parsed.name || file.name.replace(/\.[^/.]+$/, ''),
           color,
           points: parsed.rawPoints,
-          provenance: 'measured',
-          provenanceDetails: `Imported • ${parsed.sampleCount} pts • norm ${labState.normHz}Hz`,
+          provenance: isFilter ? 'eq-compensated' : 'measured',
+          provenanceDetails: isFilter
+            ? `GraphicEQ Filter • ${parsed.sampleCount} pts • raw correction values`
+            : `Imported • ${parsed.sampleCount} pts • norm ${labState.normHz}Hz`,
           pointsCount: parsed.sampleCount,
           offset: 0,
           visible: true,
           solo: false,
+          isFilterCurve: isFilter,
         };
         labStore.addCurve(newCurve);
         labStore.setPrimaryCurve(newCurve.id);
-        showToast(`✓ Ingested ${newCurve.name} (${parsed.sampleCount} points)`);
+        showToast(`✓ Ingested ${newCurve.name} (${parsed.sampleCount} pts${isFilter ? ' • GraphicEQ filter' : ''})`);
       } else {
         showToast('⚠️ Could not parse points. Supported: GraphicEQ, CSV, TSV, REW format.');
       }
