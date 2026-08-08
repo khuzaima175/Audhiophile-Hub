@@ -220,6 +220,8 @@ export type LabZoomRange = 'full' | 'bass' | 'mids' | 'treble';
 
 export type LabProvenanceType = 'measured' | 'target' | 'ai-estimate' | 'eq-compensated' | 'custom';
 
+export type LabViewMode = 'reconstructed' | 'rawFilter' | 'netPostEq';
+
 export interface LabCurve {
   id: string;
   name: string;
@@ -234,6 +236,7 @@ export interface LabCurve {
   isReference?: boolean;
   isTarget?: boolean;
   deltaCompensate?: boolean; // When true, subtracts from active target
+  isInverted?: boolean; // When true, inverts/reconstructs raw filter cuts into positive IEM response
 }
 
 export interface LabState {
@@ -245,6 +248,7 @@ export interface LabState {
   zoomRange: LabZoomRange;
   smoothing: SmoothingType;
   deltaMode: boolean; // global DELTA mode: target flattens to 0dB, all curves show deviation
+  viewMode?: LabViewMode; // 'reconstructed' | 'rawFilter' | 'netPostEq'
   primaryCurveId: string | null;
   auditionAId: string | null;
   auditionBId: string | null;

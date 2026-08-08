@@ -161,6 +161,21 @@ export const labStore = {
     notify();
   },
 
+  toggleInvertCurve: (id: string) => {
+    state = {
+      ...state,
+      curves: state.curves.map((c) =>
+        c.id === id ? { ...c, isInverted: !c.isInverted } : c
+      ),
+    };
+    notify();
+  },
+
+  setViewMode: (viewMode: 'reconstructed' | 'rawFilter' | 'netPostEq') => {
+    state = { ...state, viewMode };
+    notify();
+  },
+
   setOffset: (id: string, offset: number) => {
     state = {
       ...state,

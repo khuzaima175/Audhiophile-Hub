@@ -96,6 +96,18 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           // Individual Delta Compensate
           const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
           dispGain = rawGain - targetGain + curve.offset;
+        } else if ((curve.isInverted || labState.viewMode === 'reconstructed') && !isTargetCurve) {
+          // Reconstruct IEM response from AutoEQ filter cuts (Target - Filter)
+          if (activeTarget) {
+            const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
+            dispGain = targetGain - rawGain + curve.offset;
+          } else {
+            dispGain = -rawGain + curve.offset;
+          }
+        } else if (labState.viewMode === 'netPostEq' && activeTarget && !isTargetCurve) {
+          // Post-EQ Net Result
+          const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
+          dispGain = targetGain + curve.offset;
         } else {
           // Normalization: disp = raw - raw(normHz) + normDb + offset
           const normalized = rawGain - normGain + labState.normDb;
@@ -110,7 +122,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         displayPoints: transformedPoints,
       };
     });
-  }, [labState.curves, labState.normDb, labState.normHz, labState.deltaMode, activeTarget]);
+  }, [labState.curves, labState.normDb, labState.normHz, labState.deltaMode, labState.viewMode, activeTarget]);
 
   // Visible points for Auto-Ranging
   const activeVisiblePointSets = useMemo(() => {

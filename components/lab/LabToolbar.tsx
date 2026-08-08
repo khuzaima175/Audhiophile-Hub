@@ -105,6 +105,46 @@ export const LabToolbar: React.FC<LabToolbarProps> = ({ onExportCsv, onToast }) 
           <span className="text-audio-muted">Hz</span>
         </div>
 
+        {/* View Mode Switch: IEM vs Target (Reconstruct) | Filter (Cuts) | Post-EQ Net */}
+        <div className="flex items-center bg-[#0D0907] p-0.5 rounded-lg border border-audio-border/70">
+          <button
+            type="button"
+            onClick={() => labStore.setViewMode('reconstructed')}
+            className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all ${
+              labState.viewMode === 'reconstructed' || !labState.viewMode
+                ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
+                : 'text-audio-muted hover:text-audio-text'
+            }`}
+            title="Reconstruct natural positive IEM frequency response (Target - Filter cuts)"
+          >
+            IEM vs Target
+          </button>
+          <button
+            type="button"
+            onClick={() => labStore.setViewMode('rawFilter')}
+            className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all ${
+              labState.viewMode === 'rawFilter'
+                ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
+                : 'text-audio-muted hover:text-audio-text'
+            }`}
+            title="View raw corrective EQ slider/filter negative attenuation cuts"
+          >
+            Filter Cuts
+          </button>
+          <button
+            type="button"
+            onClick={() => labStore.setViewMode('netPostEq')}
+            className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all ${
+              labState.viewMode === 'netPostEq'
+                ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
+                : 'text-audio-muted hover:text-audio-text'
+            }`}
+            title="View ideal flat acoustic transfer result"
+          >
+            Post-EQ Net
+          </button>
+        </div>
+
         {/* Global DELTA Mode Toggle */}
         <button
           type="button"
