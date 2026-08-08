@@ -119,8 +119,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // AI Knowledge Search
   const [kbSearch, setKbSearch] = useState('');
 
+  // Track open state transitions
+  const prevOpenRef = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevOpenRef.current) {
+      // Modal just opened: initialize tab to initialTab, sync faders, and reset sub-modes
       setFormData(profile || DEFAULT_PROFILE);
       if (initialTab) setActiveTab(initialTab);
       if (profile?.faderState) {
@@ -131,7 +135,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setIsAddingGear(false);
       setBattleMode(false);
       setSelectedForBattle([]);
+    } else if (isOpen && profile) {
+      // Modal is already open: keep formData in sync with saved profile without resetting activeTab
+      setFormData(profile);
     }
+    prevOpenRef.current = isOpen;
   }, [isOpen, initialTab, profile]);
 
   const gearCount = formData.gearLibrary?.length || 0;
