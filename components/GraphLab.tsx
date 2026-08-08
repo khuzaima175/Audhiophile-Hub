@@ -120,8 +120,13 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         } else if (labState.deltaMode && activeTarget) {
           // Global DELTA Mode: deviation from target
           if (isFilter) {
-            // Delta for filter = -rawGain (how much the filter had to compensate)
-            dispGain = -rawGain + curve.offset;
+            // Reconstruct IEM relative to its own source target, normalize at normHz,
+            // then take delta against the *active* target (may differ from source target)
+            const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
+            const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
+            const iemPlot = (srcTargetGain - rawGain) - reconstructedIemAtNormHz + labState.normDb;
+            const targetPlot = targetGain - activeTargetNormGain + labState.normDb;
+            dispGain = iemPlot - targetPlot + curve.offset;
           } else {
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
             const targetNorm = targetGain - activeTargetNormGain;
@@ -131,10 +136,18 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
 
         } else if (curve.deltaCompensate && activeTarget) {
           // Individual Delta Compensate
-          const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-          const targetNorm = targetGain - activeTargetNormGain;
-          const curveNorm = rawGain - curveNormGain;
-          dispGain = curveNorm - targetNorm + curve.offset;
+          if (isFilter) {
+            const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
+            const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
+            const iemPlot = (srcTargetGain - rawGain) - reconstructedIemAtNormHz + labState.normDb;
+            const targetPlot = targetGain - activeTargetNormGain + labState.normDb;
+            dispGain = iemPlot - targetPlot + curve.offset;
+          } else {
+            const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
+            const targetNorm = targetGain - activeTargetNormGain;
+            const curveNorm = rawGain - curveNormGain;
+            dispGain = curveNorm - targetNorm + curve.offset;
+          }
 
         } else if (isFilter) {
           // GraphicEQ / AutoEQ Filter Curves:
