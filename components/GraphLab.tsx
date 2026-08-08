@@ -76,87 +76,96 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     return TARGET_CURVES.find((t) => t.id === labState.targetCurveId) || TARGET_CURVES[0];
   }, [labState.targetCurveId]);
 
-  // Transform and normalize points for each curve
+  // Transform and normalize points for each curve with squig.link-grade datum alignment
   const displayCurves = useMemo(() => {
+    // 1. Calculate active target's datum gain at normHz (1000 Hz)
+    const activeTargetNormGain = activeTarget
+      ? getInterpolatedTargetGain(labState.normHz, activeTarget.points)
+      : 0;
+
     return labState.curves.map((curve) => {
       const isTargetCurve = curve.isTarget;
       const isFilter = curve.isFilterCurve;
 
-      // For filter curves: look up the source target (the target the filter was designed for)
-      // This is locked at import time and never changes when you switch display targets.
-      let sourceTargetPoints: CurvePoint[] | null = null;
+      // Look up source target for filter curves (default to active target or IEF 2025)
+      let sourceTarget = activeTarget;
       if (isFilter && curve.sourceTargetId) {
-        const srcTarget = TARGET_CURVES.find((t) => t.id === curve.sourceTargetId);
-        if (srcTarget) sourceTargetPoints = srcTarget.points;
+        const found = TARGET_CURVES.find((t) => t.id === curve.sourceTargetId);
+        if (found) sourceTarget = found;
+      }
+      if (!sourceTarget) {
+        sourceTarget = TARGET_CURVES[0]; // Crinacle IEF 2025
       }
 
-      // Base anchor gain at normalization frequency
-      const normGain = getInterpolatedTargetGain(labState.normHz, curve.points);
+      // Pre-compute raw reconstructed IEM curve at all frequencies if it's a filter curve:
+      // IEM_raw(f) = SourceTarget(f) - FilterCut(f)
+      // Datum at normHz:
+      const filterAtNormHz = getInterpolatedTargetGain(labState.normHz, curve.points);
+      const srcTargetAtNormHz = getInterpolatedTargetGain(labState.normHz, sourceTarget.points);
+      const reconstructedIemAtNormHz = srcTargetAtNormHz - filterAtNormHz;
+
+      // Base anchor gain at normalization frequency for normal curves
+      const curveNormGain = getInterpolatedTargetGain(labState.normHz, curve.points);
 
       const transformedPoints: CurvePoint[] = SYNTHESIS_FREQUENCIES.map((f) => {
         const rawGain = getInterpolatedTargetGain(f, curve.points);
         let dispGain = rawGain;
 
-        if (labState.deltaMode && activeTarget) {
-          // DELTA Mode: deviation from target
-          const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-          dispGain = isTargetCurve ? 0 : rawGain - targetGain + curve.offset;
+        if (isTargetCurve) {
+          // Target Curve: normalize to normDb at normHz (1000 Hz)
+          // T_plot(f) = T(f) - T(normHz) + normDb
+          const targetNorm = rawGain - activeTargetNormGain + labState.normDb;
+          dispGain = labState.deltaMode ? 0 : targetNorm;
 
-        } else if (curve.deltaCompensate && activeTarget && !isTargetCurve) {
-          // Individual Delta Compensate
-          const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-          dispGain = rawGain - targetGain + curve.offset;
-
-        } else if ((curve.isInverted || labState.viewMode === 'reconstructed') && !isTargetCurve) {
-          // "IEM vs Target" — Reconstruct the actual IEM frequency response
-          //
-          // For FILTER curves (GraphicEQ/AutoEQ):
-          //   The filter correction = SourceTarget - IEM, so IEM = SourceTarget - Filter.
-          //   We ALWAYS use the SOURCE target (the one the filter was designed for),
-          //   NOT the currently selected display target. This ensures the reconstructed
-          //   IEM shape is always correct — you're just overlaying it on different targets
-          //   for visual comparison.
-          //
-          // For raw measurement curves: show the raw data with normalization
-          if (isFilter && sourceTargetPoints) {
-            const srcTargetGain = getInterpolatedTargetGain(f, sourceTargetPoints);
-            dispGain = srcTargetGain - rawGain + curve.offset;
-          } else if (isFilter) {
-            // Fallback if no source target: just negate
+        } else if (labState.deltaMode && activeTarget) {
+          // Global DELTA Mode: deviation from target
+          if (isFilter) {
+            // Delta for filter = -rawGain (how much the filter had to compensate)
             dispGain = -rawGain + curve.offset;
           } else {
-            // Raw measurement curves: show with normalization
-            const normalized = rawGain - normGain + labState.normDb;
-            dispGain = normalized + curve.offset;
-          }
-
-        } else if (labState.viewMode === 'netPostEq' && activeTarget && !isTargetCurve) {
-          // Post-EQ Net: show what the IEM sounds like after applying the filter
-          // For filter curves: IEM + Filter ≈ SourceTarget (the intended result)
-          if (isFilter && sourceTargetPoints) {
-            const srcTargetGain = getInterpolatedTargetGain(f, sourceTargetPoints);
-            dispGain = srcTargetGain + curve.offset;
-          } else if (activeTarget) {
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-            dispGain = targetGain + curve.offset;
+            const targetNorm = targetGain - activeTargetNormGain;
+            const curveNorm = rawGain - curveNormGain;
+            dispGain = curveNorm - targetNorm + curve.offset;
           }
 
-        } else if (labState.viewMode === 'rawFilter' && !isTargetCurve) {
-          // "Filter Cuts" — show raw correction values as-is
-          // For filter curves: raw negative attenuation cuts (no normalization!)
-          // For measurements: normalized response
-          if (isFilter) {
+        } else if (curve.deltaCompensate && activeTarget) {
+          // Individual Delta Compensate
+          const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
+          const targetNorm = targetGain - activeTargetNormGain;
+          const curveNorm = rawGain - curveNormGain;
+          dispGain = curveNorm - targetNorm + curve.offset;
+
+        } else if (isFilter) {
+          // GraphicEQ / AutoEQ Filter Curves:
+          const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
+
+          if (labState.viewMode === 'rawFilter') {
+            // "Filter Cuts": raw negative/positive EQ slider adjustments
             dispGain = rawGain + curve.offset;
+
+          } else if (labState.viewMode === 'netPostEq') {
+            // "Post-EQ Net": what the headphone sounds like with EQ active
+            // Normalized to normDb at 1000 Hz
+            const netGain = srcTargetGain - srcTargetAtNormHz + labState.normDb;
+            dispGain = netGain + curve.offset;
+
           } else {
-            const normalized = rawGain - normGain + labState.normDb;
-            dispGain = normalized + curve.offset;
+            // Default & "IEM vs Target": Reconstruct the natural IEM frequency response!
+            // IEM_raw(f) = SourceTarget(f) - Filter(f)
+            // Normalized to normDb at 1000 Hz:
+            // IEM_plot(f) = IEM_raw(f) - IEM_raw(1000Hz) + normDb + offset
+            const iemRaw = srcTargetGain - rawGain;
+            const iemNormalized = iemRaw - reconstructedIemAtNormHz + labState.normDb;
+            dispGain = iemNormalized + curve.offset;
           }
 
         } else {
-          // Default: Normalization
-          // disp = raw - raw(normHz) + normDb + offset
-          const normalized = rawGain - normGain + labState.normDb;
-          dispGain = isTargetCurve ? rawGain : normalized + curve.offset;
+          // Standard Measured / AI-Estimate Curves:
+          // Normalized to normDb at normHz (1000 Hz)
+          // M_plot(f) = M(f) - M(1000Hz) + normDb + offset
+          const normalized = rawGain - curveNormGain + labState.normDb;
+          dispGain = normalized + curve.offset;
         }
 
         return { freq: f, gain: parseFloat(dispGain.toFixed(2)) };
