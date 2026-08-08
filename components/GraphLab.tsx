@@ -152,12 +152,12 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         } else if (isFilter) {
           // GraphicEQ / AutoEQ Filter Curves:
           const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
+          const isFilterCutsMode = labState.viewMode === 'rawFilter';
+          const showRawCuts = isFilterCutsMode ? !curve.isInverted : !!curve.isInverted;
 
-          if (labState.viewMode === 'rawFilter' || (curve.isInverted && labState.viewMode !== 'rawFilter')) {
-            // "Filter Cuts" or inverted toggle: raw negative/positive EQ slider adjustments
-            dispGain = (curve.isInverted && labState.viewMode === 'rawFilter'
-              ? srcTargetGain - rawGain - reconstructedIemAtNormHz + labState.normDb
-              : rawGain) + curve.offset;
+          if (showRawCuts) {
+            // "Filter Cuts" mode or inverted toggle: raw corrective EQ adjustments
+            dispGain = rawGain + curve.offset;
 
           } else if (labState.viewMode === 'netPostEq') {
             // "Post-EQ Net": what the headphone sounds like with EQ active
