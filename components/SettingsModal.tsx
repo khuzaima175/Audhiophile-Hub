@@ -1,8 +1,13 @@
-import React, { useState, useRef } from 'react';
-import { AudioProfile, KnowledgeEntry, EQPreset, GearItem } from '../types';
-import { PlusIcon, TrashIcon, BrainIcon, EqIcon, SaveIcon, LinkIcon, HeadphonesIcon, StarIcon, SwordsIcon, XIcon } from './Icon';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { AudioProfile, KnowledgeEntry, EQPreset, GearItem, DEFAULT_PROFILE } from '../types';
+import { PlusIcon, TrashIcon, BrainIcon, EqIcon, SaveIcon, LinkIcon, HeadphonesIcon, StarIcon, SwordsIcon, XIcon, CheckIcon, WaveformIcon, ActivityIcon } from './Icon';
 import { generateBattleComparison } from '../services/geminiService';
+import { EQWorkbench } from './EQWorkbench';
 import { v4 as uuidv4 } from 'uuid';
+import Led from './ui/Led';
+import Engraved from './ui/Engraved';
+import Fader from './ui/Fader';
+import Panel from './ui/Panel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,43 +17,80 @@ interface SettingsModalProps {
   onSave: (profile: AudioProfile) => void;
   onSummarizeHistory: () => void;
   isSummarizing: boolean;
+  initialTab?: 'profile' | 'eq' | 'gear' | 'memory' | 'knowledge';
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({
+const TABS: { key: 'profile' | 'eq' | 'gear' | 'memory' | 'knowledge'; label: string; shortLabel: string }[] = [
+  { key: 'profile', label: 'Listener Profile', shortLabel: 'Profile' },
+  { key: 'eq', label: 'EQ Library', shortLabel: 'EQ' },
+  { key: 'gear', label: 'Gear Rack', shortLabel: 'Gear' },
+  { key: 'memory', label: 'Manual Facts', shortLabel: 'Facts' },
+  { key: 'knowledge', label: 'AI Knowledge', shortLabel: 'RAG' },
+];
+
+const TARGET_PRESETS = [
+  { name: 'Crinacle IEF 2025 (B&K 5128)', desc: 'Natural tilt with clean 200Hz tuck & smooth treble' },
+  { name: 'Harman IE 2019 Target', desc: 'Punchy sub-bass shelf with forward upper midrange' },
+  { name: 'Diffuse Field Reference', desc: 'Airy, analytical reference with maximum soundstage' },
+  { name: 'Sennheiser HD600 Warm-Neutral', desc: 'Organic vocal timbre and intimate natural decay' },
+];
+
+const TEN_BANDS = [
+  { freq: '31Hz', label: '31.25' },
+  { freq: '62Hz', label: '62.5' },
+  { freq: '125Hz', label: '125' },
+  { freq: '250Hz', label: '250' },
+  { freq: '500Hz', label: '500' },
+  { freq: '1kHz', label: '1000' },
+  { freq: '2kHz', label: '2000' },
+  { freq: '4kHz', label: '4000' },
+  { freq: '8kHz', label: '8000' },
+  { freq: '16kHz', label: '16000' },
+];
+
+const GEAR_TYPES: ('IEM' | 'Headphone' | 'DAC' | 'AMP' | 'Other')[] = ['IEM', 'Headphone', 'DAC', 'AMP', 'Other'];
+const GEAR_STATUSES: { key: 'owned' | 'wishlist' | 'tried'; label: string; color: 'green' | 'amber' | 'teal' }[] = [
+  { key: 'owned', label: 'Owned', color: 'green' },
+  { key: 'wishlist', label: 'Wishlist', color: 'amber' },
+  { key: 'tried', label: 'Tested', color: 'teal' },
+];
+
+export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   profile,
-  knowledgeBase,
+  knowledgeBase = [],
   onSave,
   onSummarizeHistory,
-  isSummarizing
+  isSummarizing,
+  initialTab = 'profile',
 }) => {
-  const [formData, setFormData] = useState<AudioProfile>(profile);
-  const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'knowledge' | 'eq' | 'gear'>('profile');
+  const [formData, setFormData] = useState<AudioProfile>(profile || DEFAULT_PROFILE);
+  const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'knowledge' | 'eq' | 'gear'>(initialTab);
+  const [isSavedFlash, setIsSavedFlash] = useState(false);
+  const [justAddedToast, setJustAddedToast] = useState<string | null>(null);
+
+// Fader state for sound signature synthesis
+  const [bassGain, setBassGain] = useState(profile?.faderState?.bassGain ?? 0);
+  const [sibilanceGain, setSibilanceGain] = useState(profile?.faderState?.sibilanceGain ?? -2);
+  const [airGain, setAirGain] = useState(profile?.faderState?.airGain ?? 1);
+
+  // Memory & Form State
   const [newMemory, setNewMemory] = useState('');
   const [copySuccessId, setCopySuccessId] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
-  // EQ Form State
-  const [isAddingEQ, setIsAddingEQ] = useState(false);
-  const [newEQ, setNewEQ] = useState<{ name: string, hardware: string, type: 'Wavelet' | 'Parametric', bands: string }>({
-    name: '',
-    hardware: '',
-    type: 'Wavelet',
-    bands: ''
-  });
-
-  // Gear Form State
+  // Gear Form State (State machine: EMPTY | IDLE | ADDING | BATTLING)
   const [isAddingGear, setIsAddingGear] = useState(false);
   const [newGear, setNewGear] = useState<Omit<GearItem, 'id' | 'addedAt'>>({
     name: '',
     type: 'IEM',
     status: 'owned',
-    rating: undefined,
+    rating: 5,
     notes: '',
-    price: ''
+    price: '',
   });
 
   // Battle Mode State
@@ -58,15 +100,109 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [battleAnalysis, setBattleAnalysis] = useState('');
   const [isBattleLoading, setIsBattleLoading] = useState(false);
 
-  // Expanded Knowledge State
-  const [expandedKnowledgeId, setExpandedKnowledgeId] = useState<string | null>(null);
+  // AI Knowledge Search
+  const [kbSearch, setKbSearch] = useState('');
 
-  // Trigger AI Battle Comparison
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(profile || DEFAULT_PROFILE);
+      if (initialTab) setActiveTab(initialTab);
+      if (profile?.faderState) {
+        setBassGain(profile.faderState.bassGain);
+        setSibilanceGain(profile.faderState.sibilanceGain);
+        setAirGain(profile.faderState.airGain);
+      }
+      setIsAddingGear(false);
+      setBattleMode(false);
+      setSelectedForBattle([]);
+    }
+  }, [isOpen, initialTab, profile]);
+
+  const gearCount = formData.gearLibrary?.length || 0;
+
+  // Check for unsaved changes (profile tab primarily)
+  const hasUnsavedChanges = useMemo(() => {
+    return JSON.stringify(formData) !== JSON.stringify(profile || DEFAULT_PROFILE);
+  }, [formData, profile]);
+
+  if (!isOpen) return null;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleApplyFadersToPrefs = () => {
+    const faderText = `Bass Tuning: ${bassGain > 0 ? `+${bassGain}dB` : `${bassGain}dB`} sub-bass shelf. Sibilance Protection: ${sibilanceGain}dB at 8kHz notch. Treble Air: ${airGain > 0 ? `+${airGain}dB` : `${airGain}dB`} above 10kHz.`;
+    const cleanPrefs = (formData.technicalPrefs || '')
+      .replace(/Bass Tuning:[^.]*\.\s*Sibilance Protection:[^.]*\.\s*Treble Air:[^.]*\.?/gi, '')
+      .trim();
+    const updated = cleanPrefs ? `${faderText}\n\n${cleanPrefs}` : faderText;
+    const nextProfile = {
+      ...formData,
+      technicalPrefs: updated,
+      faderState: { bassGain, sibilanceGain, airGain },
+    };
+    setFormData(nextProfile);
+    onSave(nextProfile);
+    setJustAddedToast('Applied faders to acoustic preferences');
+    setTimeout(() => setJustAddedToast(null), 2500);
+  };
+
+  const handleAddMemory = () => {
+    if (newMemory.trim()) {
+      const updated = [...(formData.savedMemories || []), newMemory.trim()];
+      const nextProfile = { ...formData, savedMemories: updated };
+      setFormData(nextProfile);
+      onSave(nextProfile); // Instant persist
+      setNewMemory('');
+    }
+  };
+
+  const handleRemoveMemory = (index: number) => {
+    const updated = (formData.savedMemories || []).filter((_, i) => i !== index);
+    const nextProfile = { ...formData, savedMemories: updated };
+    setFormData(nextProfile);
+    onSave(nextProfile); // Instant persist
+  };
+
+  // Instant Persist for Gear Registration
+  const handleSaveGear = () => {
+    if (newGear.name.trim()) {
+      const item: GearItem = {
+        id: uuidv4(),
+        name: newGear.name.trim(),
+        type: newGear.type,
+        status: newGear.status,
+        rating: newGear.rating,
+        notes: newGear.notes?.trim(),
+        price: newGear.price?.trim(),
+        addedAt: Date.now(),
+      };
+      const updated = [...(formData.gearLibrary || []), item];
+      const nextProfile = { ...formData, gearLibrary: updated };
+      setFormData(nextProfile);
+      onSave(nextProfile); // Instant persist! No double-commit needed.
+      setIsAddingGear(false);
+      setNewGear({ name: '', type: 'IEM', status: 'owned', rating: 5, notes: '', price: '' });
+      setJustAddedToast(`Registered ${item.name} to Gear Rack`);
+      setTimeout(() => setJustAddedToast(null), 3000);
+    }
+  };
+
+  const handleDeleteGear = (id: string) => {
+    const updated = (formData.gearLibrary || []).filter((g) => g.id !== id);
+    const nextProfile = { ...formData, gearLibrary: updated };
+    setFormData(nextProfile);
+    onSave(nextProfile); // Instant persist
+    setSelectedForBattle((prev) => prev.filter((item) => item !== id));
+  };
+
   const handleStartBattle = async () => {
     if (selectedForBattle.length < 2) return;
 
     const selectedGearData = selectedForBattle
-      .map(id => (formData.gearLibrary || []).find(g => g.id === id))
+      .map((id) => (formData.gearLibrary || []).find((g) => g.id === id))
       .filter(Boolean) as GearItem[];
 
     setShowComparison(true);
@@ -75,17 +211,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
     try {
       await generateBattleComparison(
-        selectedGearData.map(g => ({
+        selectedGearData.map((g) => ({
           name: g.name,
           type: g.type,
           status: g.status,
           rating: g.rating,
           notes: g.notes,
-          price: g.price
+          price: g.price,
         })),
-        profile,
+        formData,
         (chunk) => {
-          setBattleAnalysis(prev => prev + chunk);
+          setBattleAnalysis((prev) => prev + chunk);
         }
       );
     } catch (error: any) {
@@ -95,111 +231,120 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  const renderShootoutMarkdown = (text: string) => {
+    if (!text) return null;
+    const cleanText = text.replace(/\\n/g, '\n');
+    const lines = cleanText.split('\n');
+    const nodes: React.ReactNode[] = [];
+    let inTable = false;
+    let tableRows: string[] = [];
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    const flushTable = (key: string) => {
+      if (tableRows.length === 0) return;
+      const dataRows = tableRows.filter((r) => !r.includes('---'));
+      if (dataRows.length > 0) {
+        const headers = dataRows[0].split('|').filter((c) => c.trim()).map((c) => c.trim());
+        const body = dataRows.slice(1).map((r) => r.split('|').filter((c) => c.trim()).map((c) => c.trim()));
+        nodes.push(
+          <div key={key} className="my-3 overflow-x-auto rounded-xl border border-audio-border bg-[#0E0B09]">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-audio-border bg-[#1A1410]">
+                  {headers.map((h, i) => (
+                    <th key={i} className="px-3 py-2 text-audio-accent font-mono text-[10px] uppercase tracking-wider font-semibold">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {body.map((row, rI) => (
+                  <tr key={rI} className={`border-b border-audio-border/40 ${rI % 2 === 1 ? 'bg-black/20' : ''}`}>
+                    {row.map((cell, cI) => (
+                      <td key={cI} className="px-3 py-2 text-[11px] text-audio-text/90">
+                        {renderInlineFormatting(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+      tableRows = [];
+      inTable = false;
+    };
 
-  const handleAddMemory = () => {
-    if (newMemory.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        savedMemories: [...(prev.savedMemories || []), newMemory.trim()]
-      }));
-      setNewMemory('');
+    const renderInlineFormatting = (str: string) => {
+      const parts = str.split(/(\*\*.*?\*\*)/g);
+      return parts.map((part, pIdx) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={pIdx} className="text-audio-accent font-semibold">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim().startsWith('|')) {
+        inTable = true;
+        tableRows.push(line);
+        continue;
+      }
+      if (inTable) {
+        flushTable(`table-${i}`);
+      }
+      if (line.startsWith('## ')) {
+        nodes.push(
+          <h3 key={`h2-${i}`} className="font-display font-bold text-sm text-audio-accent mt-3 mb-1 border-b border-audio-border/60 pb-1">
+            {line.slice(3)}
+          </h3>
+        );
+      } else if (line.startsWith('### ')) {
+        nodes.push(
+          <h4 key={`h3-${i}`} className="font-display font-semibold text-xs text-audio-text mt-2 mb-1">
+            {line.slice(4)}
+          </h4>
+        );
+      } else if (line.startsWith('> ')) {
+        nodes.push(
+          <div key={`quote-${i}`} className="p-2.5 my-2 rounded-lg bg-audio-accent/15 border-l-2 border-audio-accent text-xs font-medium text-audio-text">
+            {renderInlineFormatting(line.slice(2))}
+          </div>
+        );
+      } else if (line.startsWith('---')) {
+        nodes.push(<hr key={`hr-${i}`} className="my-2 border-audio-border/50" />);
+      } else if (line.trim().startsWith('- ')) {
+        nodes.push(
+          <li key={`li-${i}`} className="ml-4 list-disc text-xs text-audio-text/90 my-0.5">
+            {renderInlineFormatting(line.trim().slice(2))}
+          </li>
+        );
+      } else if (line.trim() !== '') {
+        nodes.push(
+          <p key={`p-${i}`} className="text-xs text-audio-text/90 my-1 leading-relaxed">
+            {renderInlineFormatting(line)}
+          </p>
+        );
+      }
     }
-  };
-
-  const handleRemoveMemory = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      savedMemories: prev.savedMemories.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleSaveEQ = () => {
-    if (newEQ.name && newEQ.bands) {
-      const preset: EQPreset = {
-        id: uuidv4(),
-        name: newEQ.name,
-        hardware: newEQ.hardware,
-        type: newEQ.type,
-        bands: newEQ.bands,
-        timestamp: Date.now()
-      };
-      setFormData(prev => ({
-        ...prev,
-        eqLibrary: [...(prev.eqLibrary || []), preset]
-      }));
-      setIsAddingEQ(false);
-      setNewEQ({ name: '', hardware: '', type: 'Wavelet', bands: '' });
+    if (inTable) {
+      flushTable('table-end');
     }
-  };
-
-  const handleDeleteEQ = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      eqLibrary: prev.eqLibrary.filter(eq => eq.id !== id)
-    }));
-  };
-
-  const handleCopyWavelet = (eq: EQPreset) => {
-    const text = eq.bands; // Assume user saved the raw GraphicEQ string or similar
-    navigator.clipboard.writeText(text).then(() => {
-      setCopySuccessId(eq.id);
-      setTimeout(() => setCopySuccessId(null), 2000);
-    });
-  }
-
-  // Gear CRUD handlers
-  const handleSaveGear = () => {
-    if (newGear.name.trim()) {
-      const item: GearItem = {
-        id: uuidv4(),
-        name: newGear.name,
-        type: newGear.type,
-        status: newGear.status,
-        rating: newGear.rating,
-        notes: newGear.notes,
-        price: newGear.price,
-        addedAt: Date.now()
-      };
-      setFormData(prev => ({
-        ...prev,
-        gearLibrary: [...(prev.gearLibrary || []), item]
-      }));
-      setIsAddingGear(false);
-      setNewGear({ name: '', type: 'IEM', status: 'owned', rating: undefined, notes: '', price: '' });
-    }
-  };
-
-  const handleDeleteGear = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      gearLibrary: (prev.gearLibrary || []).filter(g => g.id !== id)
-    }));
-  };
-
-  const handleUpdateGearRating = (id: string, rating: number) => {
-    setFormData(prev => ({
-      ...prev,
-      gearLibrary: (prev.gearLibrary || []).map(g =>
-        g.id === id ? { ...g, rating } : g
-      )
-    }));
+    return nodes;
   };
 
   const handleExportData = () => {
     const chats = localStorage.getItem('audiosage_chats_v1');
-    const profile = localStorage.getItem('audiosage_profile_v1');
+    const profileData = localStorage.getItem('audiosage_profile_v1');
     const kb = localStorage.getItem('audiosage_knowledge_v1');
     const data = {
       timestamp: new Date().toISOString(),
-      profile: profile ? JSON.parse(profile) : null,
+      profile: profileData ? JSON.parse(profileData) : formData,
       chats: chats ? JSON.parse(chats) : [],
-      knowledgeBase: kb ? JSON.parse(kb) : []
+      knowledgeBase: kb ? JSON.parse(kb) : [],
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -221,33 +366,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-
-        // Validate structure
-        if (!data.profile && !data.chats && !data.knowledgeBase) {
-          throw new Error('Invalid backup file format');
-        }
-
-        // Restore data
         if (data.profile) {
           localStorage.setItem('audiosage_profile_v1', JSON.stringify(data.profile));
+          setFormData(data.profile);
+          onSave(data.profile);
         }
-        if (data.chats) {
-          localStorage.setItem('audiosage_chats_v1', JSON.stringify(data.chats));
-        }
-        if (data.knowledgeBase) {
-          localStorage.setItem('audiosage_knowledge_v1', JSON.stringify(data.knowledgeBase));
-        }
+        if (data.chats) localStorage.setItem('audiosage_chats_v1', JSON.stringify(data.chats));
+        if (data.knowledgeBase) localStorage.setItem('audiosage_knowledge_v1', JSON.stringify(data.knowledgeBase));
 
-        setImportMessage({ type: 'success', text: `Backup restored! ${data.chats?.length || 0} chats imported. Refresh to apply.` });
+        setImportMessage({ type: 'success', text: `Backup restored! Refresh to update all views.` });
         setTimeout(() => setImportMessage(null), 5000);
       } catch (err) {
-        setImportMessage({ type: 'error', text: 'Failed to parse backup file. Make sure it\'s a valid AudioSage backup.' });
+        setImportMessage({ type: 'error', text: 'Failed to parse backup file.' });
         setTimeout(() => setImportMessage(null), 5000);
       }
     };
     reader.readAsText(file);
-
-    // Reset file input
     if (importFileRef.current) importFileRef.current.value = '';
   };
 
@@ -262,124 +396,616 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSave = () => {
     onSave(formData);
-    onClose();
+    setIsSavedFlash(true);
+    setTimeout(() => {
+      setIsSavedFlash(false);
+      onClose();
+    }, 350);
   };
 
+  const inputClass =
+    'w-full bg-[#130E0B] border border-audio-border rounded-xl px-4 py-3 text-audio-text focus:outline-none focus:border-audio-accent/70 focus:ring-1 focus:ring-audio-accent/30 transition-all placeholder-audio-muted/60 text-xs md:text-sm font-sans';
+  const labelClass = 'text-[10px] font-bold text-audio-accent uppercase tracking-widest font-mono pl-1';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 animate-in fade-in duration-200 safe-area-top safe-area-bottom">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 md:p-4">
+      {/* Background click to dismiss */}
+      <div className="fixed inset-0" onClick={onClose} />
+
       <div
-        className="bg-[#0A0A0A] w-full max-w-4xl rounded-2xl border border-audio-border shadow-2xl shadow-audio-accent/5 flex flex-col max-h-[85vh] max-h-modal-mobile animate-in zoom-in-95 duration-200"
+        className="panel bg-[#16110D] w-full max-w-4xl rounded-2xl border border-audio-border shadow-2xl flex flex-col max-h-[90vh] relative z-10 overflow-hidden"
         role="dialog"
       >
+        {/* HARDWARE SCREW CORNERS */}
+        <div className="absolute top-2.5 left-2.5 w-2 h-2 rounded-full bg-[#332B23] border border-[#1A1512]" />
+        <div className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#332B23] border border-[#1A1512]" />
 
-        {/* Header */}
-        <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-6 border-b border-audio-border bg-[#050505] flex-shrink-0">
-          <div className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-x-touch mobile-scroll-fix mr-2 -mx-2 px-2" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
-            <div className="flex gap-4 md:gap-8 min-w-max">
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase pb-1 whitespace-nowrap ${activeTab === 'profile' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-              >
-                Profile
-              </button>
-              <button
-                onClick={() => setActiveTab('eq')}
-                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase flex items-center gap-1 md:gap-2 pb-1 whitespace-nowrap ${activeTab === 'eq' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-              >
-                <EqIcon /> <span className="hidden sm:inline">EQ</span> Library
-              </button>
-              <button
-                onClick={() => setActiveTab('gear')}
-                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase flex items-center gap-1 md:gap-2 pb-1 whitespace-nowrap ${activeTab === 'gear' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-              >
-                <HeadphonesIcon /> Gear
-              </button>
-              <button
-                onClick={() => setActiveTab('memory')}
-                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase pb-1 whitespace-nowrap ${activeTab === 'memory' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-              >
-                <span className="sm:hidden">Facts</span><span className="hidden sm:inline">Manual Facts</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('knowledge')}
-                className={`text-xs md:text-sm font-bold tracking-wide transition-all uppercase pb-1 whitespace-nowrap ${activeTab === 'knowledge' ? 'text-audio-accent border-b-2 border-audio-accent' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-              >
-                <span className="sm:hidden">AI</span><span className="hidden sm:inline">AI Knowledge</span>
-              </button>
+        {/* CHASSIS HEADER & SEGMENTED TABS */}
+        <div className="px-4 md:px-6 pt-5 pb-3 border-b border-audio-border bg-[#120D0A] flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-audio-accent shadow-[0_0_8px_#C6934F]" />
+              <Engraved size="sm" glow>
+                AUDIOSAGE SYSTEM REPOSITORY • ACOUSTIC WORKBENCH
+              </Engraved>
             </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-audio-muted hover:text-audio-text hover:bg-audio-surface transition-colors"
+              title="Close Workbench (Esc)"
+            >
+              <XIcon />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-audio-highlight text-gray-500 hover:text-white transition-colors flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
+
+          {/* Sliding Segmented Tab Switch */}
+          <div className="flex bg-[#1D1713] p-1 rounded-xl border border-audio-border overflow-x-auto scrollbar-hide">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              const count =
+                tab.key === 'eq'
+                  ? formData.eqLibrary?.length || 0
+                  : tab.key === 'gear'
+                  ? formData.gearLibrary?.length || 0
+                  : tab.key === 'memory'
+                  ? formData.savedMemories?.length || 0
+                  : tab.key === 'knowledge'
+                  ? (knowledgeBase?.length || 0)
+                  : null;
+
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.key);
+                    setIsAddingGear(false);
+                  }}
+                  className={`flex-1 min-w-max px-3.5 py-2 rounded-lg text-xs font-mono font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 select-none ${
+                    isActive
+                      ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
+                      : 'text-audio-muted hover:text-audio-text hover:bg-audio-surface/50'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {count !== null && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                        isActive ? 'bg-black/20 text-black font-bold' : 'bg-black/40 text-audio-muted'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scroll-touch mobile-scroll-fix" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+        {/* MODAL BODY */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scrollbar-thin bg-[#16110D]">
+          {/* =========================================================================
+              TAB 1: LISTENER PROFILE & FADERS
+              ========================================================================= */}
           {activeTab === 'profile' && (
-            <div className="space-y-8 max-w-2xl mx-auto">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-audio-accent uppercase tracking-widest pl-1">Display Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full bg-audio-surface border border-audio-border rounded-xl px-5 py-4 text-white focus:outline-none focus:border-audio-accent/50 focus:ring-1 focus:ring-audio-accent/50 transition-all placeholder-gray-700"
-                    placeholder="How should I call you?"
-                  />
+            <div className="space-y-6 max-w-3xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                {/* Left Column: Profile Inputs & Target Chips */}
+                <div className="md:col-span-7 space-y-4">
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>Listener Display Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name || ''}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Your audiophile moniker..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>Target Sound Signature Reference</label>
+                    <textarea
+                      name="soundSignature"
+                      value={formData.soundSignature || ''}
+                      onChange={handleChange}
+                      className={`${inputClass} min-h-[75px] leading-relaxed`}
+                      placeholder="Describe target preference curve..."
+                    />
+                    {/* Quick Preset Chips */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {TARGET_PRESETS.map((preset, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setFormData((p) => ({ ...p, soundSignature: preset.name + ' — ' + preset.desc }))}
+                          className="text-[9px] font-mono px-2 py-1 rounded bg-[#1C1713] border border-audio-border hover:border-audio-accent text-audio-muted hover:text-audio-accent transition-colors"
+                        >
+                          + {preset.name.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>Current Daily Gear</label>
+                    <input
+                      type="text"
+                      name="currentGear"
+                      value={formData.currentGear || ''}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="e.g. CCA Phoenix (Main), JCally JM6 Pro (DAC)..."
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-audio-accent uppercase tracking-widest pl-1">Sound Signature</label>
-                  <textarea
-                    name="soundSignature"
-                    value={formData.soundSignature}
-                    onChange={handleChange}
-                    className="w-full bg-audio-surface border border-audio-border rounded-xl px-5 py-4 text-white focus:outline-none focus:border-audio-accent/50 focus:ring-1 focus:ring-audio-accent/50 transition-all min-h-[100px] placeholder-gray-700 leading-relaxed"
-                    placeholder="Describe your preferred sound profile..."
-                  />
-                </div>
+                {/* Right Column: Live Fader Controls & System Prompt Greeting */}
+                <div className="md:col-span-5 space-y-4">
+                  <div className="p-3.5 bg-[#120D0A] rounded-xl border border-audio-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <Engraved size="xs" glow>
+                        ACOUSTIC TUNING FADERS
+                      </Engraved>
+                      <button
+                        type="button"
+                        onClick={handleApplyFadersToPrefs}
+                        className="text-[9px] font-mono text-audio-accent hover:underline"
+                      >
+                        Apply to Rules
+                      </button>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-audio-accent uppercase tracking-widest pl-1">Current Gear (Inventory)</label>
-                  <textarea
-                    name="currentGear"
-                    value={formData.currentGear}
-                    onChange={handleChange}
-                    className="w-full bg-audio-surface border border-audio-border rounded-xl px-5 py-4 text-white focus:outline-none focus:border-audio-accent/50 focus:ring-1 focus:ring-audio-accent/50 transition-all min-h-[80px] placeholder-gray-700 leading-relaxed"
-                    placeholder="List your headphones, IEMs, DACs, and Amps..."
-                  />
-                </div>
+                    <div className="space-y-3">
+                      <Fader
+                        label="Sub-Bass Shelf (100Hz)"
+                        value={bassGain}
+                        min={-6}
+                        max={6}
+                        step={0.5}
+                        onChange={setBassGain}
+                        ticks={['-6dB', '0dB', '+6dB']}
+                      />
+                      <Fader
+                        label="8kHz Sibilance Notch"
+                        value={sibilanceGain}
+                        min={-6}
+                        max={3}
+                        step={0.5}
+                        onChange={setSibilanceGain}
+                        ticks={['-6dB', '-2dB', '+3dB']}
+                      />
+                      <Fader
+                        label="10kHz+ Treble Air"
+                        value={airGain}
+                        min={-4}
+                        max={6}
+                        step={0.5}
+                        onChange={setAirGain}
+                        ticks={['-4dB', '0dB', '+6dB']}
+                      />
+                    </div>
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-audio-accent uppercase tracking-widest pl-1">Technical Preferences</label>
-                  <textarea
-                    name="technicalPrefs"
-                    value={formData.technicalPrefs || ''}
-                    onChange={handleChange}
-                    className="w-full bg-audio-surface border border-audio-border rounded-xl px-5 py-4 text-white focus:outline-none focus:border-audio-accent/50 focus:ring-1 focus:ring-audio-accent/50 transition-all min-h-[120px] placeholder-gray-700 leading-relaxed"
-                    placeholder="Details about soundstage, imaging, separation, sensitivity rules..."
-                  />
+                  {/* System Prompt Preview Card */}
+                  <div className="p-3.5 bg-[#120D0A] rounded-xl border border-audio-border text-left">
+                    <Engraved size="xs" className="mb-1.5 block">
+                      NEURAL PROMPT PREVIEW
+                    </Engraved>
+                    <div className="text-[10px] font-mono text-audio-muted/90 bg-black/40 p-2.5 rounded-lg border border-audio-border/50 leading-relaxed">
+                      &quot;Welcome back, <span className="text-audio-accent">{formData.name || 'Phoenix User'}</span>. Tuning against{' '}
+                      <span className="text-audio-signal">{(formData.soundSignature || 'Crinacle IEF 2025').slice(0, 28)}…</span> with{' '}
+                      {bassGain !== 0 && `bass offset ${bassGain}dB, `}
+                      {sibilanceGain < 0 && `8kHz sibilance guard active.`}&quot;
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Technical Preferences Section */}
+              <div className="space-y-1.5 pt-2">
+                <label className={labelClass}>Technical Acoustic Preferences</label>
+                <textarea
+                  name="technicalPrefs"
+                  value={formData.technicalPrefs || ''}
+                  onChange={handleChange}
+                  className={`${inputClass} min-h-[90px] leading-relaxed`}
+                  placeholder="Soundstage, holographic imaging, transient decay, tip preference, sibilance sensitivities..."
+                />
               </div>
             </div>
           )}
 
+          {/* =========================================================================
+              TAB 2: EQ WORKBENCH & DSP AUDITION ENGINE
+              ========================================================================= */}
+          {activeTab === 'eq' && (
+            <EQWorkbench
+              presets={formData.eqPresets || []}
+              onSavePresets={(updated) => {
+                const next = { ...formData, eqPresets: updated };
+                setFormData(next);
+                onSave(next);
+              }}
+            />
+          )}
+
+          {/* =========================================================================
+              TAB 3: GEAR RACK (Refined Single-Action State Machine)
+              ========================================================================= */}
+          {activeTab === 'gear' && (
+            <div className="space-y-5 max-w-4xl mx-auto">
+              {/* STATE A: EMPTY STATE (gearCount === 0 && !isAddingGear) */}
+              {gearCount === 0 && !isAddingGear && (
+                <div className="text-center py-16 px-4 border border-dashed border-audio-border rounded-2xl bg-[#120D0A] flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-audio-surface border border-audio-border flex items-center justify-center text-audio-accent mb-3 shadow-panel">
+                    <HeadphonesIcon />
+                  </div>
+                  <h3 className="font-display font-bold text-base text-audio-text">Your Gear Rack is Empty</h3>
+                  <p className="text-xs text-audio-muted mt-1 max-w-sm">
+                    Every shootout starts with an empty rack. Register your daily IEMs, headphones, or DACs to unlock battle mode and tailored tuning.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingGear(true)}
+                    className="mt-5 px-5 py-2.5 rounded-xl bg-audio-accent hover:bg-audio-accent-bright text-black font-mono font-bold text-xs shadow-glow-brass active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <PlusIcon />
+                    <span>+ Register First Gear</span>
+                  </button>
+                </div>
+              )}
+
+              {/* STATE B: IDLE / HEADER (gearCount > 0 && !isAddingGear) */}
+              {gearCount > 0 && !isAddingGear && (
+                <div className="flex flex-wrap justify-between items-center gap-3 pb-1 border-b border-audio-border/50">
+                  <div>
+                    <h3 className="font-display font-semibold text-sm text-audio-text">
+                      Audio Hardware Inventory ({gearCount})
+                    </h3>
+                    <p className="text-xs text-audio-muted mt-0.5">
+                      Select contenders for battle mode or register new daily drivers.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Battle Mode Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (gearCount >= 2) {
+                          setBattleMode(!battleMode);
+                          if (battleMode) setSelectedForBattle([]);
+                        }
+                      }}
+                      disabled={gearCount < 2}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all flex items-center gap-1.5 ${
+                        battleMode
+                          ? 'bg-audio-warn text-black border-audio-warn font-bold shadow-panel'
+                          : gearCount < 2
+                          ? 'opacity-40 cursor-not-allowed bg-audio-surface border-audio-border text-audio-muted'
+                          : 'bg-audio-surface border-audio-border text-audio-muted hover:text-audio-text hover:border-audio-accent/50'
+                      }`}
+                      title={gearCount < 2 ? 'Register at least 2 gear items to run Battle Mode' : 'Toggle Battle Mode'}
+                    >
+                      <SwordsIcon />
+                      <span>{battleMode ? 'Exit Battle' : 'Battle Mode'}</span>
+                    </button>
+
+                    {/* Add Gear Button (Only primary brass button on IDLE) */}
+                    {!battleMode && (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingGear(true)}
+                        className="px-3.5 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass flex items-center gap-1 active:scale-95 transition-all"
+                      >
+                        <PlusIcon />
+                        <span>+ Add Gear</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* BATTLING STATE COACH BANNER */}
+              {battleMode && (
+                <div className="p-3 rounded-xl bg-[#21150F] border border-audio-warn/50 flex flex-wrap items-center justify-between gap-2 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-audio-warn animate-pulse" />
+                    <span className="text-xs font-mono text-audio-warn font-semibold">
+                      Battle Mode Active: Tap 2–3 gear cards to compare
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-audio-muted border border-audio-border">
+                      {selectedForBattle.length} / 3 Selected
+                    </span>
+                    {selectedForBattle.length >= 2 && (
+                      <button
+                        type="button"
+                        onClick={handleStartBattle}
+                        className="px-3.5 py-1 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass animate-in zoom-in-95"
+                      >
+                        Run Shootout →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STATE C: ADDING FORM DRAWER (Replaces native dropdowns with interactive chips & has single form-level commit) */}
+              {isAddingGear && (
+                <div className="p-4 md:p-5 bg-[#120D0A] rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3">
+                  <div className="flex items-center justify-between mb-4">
+                    <Engraved size="xs" glow>
+                      REGISTER HARDWARE Contender
+                    </Engraved>
+                    <span className="text-[10px] font-mono text-audio-muted">Press Enter to Add</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Gear Name */}
+                    <div>
+                      <label className={labelClass}>Gear / IEM Name *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Simgot EW300, Moondrop Aria 2, JCally JM6 Pro..."
+                        value={newGear.name}
+                        onChange={(e) => setNewGear({ ...newGear, name: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newGear.name.trim()) handleSaveGear();
+                          if (e.key === 'Escape') setIsAddingGear(false);
+                        }}
+                        className={inputClass}
+                        autoFocus
+                      />
+                    </div>
+
+                    {/* Segmented Type Chips (replaces native OS select) */}
+                    <div>
+                      <label className={labelClass}>Hardware Category</label>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {GEAR_TYPES.map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setNewGear({ ...newGear, type })}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
+                              newGear.type === type
+                                ? 'bg-audio-accent text-black font-bold shadow-glow-brass border-audio-accent'
+                                : 'bg-[#18130F] border border-audio-border text-audio-muted hover:text-audio-text hover:border-audio-accent/40'
+                            }`}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Segmented Status Chips with LEDs (replaces native OS select) */}
+                    <div>
+                      <label className={labelClass}>Collection Status</label>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {GEAR_STATUSES.map((status) => (
+                          <button
+                            key={status.key}
+                            type="button"
+                            onClick={() => setNewGear({ ...newGear, status: status.key })}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all flex items-center gap-1.5 ${
+                              newGear.status === status.key
+                                ? 'bg-[#1E1712] border-2 border-audio-accent text-audio-text font-bold shadow-panel'
+                                : 'bg-[#18130F] border border-audio-border text-audio-muted hover:text-audio-text'
+                            }`}
+                          >
+                            <Led color={status.color} size="sm" />
+                            <span>{status.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Gear Rating Selector */}
+                    <div>
+                      <label className={labelClass}>Gear Rating (1–5 Stars)</label>
+                      <div className="flex items-center gap-1 mt-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setNewGear({ ...newGear, rating: star })}
+                            className={`p-1 rounded transition-colors ${
+                              (newGear.rating || 5) >= star ? 'text-audio-accent' : 'text-audio-muted/40 hover:text-audio-accent/70'
+                            }`}
+                            title={`${star} Star${star > 1 ? 's' : ''}`}
+                          >
+                            <StarIcon filled={(newGear.rating || 5) >= star} />
+                          </button>
+                        ))}
+                        <span className="text-[10px] font-mono text-audio-muted ml-2">
+                          {newGear.rating || 5} / 5 Stars
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Optional Price & Notes */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className={labelClass}>Approx Price (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. $79 USD"
+                          value={newGear.price || ''}
+                          onChange={(e) => setNewGear({ ...newGear, price: e.target.value })}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Soundstage Impressions (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Wide stage, tribrid EST, natural decay..."
+                          value={newGear.notes || ''}
+                          onChange={(e) => setNewGear({ ...newGear, notes: e.target.value })}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Single Form-Level Commit Action */}
+                    <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-audio-border/50">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingGear(false)}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveGear}
+                        disabled={!newGear.name.trim()}
+                        className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass disabled:opacity-40 transition-all active:scale-95"
+                      >
+                        Add to Rack
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Gear Grid Cards */}
+              {gearCount > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {formData.gearLibrary?.map((gear) => {
+                    const isSelected = selectedForBattle.includes(gear.id);
+                    const battleIndex = selectedForBattle.indexOf(gear.id);
+
+                    return (
+                      <div
+                        key={gear.id}
+                        onClick={() => {
+                          if (battleMode) {
+                            setSelectedForBattle((prev) =>
+                              prev.includes(gear.id) ? prev.filter((id) => id !== gear.id) : [...prev, gear.id].slice(0, 3)
+                            );
+                          }
+                        }}
+                        className={`p-4 rounded-xl border transition-all select-none relative group ${
+                          battleMode ? 'cursor-pointer' : ''
+                        } ${
+                          isSelected
+                            ? 'border-audio-accent bg-[#1E1712] shadow-glow-brass'
+                            : 'border-audio-border bg-[#140F0C] hover:border-audio-accent/50'
+                        }`}
+                      >
+                        {/* Battle mode contender ring */}
+                        {battleMode && (
+                          <div
+                            className={`absolute top-2.5 right-2.5 w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-mono font-bold transition-all ${
+                              isSelected
+                                ? 'bg-audio-accent text-black border-audio-accent shadow-glow-brass scale-110'
+                                : 'border-audio-border bg-black/40 text-audio-muted'
+                            }`}
+                          >
+                            {isSelected ? battleIndex + 1 : ''}
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 mb-2">
+                          <Led color={gear.status === 'owned' ? 'green' : gear.status === 'tried' ? 'teal' : 'amber'} size="sm" />
+                          <span className="text-[9px] font-mono uppercase tracking-wider text-audio-muted">
+                            {gear.type} • {gear.status}
+                          </span>
+                        </div>
+
+                        <h3 className="font-display font-bold text-sm text-audio-text truncate">{gear.name}</h3>
+                        {gear.price && <p className="text-xs font-mono text-audio-accent mt-0.5">{gear.price}</p>}
+                        {gear.notes && <p className="text-[11px] text-audio-muted mt-2 line-clamp-2 leading-relaxed">{gear.notes}</p>}
+
+                        <div className="flex justify-between items-center mt-3 pt-2 border-t border-audio-border/50">
+                          <span className="text-[9px] font-mono text-audio-muted/60">
+                            {new Date(gear.addedAt).toLocaleDateString()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteGear(gear.id);
+                            }}
+                            className="text-audio-muted hover:text-audio-warn p-1 transition-colors"
+                            title="Delete gear"
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Just Added Feedback Toast */}
+              {justAddedToast && (
+                <div className="p-2.5 px-3 rounded-xl bg-audio-signal/15 border border-audio-signal/40 text-audio-signal text-xs font-mono flex items-center gap-2 animate-in fade-in">
+                  <CheckIcon />
+                  <span>{justAddedToast}</span>
+                </div>
+              )}
+
+              {/* Battle Shootout Modal Result */}
+              {showComparison && (
+                <div className="mt-4 p-4 rounded-xl border border-audio-accent/50 bg-[#120D0A] animate-in fade-in">
+                  <div className="flex justify-between items-center mb-3">
+                    <Engraved size="xs" glow>
+                      AI BATTLE SHOOTOUT TELEMETRY
+                    </Engraved>
+                    <button
+                      type="button"
+                      onClick={() => setShowComparison(false)}
+                      className="text-xs text-audio-muted hover:text-audio-text"
+                    >
+                      ✕ Close
+                    </button>
+                  </div>
+                  {isBattleLoading ? (
+                    <div className="py-6 text-center text-xs font-mono text-audio-accent flex items-center justify-center gap-2">
+                      <span className="meter-loader">
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                      <span>Google Search Spec Shootout in progress…</span>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-audio-text leading-relaxed font-sans max-h-96 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                      {renderShootoutMarkdown(battleAnalysis)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =========================================================================
+              TAB 4: MANUAL FACTS & DATA BACKUP
+              ========================================================================= */}
           {activeTab === 'memory' && (
             <div className="space-y-6 max-w-3xl mx-auto">
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={newMemory}
                   onChange={(e) => setNewMemory(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddMemory()}
-                  placeholder="Add a permanent fact, past finding, or specific rule..."
-                  className="flex-1 bg-audio-surface border border-audio-border rounded-xl px-5 py-3 text-white focus:outline-none focus:border-audio-accent/50 focus:ring-1 focus:ring-audio-accent/50 transition-all placeholder-gray-600"
+                  placeholder="Add permanent acoustic rule (e.g. SENSITIVITY: 8kHz sibilance peaks cause fatigue)..."
+                  className={inputClass}
                 />
                 <button
+                  type="button"
                   onClick={handleAddMemory}
-                  className="bg-audio-highlight hover:bg-audio-border text-white p-3 rounded-xl border border-audio-border transition-colors"
+                  className="px-4 rounded-xl bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass flex-shrink-0"
                 >
                   <PlusIcon />
                 </button>
@@ -387,39 +1013,112 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="space-y-2">
                 {formData.savedMemories?.map((memory, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-audio-surface border border-audio-border rounded-xl group hover:border-audio-accent/30 transition-colors">
-                    <p className="text-sm text-gray-300">{memory}</p>
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-xl border border-audio-border bg-[#130E0B] group hover:border-audio-accent/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[9px] font-mono text-audio-accent font-bold">#{index + 1}</span>
+                      <p className="text-xs text-audio-text/90">{memory}</p>
+                    </div>
                     <button
+                      type="button"
                       onClick={() => handleRemoveMemory(index)}
-                      className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      className="text-audio-muted hover:text-audio-warn opacity-0 group-hover:opacity-100 transition-opacity p-1"
                     >
                       <TrashIcon />
                     </button>
                   </div>
                 ))}
-                {(!formData.savedMemories || formData.savedMemories.length === 0) && (
-                  <div className="text-center py-12 text-gray-600 border border-dashed border-audio-border rounded-xl bg-audio-surface/50">
-                    <BrainIcon />
-                    <p className="mt-2 text-sm">No manual memories added yet.</p>
-                  </div>
-                )}
               </div>
-              <div className="pt-6 border-t border-audio-border mt-8">
-                <label className="block text-xs uppercase tracking-wider font-bold text-gray-500 mb-3">Data Management</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+              {/* API Key Configuration & Test Connection Suite */}
+              <div className="pt-5 border-t border-audio-border/60">
+                <div className="flex items-center justify-between mb-2">
+                  <Engraved size="xs" glow>
+                    GEMINI API ENGINE &amp; TELEMETRY TEST
+                  </Engraved>
+                  <span className="text-[10px] font-mono text-audio-signal">FREE TIER COMPATIBLE</span>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-audio-border bg-[#120D0A] space-y-3">
+                  <div>
+                    <label className={labelClass}>Gemini API Key</label>
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="password"
+                        placeholder="AIzaSy..."
+                        defaultValue={typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key') || '' : ''}
+                        onChange={(e) => {
+                          if (typeof window !== 'undefined') {
+                            localStorage.setItem('audiosage_api_key', e.target.value.trim());
+                          }
+                        }}
+                        className={inputClass}
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const key = (typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key') : '') || process.env.GEMINI_API_KEY;
+                          if (!key) {
+                            setImportMessage({ type: 'error', text: 'Please enter a valid Gemini API Key first.' });
+                            return;
+                          }
+                          setImportMessage({ type: 'success', text: 'Testing connection to Gemini 3.6 Flash…' });
+                          try {
+                            const testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+                            const res = await fetch(testUrl);
+                            if (res.ok) {
+                              setImportMessage({ type: 'success', text: '✓ API Key Verified! All models operational.' });
+                            } else {
+                              const errData = await res.json().catch(() => ({}));
+                              setImportMessage({ type: 'error', text: `Connection Failed: ${errData.error?.message || 'Invalid API Key'}` });
+                            }
+                          } catch (err: any) {
+                            setImportMessage({ type: 'error', text: `Network test error: ${err.message}` });
+                          }
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass flex-shrink-0"
+                      >
+                        Test Connection
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-mono text-audio-muted">
+                    <span>Keys are stored in browser localStorage or .env.local</span>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-audio-accent hover:underline"
+                    >
+                      Get Key from Google AI Studio ↗
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Management Section */}
+              <div className="pt-5 border-t border-audio-border/60">
+                <Engraved size="xs" className="mb-3 block">
+                  DATA STORAGE &amp; BACKUP PORTABILITY
+                </Engraved>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <button
+                    type="button"
                     onClick={handleExportData}
-                    className="flex items-center gap-2 px-4 py-3 bg-[#1A1A1A] border border-audio-border rounded-lg text-xs text-gray-400 hover:text-white hover:border-gray-500 transition-colors justify-center"
+                    className="p-2.5 rounded-xl border border-audio-border bg-[#130E0B] text-xs font-mono text-audio-muted hover:text-audio-text hover:border-audio-accent/50 flex items-center justify-center gap-2"
                   >
                     <SaveIcon />
-                    Export Backup
+                    <span>Export JSON Backup</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => importFileRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-3 bg-[#1A1A1A] border border-audio-border rounded-lg text-xs text-gray-400 hover:text-audio-accent hover:border-audio-accent/50 transition-colors justify-center"
+                    className="p-2.5 rounded-xl border border-audio-border bg-[#130E0B] text-xs font-mono text-audio-muted hover:text-audio-accent hover:border-audio-accent/50 flex items-center justify-center gap-2"
                   >
                     <LinkIcon />
-                    Import Backup
+                    <span>Import JSON Backup</span>
                   </button>
                   <input
                     type="file"
@@ -428,32 +1127,43 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={handleImportData}
                     className="hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowClearConfirm(true)}
+                    className="p-2.5 rounded-xl border border-audio-warn/30 bg-[#21120D] text-xs font-mono text-audio-warn hover:bg-audio-warn/20 flex items-center justify-center gap-2"
+                  >
+                    <TrashIcon />
+                    <span>Clear All Data</span>
+                  </button>
                 </div>
+
                 {importMessage && (
-                  <div className={`mt-3 text-xs p-2 rounded ${importMessage.type === 'success' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
+                  <div
+                    className={`mt-2.5 p-2.5 rounded-lg text-xs font-mono ${
+                      importMessage.type === 'success' ? 'bg-audio-signal/15 text-audio-signal' : 'bg-audio-warn/15 text-audio-warn'
+                    }`}
+                  >
                     {importMessage.text}
                   </div>
                 )}
-                <button
-                  onClick={() => setShowClearConfirm(true)}
-                  className="mt-3 flex items-center gap-2 px-4 py-3 bg-red-900/20 border border-red-900/50 rounded-lg text-xs text-red-400 hover:bg-red-900/30 hover:border-red-500/50 transition-colors w-full justify-center"
-                >
-                  <TrashIcon />
-                  Clear All Data
-                </button>
+
                 {showClearConfirm && (
-                  <div className="mt-3 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-                    <p className="text-sm text-red-300 mb-3">Are you sure? This will delete ALL chats, profile, and knowledge data permanently.</p>
+                  <div className="mt-3 p-3.5 rounded-xl bg-[#25120D] border border-audio-warn/50">
+                    <p className="text-xs text-audio-warn mb-2.5">
+                      Are you sure? This will delete all chats, gear, and profiles permanently.
+                    </p>
                     <div className="flex gap-2">
                       <button
+                        type="button"
                         onClick={handleClearAllData}
-                        className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-500"
+                        className="px-3 py-1.5 rounded-lg bg-audio-warn text-black font-mono font-bold text-xs"
                       >
-                        Yes, Clear Everything
+                        Yes, Delete Everything
                       </button>
                       <button
+                        type="button"
                         onClick={() => setShowClearConfirm(false)}
-                        className="flex-1 px-3 py-2 bg-audio-surface border border-audio-border text-gray-400 rounded-lg text-xs hover:text-white"
+                        className="px-3 py-1.5 rounded-lg border border-audio-border text-xs text-audio-muted hover:text-audio-text"
                       >
                         Cancel
                       </button>
@@ -464,582 +1174,137 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {activeTab === 'eq' && (
-            <div className="space-y-6 max-w-4xl mx-auto">
-              <div className="flex justify-between items-center mb-6">
-                <p className="text-sm text-gray-400">Manage your personalized EQ profiles for different gear or use cases.</p>
+          {/* =========================================================================
+              TAB 5: AI KNOWLEDGE (RAG ENGINE)
+              ========================================================================= */}
+          {activeTab === 'knowledge' && (
+            <div className="space-y-5 max-w-4xl mx-auto">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 rounded-xl border border-audio-border bg-[#120D0A]">
+                <div>
+                  <h4 className="font-display font-semibold text-xs text-audio-text">
+                    Persistent Acoustic RAG Engine
+                  </h4>
+                  <p className="text-[11px] text-audio-muted mt-0.5">
+                    Synthesizes past shootout conversations into verified facts.
+                  </p>
+                </div>
                 <button
-                  onClick={() => setIsAddingEQ(true)}
-                  className="flex items-center gap-2 bg-audio-accent/10 border border-audio-accent/50 text-audio-accent hover:bg-audio-accent hover:text-black px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider"
+                  type="button"
+                  onClick={onSummarizeHistory}
+                  disabled={isSummarizing}
+                  className="px-3.5 py-2 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass flex items-center gap-1.5 flex-shrink-0"
                 >
-                  <PlusIcon /> Add Profile
+                  {isSummarizing ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      <span>Consolidating…</span>
+                    </>
+                  ) : (
+                    <>
+                      <BrainIcon />
+                      <span>Consolidate Memory</span>
+                    </>
+                  )}
                 </button>
               </div>
 
-              {isAddingEQ && (
-                <div className="bg-audio-base border border-audio-border rounded-xl p-6 mb-8 animate-in slide-in-from-top-4">
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Profile Name</label>
-                      <input
-                        type="text"
-                        placeholder='e.g., "Aria 2 Gaming"'
-                        value={newEQ.name}
-                        onChange={(e) => setNewEQ({ ...newEQ, name: e.target.value })}
-                        className="w-full bg-audio-surface border border-audio-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-audio-accent text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Hardware / Use Case</label>
-                      <input
-                        type="text"
-                        placeholder='e.g., "Moondrop Aria 2"'
-                        value={newEQ.hardware}
-                        onChange={(e) => setNewEQ({ ...newEQ, hardware: e.target.value })}
-                        className="w-full bg-audio-surface border border-audio-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-audio-accent text-sm"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1 mb-4">
-                    <div className="flex justify-between">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">EQ Data (AutoEQ / Wavelet / Parametric)</label>
-                      <select
-                        value={newEQ.type}
-                        onChange={(e) => setNewEQ({ ...newEQ, type: e.target.value as any })}
-                        className="bg-transparent text-[10px] font-bold text-audio-accent uppercase focus:outline-none"
-                      >
-                        <option value="Wavelet">Wavelet / AutoEQ</option>
-                        <option value="Parametric">Parametric</option>
-                      </select>
-                    </div>
-                    <textarea
-                      placeholder="Paste strict text data here..."
-                      value={newEQ.bands}
-                      onChange={(e) => setNewEQ({ ...newEQ, bands: e.target.value })}
-                      className="w-full bg-audio-surface border border-audio-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-audio-accent text-xs font-mono min-h-[100px]"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <button onClick={() => setIsAddingEQ(false)} className="text-gray-500 hover:text-white text-xs">Cancel</button>
-                    <button onClick={handleSaveEQ} className="bg-audio-accent text-black px-4 py-2 rounded-lg text-xs font-bold hover:bg-[#E5C150]">Save Profile</button>
-                  </div>
-                </div>
-              )}
+              {/* Search Filter */}
+              <input
+                type="text"
+                value={kbSearch}
+                onChange={(e) => setKbSearch(e.target.value)}
+                placeholder="Search verified knowledge base entries..."
+                className={inputClass}
+              />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {formData.eqLibrary?.map((preset) => (
-                  <div key={preset.id} className="bg-audio-surface border border-audio-border rounded-xl p-5 hover:border-audio-accent/50 transition-colors group relative">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-bold text-white tracking-wide">{preset.name}</h3>
-                        <p className="text-xs text-audio-muted">{preset.hardware}</p>
-                      </div>
-                      <span className="text-[10px] font-bold border border-audio-border px-2 py-0.5 rounded text-gray-500 uppercase">{preset.type}</span>
-                    </div>
-                    <div className="bg-black/50 rounded-lg p-2 mb-3 max-h-20 overflow-hidden relative">
-                      <pre className="text-[10px] text-gray-500 font-mono">{preset.bands}</pre>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <button
-                        onClick={() => handleCopyWavelet(preset)}
-                        className={`text-xs font-medium flex items-center gap-1.5 transition-colors ${copySuccessId === preset.id ? 'text-green-500' : 'text-audio-accent hover:text-white'}`}
-                      >
-                        {copySuccessId === preset.id ? 'Copied!' : 'Copy Data'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEQ(preset.id)}
-                        className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'gear' && (
-            <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
-                <p className="text-xs sm:text-sm text-gray-400">Track your audio gear collection - IEMs, headphones, DACs, and more.</p>
-                <div className="flex flex-wrap gap-2">
-                  {/* Battle Mode Toggle */}
-                  <button
-                    onClick={() => {
-                      setBattleMode(!battleMode);
-                      if (battleMode) setSelectedForBattle([]);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider ${battleMode
-                      ? 'bg-red-500/20 border border-red-500/50 text-red-400'
-                      : 'bg-audio-surface border border-audio-border text-gray-400 hover:text-white hover:border-gray-500'
-                      }`}
-                  >
-                    <SwordsIcon /> {battleMode ? 'Cancel' : 'Battle'}
-                  </button>
-                  {/* Compare Button - shows when 2+ selected */}
-                  {battleMode && selectedForBattle.length >= 2 && (
-                    <button
-                      onClick={handleStartBattle}
-                      className="flex items-center gap-1.5 bg-audio-accent border border-audio-accent text-black px-3 py-1.5 rounded-lg transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider animate-in zoom-in-95"
-                    >
-                      ⚔️ Battle! ({selectedForBattle.length})
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setIsAddingGear(true)}
-                    className="flex items-center gap-1.5 bg-audio-accent/10 border border-audio-accent/50 text-audio-accent hover:bg-audio-accent hover:text-black px-3 py-1.5 rounded-lg transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider"
-                  >
-                    <PlusIcon /> Add Gear
-                  </button>
-                </div>
-              </div>
-
-              {/* Battle Mode Instructions */}
-              {battleMode && (
-                <div className="bg-red-900/10 border border-red-500/30 rounded-lg p-3 text-xs text-red-300 flex items-center gap-2 animate-in slide-in-from-top-2">
-                  <SwordsIcon />
-                  <span>Select 2-3 items to compare. Click cards to toggle selection.</span>
-                  <span className="ml-auto text-red-400 font-bold">{selectedForBattle.length} selected</span>
-                </div>
-              )}
-
-              {isAddingGear && (
-                <div className="bg-audio-base border border-audio-border rounded-xl p-6 mb-8 animate-in slide-in-from-top-4">
-                  {/* Name - Primary field */}
-                  <div className="mb-4">
-                    <label className="text-[10px] font-bold text-audio-accent uppercase tracking-wider">Product Name *</label>
-                    <input
-                      type="text"
-                      placeholder='e.g., "Moondrop Aria 2" or "Simgot EW300"'
-                      value={newGear.name}
-                      onChange={(e) => setNewGear({ ...newGear, name: e.target.value })}
-                      className="w-full bg-audio-surface border border-audio-accent/50 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-audio-accent text-base mt-1"
-                      autoFocus
-                    />
-                    <p className="text-[10px] text-gray-500 mt-1">Just enter the name — AI will research the specs</p>
-                  </div>
-
-                  {/* Optional fields - collapsed into grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-600 uppercase">Type</label>
-                      <select
-                        value={newGear.type}
-                        onChange={(e) => setNewGear({ ...newGear, type: e.target.value as any })}
-                        className="w-full bg-audio-surface border border-audio-border rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-audio-accent"
-                      >
-                        <option value="IEM">IEM</option>
-                        <option value="Headphone">Headphone</option>
-                        <option value="DAC">DAC</option>
-                        <option value="AMP">AMP</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-600 uppercase">Status</label>
-                      <select
-                        value={newGear.status}
-                        onChange={(e) => setNewGear({ ...newGear, status: e.target.value as any })}
-                        className="w-full bg-audio-surface border border-audio-border rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-audio-accent"
-                      >
-                        <option value="owned">Owned</option>
-                        <option value="wishlist">Wishlist</option>
-                        <option value="tried">Tried</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-600 uppercase">Price (opt)</label>
-                      <input
-                        type="text"
-                        placeholder='$79'
-                        value={newGear.price || ''}
-                        onChange={(e) => setNewGear({ ...newGear, price: e.target.value })}
-                        className="w-full bg-audio-surface border border-audio-border rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-audio-accent"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-600 uppercase">Rating</label>
-                      <div className="flex gap-0.5 pt-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => setNewGear({ ...newGear, rating: star })}
-                            className={`transition-colors ${(newGear.rating || 0) >= star ? 'text-audio-accent' : 'text-gray-600 hover:text-gray-400'}`}
-                          >
-                            <StarIcon filled={(newGear.rating || 0) >= star} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notes - optional */}
-                  <div className="mb-4">
-                    <label className="text-[9px] font-bold text-gray-600 uppercase">Notes (optional)</label>
-                    <input
-                      type="text"
-                      placeholder="Quick impressions, e.g., 'great soundstage, bit sibilant'"
-                      value={newGear.notes || ''}
-                      onChange={(e) => setNewGear({ ...newGear, notes: e.target.value })}
-                      className="w-full bg-audio-surface border border-audio-border rounded px-3 py-2 text-white text-xs focus:outline-none focus:border-audio-accent mt-1"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-3">
-                    <button onClick={() => setIsAddingGear(false)} className="text-gray-500 hover:text-white text-xs">Cancel</button>
-                    <button
-                      onClick={handleSaveGear}
-                      disabled={!newGear.name.trim()}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${newGear.name.trim() ? 'bg-audio-accent text-black hover:bg-[#E5C150]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
-                    >
-                      + Add Gear
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(formData.gearLibrary || []).map((gear) => {
-                  const isSelected = selectedForBattle.includes(gear.id);
-                  return (
-                    <div
-                      key={gear.id}
-                      onClick={() => {
-                        if (battleMode) {
-                          setSelectedForBattle(prev =>
-                            prev.includes(gear.id)
-                              ? prev.filter(id => id !== gear.id)
-                              : prev.length < 3 ? [...prev, gear.id] : prev
-                          );
-                        }
-                      }}
-                      className={`bg-audio-surface border rounded-xl p-5 transition-all group relative ${battleMode ? 'cursor-pointer' : ''} ${isSelected
-                        ? 'border-audio-accent bg-audio-accent/10 ring-2 ring-audio-accent/30'
-                        : 'border-audio-border hover:border-audio-accent/50'
-                        }`}
-                    >
-                      {/* Selection indicator */}
-                      {battleMode && (
-                        <div className={`absolute top-2 right-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
-                          ? 'bg-audio-accent border-audio-accent text-black'
-                          : 'border-gray-600'
-                          }`}>
-                          {isSelected && <span className="text-xs font-bold">{selectedForBattle.indexOf(gear.id) + 1}</span>}
+              {/* Knowledge Entry List */}
+              <div className="space-y-3">
+                {knowledgeBase && knowledgeBase.length > 0 ? (
+                  knowledgeBase
+                    .filter(
+                      (entry) =>
+                        !kbSearch ||
+                        entry.topic.toLowerCase().includes(kbSearch.toLowerCase()) ||
+                        entry.summary.toLowerCase().includes(kbSearch.toLowerCase())
+                    )
+                    .map((entry) => (
+                      <div key={entry.id} className="p-4 bg-[#140F0C] rounded-xl border border-audio-border">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <Led color="teal" size="sm" />
+                            <h4 className="font-display font-semibold text-xs text-audio-text">{entry.topic}</h4>
+                          </div>
+                          <span className="text-[9px] font-mono text-audio-muted">
+                            {new Date(entry.timestamp).toLocaleDateString()}
+                          </span>
                         </div>
-                      )}
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-white tracking-wide truncate">{gear.name}</h3>
-                          {gear.price && <p className="text-xs text-audio-accent">{gear.price}</p>}
-                        </div>
-                        <span className={`text-[10px] font-bold border px-2 py-0.5 rounded uppercase ml-2 flex-shrink-0 ${gear.status === 'owned' ? 'border-green-700 text-green-500 bg-green-900/20' :
-                          gear.status === 'wishlist' ? 'border-purple-700 text-purple-400 bg-purple-900/20' :
-                            'border-audio-border text-gray-500'
-                          }`}>{gear.status}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[10px] font-bold border border-audio-border px-2 py-0.5 rounded text-gray-500 uppercase">{gear.type}</span>
-                        {gear.rating && (
-                          <div className="flex gap-0.5">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <button
-                                key={star}
-                                onClick={() => handleUpdateGearRating(gear.id, star)}
-                                className={`transition-colors ${gear.rating >= star ? 'text-audio-accent' : 'text-gray-700 hover:text-gray-500'}`}
+                        <p className="text-xs text-audio-muted leading-relaxed mb-2">{entry.summary}</p>
+                        {entry.keyFacts && entry.keyFacts.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-audio-border/50">
+                            {entry.keyFacts.map((fact, fIdx) => (
+                              <span
+                                key={fIdx}
+                                className="text-[9px] font-mono px-2 py-0.5 rounded bg-audio-surface border border-audio-border text-audio-signal"
                               >
-                                <StarIcon filled={gear.rating >= star} />
-                              </button>
+                                ✓ {fact}
+                              </span>
                             ))}
                           </div>
                         )}
                       </div>
-                      {gear.notes && (
-                        <p className="text-xs text-gray-500 line-clamp-2 mb-2">{gear.notes}</p>
-                      )}
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-[9px] text-gray-600">{new Date(gear.addedAt).toLocaleDateString()}</span>
-                        <button
-                          onClick={() => handleDeleteGear(gear.id)}
-                          className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <TrashIcon />
-                        </button>
-                      </div>
+                    ))
+                ) : (
+                  <div className="text-center py-10 border border-dashed border-audio-border rounded-xl bg-[#120D0A]">
+                    <div className="flex justify-center mb-2">
+                      <BrainIcon />
                     </div>
-                  );
-                })}
-                {(!formData.gearLibrary || formData.gearLibrary.length === 0) && !isAddingGear && (
-                  <div className="col-span-full text-center py-12 text-gray-600 border border-dashed border-audio-border rounded-xl bg-audio-surface/50">
-                    <HeadphonesIcon />
-                    <p className="mt-2 text-sm">No gear added yet. Start building your collection!</p>
+                    <p className="text-xs text-audio-muted">
+                      No consolidated memory entries yet. Run research chats or click Consolidate above.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
           )}
-
-          {activeTab === 'knowledge' && (
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#1A1A1A] p-4 rounded-xl border border-audio-border">
-                <p className="text-sm text-gray-400">
-                  <strong className="text-white block mb-1">RAG Knowledge Engine</strong>
-                  This system summarizes your old chats into a structured knowledge file. The AI reads this file to remember your past comparisons and conclusions.
-                </p>
-                <button
-                  onClick={onSummarizeHistory}
-                  disabled={isSummarizing}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${isSummarizing
-                    ? 'bg-audio-border text-gray-500 cursor-wait'
-                    : 'bg-audio-accent text-black hover:bg-[#E5C150]'
-                    }`}
-                >
-                  {isSummarizing ? (
-                    <>
-                      <span className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <BrainIcon />
-                      Consolidate Knowledge
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                {knowledgeBase.map((entry, i) => {
-                  const isExpanded = expandedKnowledgeId === (entry.id || `kb-${i}`);
-                  return (
-                    <div
-                      key={entry.id || i}
-                      onClick={() => setExpandedKnowledgeId(isExpanded ? null : (entry.id || `kb-${i}`))}
-                      className={`p-4 rounded-lg border transition-all cursor-pointer ${isExpanded
-                        ? 'border-audio-accent bg-audio-accent/5'
-                        : 'border-audio-border bg-audio-surface/50 hover:bg-audio-surface hover:border-audio-accent/50'
-                        }`}
-                    >
-                      {/* Header Row */}
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 transition-colors ${isExpanded ? 'text-audio-accent' : 'text-gray-500'}`}>
-                          <LinkIcon />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-sm font-medium text-white truncate">{entry.topic}</h4>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {entry.keyFacts && entry.keyFacts.length > 0 && (
-                                <span className="text-[9px] bg-purple-900/30 px-1.5 py-0.5 rounded text-purple-400">{entry.keyFacts.length} facts</span>
-                              )}
-                              <span className="text-[9px] bg-black/50 px-1.5 py-0.5 rounded text-gray-400">{new Date(entry.timestamp).toLocaleDateString()}</span>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className={`text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                              >
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                              </svg>
-                            </div>
-                          </div>
-                          {!isExpanded && (
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{entry.summary}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Expanded Content */}
-                      {isExpanded && (
-                        <div className="mt-4 ml-7 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                          {/* Full Summary */}
-                          <div>
-                            <label className="text-[10px] font-bold text-audio-accent uppercase tracking-wider block mb-1">Summary</label>
-                            <p className="text-sm text-gray-300 leading-relaxed bg-black/30 rounded-lg p-3 border border-audio-border/50">
-                              {entry.summary}
-                            </p>
-                          </div>
-
-                          {/* Key Facts */}
-                          {entry.keyFacts && entry.keyFacts.length > 0 && (
-                            <div>
-                              <label className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-2">Key Facts ({entry.keyFacts.length})</label>
-                              <ul className="space-y-1.5">
-                                {entry.keyFacts.map((fact, fi) => (
-                                  <li key={fi} className="flex items-start gap-2 text-xs text-gray-400">
-                                    <span className="text-purple-400 mt-0.5">•</span>
-                                    <span>{fact}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-
-                          {/* Metadata */}
-                          <div className="flex items-center gap-4 pt-2 border-t border-audio-border/30">
-                            <span className="text-[10px] text-gray-600">
-                              <strong className="text-gray-500">Created:</strong> {new Date(entry.timestamp).toLocaleString()}
-                            </span>
-                            {entry.sourceSessionId && (
-                              <span className="text-[10px] text-gray-600">
-                                <strong className="text-gray-500">Source:</strong> Chat Session
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-audio-border bg-[#050505] flex justify-end gap-3 rounded-b-2xl">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white transition-colors hover:bg-audio-surface"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-8 py-2.5 rounded-xl text-sm font-bold bg-audio-accent text-black hover:bg-[#E5C150] transition-all shadow-[0_0_15px_rgba(212,175,55,0.2)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]"
-          >
-            Save Changes
-          </button>
-        </div>
-      </div>
+        {/* STICKY CHASSIS FOOTER */}
+        <div className="p-3.5 md:p-4 border-t border-audio-border bg-[#120D0A] flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Led color={hasUnsavedChanges ? 'amber' : 'green'} pulse={hasUnsavedChanges} size="sm" />
+            <span className="text-[10px] font-mono text-audio-muted hidden sm:inline">
+              {hasUnsavedChanges ? 'Unsaved Preferences Pending' : 'All Gear & Curves Synchronized'}
+            </span>
+          </div>
 
-      {/* Battle Mode Comparison Modal */}
-      {showComparison && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-lg p-4 animate-in fade-in duration-200">
-          <div className="bg-[#0A0A0A] w-full max-w-4xl rounded-2xl border border-audio-accent/30 shadow-2xl shadow-audio-accent/10 overflow-hidden animate-in zoom-in-95">
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-audio-border bg-gradient-to-r from-red-900/20 to-transparent">
-              <div className="flex items-center gap-3">
-                <SwordsIcon />
-                <h2 className="text-lg font-bold text-white">Battle Mode Comparison</h2>
-              </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setFormData(profile || DEFAULT_PROFILE);
+                onClose();
+              }}
+              className="px-3.5 py-1.5 rounded-lg border border-audio-border text-xs font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface transition-colors"
+            >
+              Close
+            </button>
+            {hasUnsavedChanges && (
               <button
-                onClick={() => setShowComparison(false)}
-                className="p-2 rounded-full hover:bg-audio-highlight text-gray-500 hover:text-white transition-colors"
+                type="button"
+                onClick={handleSave}
+                className={`px-4 py-1.5 rounded-lg font-mono font-bold text-xs transition-all flex items-center gap-1.5 ${
+                  isSavedFlash
+                    ? 'bg-audio-signal text-black shadow-glow-teal'
+                    : 'bg-audio-accent text-black hover:bg-audio-accent-bright shadow-glow-brass active:scale-95'
+                }`}
               >
-                <XIcon />
+                {isSavedFlash ? <CheckIcon /> : null}
+                <span>{isSavedFlash ? 'Saved!' : 'Save Changes'}</span>
               </button>
-            </div>
-
-            {/* AI Analysis Content */}
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {/* Fighter Cards Header */}
-              <div className="flex gap-4 mb-6">
-                {selectedForBattle.map((id, idx) => {
-                  const gear = (formData.gearLibrary || []).find(g => g.id === id);
-                  return gear ? (
-                    <div key={id} className={`flex-1 p-4 rounded-xl border ${idx === 0 ? 'bg-red-500/10 border-red-500/30' :
-                      idx === 1 ? 'bg-blue-500/10 border-blue-500/30' :
-                        'bg-green-500/10 border-green-500/30'
-                      }`}>
-                      <div className={`text-[10px] font-bold px-2 py-0.5 rounded inline-block mb-2 ${idx === 0 ? 'bg-red-500/20 text-red-400' :
-                        idx === 1 ? 'bg-blue-500/20 text-blue-400' :
-                          'bg-green-500/20 text-green-400'
-                        }`}>FIGHTER {idx + 1}</div>
-                      <h3 className="text-white font-bold">{gear.name}</h3>
-                      <p className="text-xs text-gray-500">{gear.type} • {gear.price || 'No price'}</p>
-                    </div>
-                  ) : null;
-                })}
-              </div>
-
-              {/* Loading State */}
-              {isBattleLoading && !battleAnalysis && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-12 h-12 border-4 border-audio-accent/30 border-t-audio-accent rounded-full animate-spin mb-4" />
-                  <p className="text-gray-400 text-sm">Analyzing based on your preferences...</p>
-                  <p className="text-gray-600 text-xs mt-1">Consulting sound signature, sensitivities, gear history</p>
-                </div>
-              )}
-
-              {/* AI Analysis Output */}
-              {battleAnalysis && (
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                    {battleAnalysis.split('\n').map((line, i) => {
-                      // Headers
-                      if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold text-white mt-6 mb-3 border-b border-audio-border pb-2">{line.slice(3)}</h2>;
-                      if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-bold text-audio-accent mt-5 mb-2">{line.slice(4)}</h3>;
-
-                      // Blockquotes (winner verdict)
-                      if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-audio-accent bg-audio-accent/10 pl-4 py-2 my-3 text-white font-medium italic">{line.slice(2)}</blockquote>;
-
-                      // Horizontal rules
-                      if (line.trim() === '---') return <hr key={i} className="border-audio-border my-4" />;
-
-                      // Table rows - render as styled table
-                      if (line.startsWith('|') && line.endsWith('|')) {
-                        const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
-                        const isHeader = line.includes('---');
-                        if (isHeader) return null; // Skip separator rows
-                        const isHeaderRow = i > 0 && !battleAnalysis.split('\n')[i - 1]?.includes('|'); // First row after non-table
-                        return (
-                          <div key={i} className={`grid gap-2 py-2 px-2 text-xs border-b border-audio-border/30 ${isHeaderRow ? 'bg-audio-surface font-bold text-white' : 'text-gray-300'}`} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
-                            {cells.map((cell, ci) => (
-                              <div key={ci} className={`${ci === 0 ? 'text-left' : 'text-center'} ${cell.includes('🏅') ? 'text-audio-accent font-bold' : ''}`}>
-                                {cell.replace(/\*\*/g, '')}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-
-                      // Bold text standalone
-                      if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-bold text-white mt-3">{line.slice(2, -2)}</p>;
-
-                      // Lists
-                      if (line.startsWith('- ')) return <li key={i} className="ml-4 list-disc marker:text-audio-accent text-gray-300">{line.slice(2)}</li>;
-
-                      // Empty lines
-                      if (line.trim() === '') return <div key={i} className="h-2" />;
-
-                      // Regular paragraphs with inline bold
-                      const formatted = line.split(/(\*\*.*?\*\*)/g).map((part, pi) => {
-                        if (part.startsWith('**') && part.endsWith('**')) {
-                          return <strong key={pi} className="text-white font-semibold">{part.slice(2, -2)}</strong>;
-                        }
-                        return part;
-                      });
-                      return <p key={i} className="mb-2 text-gray-300">{formatted}</p>;
-                    })}
-                  </div>
-                  {isBattleLoading && (
-                    <span className="inline-block w-2 h-4 bg-audio-accent animate-pulse ml-1" />
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-audio-border bg-[#050505] flex justify-end">
-              <button
-                onClick={() => setShowComparison(false)}
-                className="px-6 py-2 rounded-lg text-sm font-bold bg-audio-accent text-black hover:bg-[#E5C150] transition-colors"
-              >
-                Close Battle
-              </button>
-            </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

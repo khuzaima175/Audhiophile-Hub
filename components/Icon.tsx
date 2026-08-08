@@ -99,3 +99,12 @@ export const SwordsIcon = () => (
 export const MaximizeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
 );
+
+/* New — signature icons for the redesign */
+export const WaveformIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h2l2-7 3 14 3-10 2 6 2-3h2"></path><path d="M20 12h2"></path></svg>
+);
+
+export const GaugeIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.6 19a9 9 0 1 1 14.8 0"></path><line x1="12" y1="13" x2="16" y2="8"></line><circle cx="12" cy="13" r="1" fill="currentColor" stroke="none"></circle></svg>
+);

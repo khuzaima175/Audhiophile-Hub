@@ -2,9 +2,9 @@ import { GoogleGenAI, Content, Part, Tool } from "@google/genai";
 import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from "../types";
 import { v4 as uuidv4 } from 'uuid';
 
-// Model fallback configuration — gemini-3.5-flash is the correct API identifier
+// Model fallback configuration — gemini-3.6-flash is the primary API identifier
 const MODELS = [
-  'gemini-3.5-flash',
+  'gemini-3.6-flash',
   'gemini-2.5-flash',
   'gemini-2.0-flash'
 ] as const;
@@ -12,11 +12,14 @@ const MODELS = [
 type ModelName = typeof MODELS[number];
 
 const createClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key') : null;
+  const envKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const apiKey = localKey || envKey;
+
   if (!apiKey) {
     throw new Error(
-      "API Key is missing. Please add GEMINI_API_KEY to your .env.local file.\n" +
-      "Get your key from: https://aistudio.google.com/app/apikey"
+      "API Key is missing. Please add GEMINI_API_KEY in Settings or .env.local file.\n" +
+      "Get your free key from: https://aistudio.google.com/app/apikey"
     );
   }
   return new GoogleGenAI({ apiKey });
@@ -98,7 +101,7 @@ Frequency,Target_dB
 
 // Helper: Naive RAG to find relevant history from raw sessions
 const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: string): string => {
-  if (!allSessions.length) return "";
+  if (!allSessions || !allSessions.length || !currentPrompt) return "";
 
   const keywords = currentPrompt.toLowerCase().split(' ').filter(w => w.length > 3);
   if (keywords.length === 0) return "";
@@ -106,7 +109,7 @@ const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: st
   // Score sessions based on keyword matches
   const scoredSessions = allSessions.map(session => {
     let score = 0;
-    const sessionText = (session.title + " " + session.messages.map(m => m.text).join(" ")).toLowerCase();
+    const sessionText = (session.title + " " + session.messages.map(m => m.text || "").join(" ")).toLowerCase();
 
     keywords.forEach(kw => {
       if (sessionText.includes(kw)) score++;
@@ -124,9 +127,12 @@ const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: st
   if (relevantSessions.length === 0) return "";
 
   let contextString = "\nRELEVANT PAST CONVERSATIONS (Use these to maintain continuity):\n";
-  relevantSessions.forEach((session, idx) => {
-    const summary = session.messages.slice(-4).map(m => `${m.role.toUpperCase()}: ${m.text.substring(0, 300)}...`).join('\n');
-    contextString += `\n[Session: ${session.title}]\n${summary}\n`;
+  relevantSessions.forEach((session) => {
+    const summary = session.messages
+      .slice(-4)
+      .map(m => `${m.role.toUpperCase()}: ${(m.text || (m.audio ? '[Voice transmission]' : '[Image analysis]')).substring(0, 300)}...`)
+      .join('\n');
+    contextString += `\n[Session: ${session.title || 'Audio Research'}]\n${summary}\n`;
   });
 
   return contextString;
@@ -134,25 +140,27 @@ const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: st
 
 // Helper: RAG for Knowledge Base (Summarized Facts)
 const getKnowledgeBaseContext = (knowledgeBase: KnowledgeEntry[], currentPrompt: string): string => {
-  if (!knowledgeBase || knowledgeBase.length === 0) return "";
+  if (!knowledgeBase || knowledgeBase.length === 0 || !currentPrompt) return "";
 
   const keywords = currentPrompt.toLowerCase().split(' ').filter(w => w.length > 3);
   if (keywords.length === 0) return "";
 
   // Filter entries that match keywords in the prompt
   const matches = knowledgeBase.filter(entry => {
-    const text = (entry.topic + " " + entry.summary + " " + entry.keyFacts.join(" ")).toLowerCase();
+    const keyFactsStr = Array.isArray(entry.keyFacts) ? entry.keyFacts.join(" ") : "";
+    const text = ((entry.topic || "") + " " + (entry.summary || "") + " " + keyFactsStr).toLowerCase();
     return keywords.some(kw => text.includes(kw));
   });
 
   if (matches.length === 0) return "";
 
-  // Sort by relevance (match count) - simplified here to just take top 5
+  // Sort by relevance (match count) - top 5 matches
   const topMatches = matches.slice(0, 5);
 
   let kbString = "\n*** CONSOLIDATED KNOWLEDGE BASE (Verified Facts from Past Studies) ***\n";
   topMatches.forEach(entry => {
-    kbString += `\nTopic: ${entry.topic}\nSummary: ${entry.summary}\nKey Findings: ${entry.keyFacts.join("; ")}\n`;
+    const keyFactsStr = Array.isArray(entry.keyFacts) ? entry.keyFacts.join("; ") : "";
+    kbString += `\nTopic: ${entry.topic || 'Acoustic Study'}\nSummary: ${entry.summary || ''}\nKey Findings: ${keyFactsStr}\n`;
   });
 
   return kbString;
@@ -256,7 +264,8 @@ export const generateStreamResponse = async (
   userLocation: { lat: number; lng: number } | null,
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void,
-  onActiveModel?: (model: string) => void
+  onActiveModel?: (model: string) => void,
+  requestedModel?: string
 ): Promise<string> => {
   const ai = createClient();
 
@@ -281,7 +290,7 @@ export const generateStreamResponse = async (
   }
 
   const systemInstruction = `
-    You are 'AudioSage', an elite Audiophile Research Assistant running on Gemini 3.5 Flash.
+    You are 'AudioSage', an elite Audiophile Research Assistant running on Gemini 3.6 Flash.
     
     USER PROFILE:
     - Name: ${profile.name}
@@ -426,8 +435,11 @@ export const generateStreamResponse = async (
     temperature: 0.2, // Lower for more accuracy
   };
 
-  // Prioritize models based on mode
-  let modelCandidates = [...MODELS];
+  // Prioritize models based on user choice or default fallback sequence
+  let modelCandidates: string[] = [...MODELS];
+  if (requestedModel && MODELS.includes(requestedModel as any)) {
+    modelCandidates = [requestedModel, ...MODELS.filter((m) => m !== requestedModel)];
+  }
 
   // Try models in order until one succeeds
   let lastError: Error | null = null;
@@ -604,10 +616,10 @@ Based on the user's profile:
 
   try {
     if (onActiveModel) {
-      onActiveModel('gemini-3.5-flash');
+      onActiveModel('gemini-3.6-flash');
     }
     const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: config,
     });

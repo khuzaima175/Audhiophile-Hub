@@ -162,26 +162,26 @@ export const GlossaryTooltip: React.FC<GlossaryTooltipProps> = ({ term, children
             {isVisible && (
                 <div
                     ref={tooltipRef}
-                    className={`absolute z-50 w-72 p-3 bg-[#0A0A0A] border border-audio-accent/30 rounded-xl shadow-xl shadow-black/50 animate-in fade-in zoom-in-95 duration-150 ${position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+                    className={`absolute z-50 w-72 p-3.5 bg-audio-surface border border-audio-border rounded-xl shadow-panel animate-in fade-in zoom-in-95 duration-150 ${position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
                         } left-1/2 -translate-x-1/2`}
                 >
                     {/* Arrow */}
                     <div
-                        className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-[#0A0A0A] border-audio-accent/30 rotate-45 ${position === 'top'
+                        className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-audio-surface border-audio-border rotate-45 ${position === 'top'
                                 ? 'bottom-[-5px] border-r border-b'
                                 : 'top-[-5px] border-l border-t'
                             }`}
                     />
 
                     <div className="relative">
-                        <h4 className="text-xs font-bold text-audio-accent uppercase tracking-wider mb-1">
+                        <h4 className="text-xs font-semibold text-audio-accent uppercase tracking-wider mb-1 font-data">
                             {entry.term}
                         </h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">
+                        <p className="text-xs text-audio-text/90 leading-relaxed">
                             {entry.definition}
                         </p>
                         {entry.example && (
-                            <p className="text-[10px] text-gray-500 mt-2 italic">
+                            <p className="text-[10px] text-audio-muted mt-2 italic font-data">
                                 💡 {entry.example}
                             </p>
                         )}

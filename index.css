@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,9 +12,159 @@ body {
 }
 
 body {
-  background-color: #050505;
-  color: #E5E5E5;
+  background-color: #0F0C0A;
+  background-image:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(198, 147, 79, 0.06), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 100% 0%, rgba(111, 201, 166, 0.04), transparent 55%);
+  color: #EDE6DA;
   font-family: 'Inter', sans-serif;
+  font-feature-settings: 'ss01' 1;
+}
+
+h1, h2, h3, .font-display {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.font-data {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.01em;
+}
+
+/* Visible keyboard focus everywhere — accessibility floor */
+:focus-visible {
+  outline: 2px solid #C6934F;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ================================================
+   HARDWARE PRIMITIVES & CHASSIS TEXTURES
+   ================================================ */
+
+/* The universal hardware panel — use for EVERY card/module */
+.panel {
+  border-radius: 12px;
+  border: 1px solid #332B23;
+  background: linear-gradient(180deg, #1D1713 0%, #17120E 100%);
+  box-shadow: inset 0 1px 0 rgba(237, 230, 218, 0.05), 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.panel-interactive {
+  border-radius: 12px;
+  border: 1px solid #332B23;
+  background: linear-gradient(180deg, #1D1713 0%, #17120E 100%);
+  box-shadow: inset 0 1px 0 rgba(237, 230, 218, 0.05), 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.panel-interactive:hover {
+  border-color: rgba(198, 147, 79, 0.6);
+  transform: translateY(-1.5px);
+  box-shadow: inset 0 1px 0 rgba(237, 230, 218, 0.08), 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 14px rgba(198, 147, 79, 0.25);
+}
+
+.engraved {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9C8F7D;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.brushed {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(237, 230, 218, 0.025) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+.led {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.led-pulse {
+  animation: led-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes led-breathe {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
+  50% { opacity: 0.45; filter: drop-shadow(0 0 2px currentColor); }
+}
+
+@keyframes led-boot {
+  0% { opacity: 0.15; filter: drop-shadow(0 0 0 transparent); transform: scale(0.85); }
+  50% { opacity: 0.3; }
+  75% { opacity: 1; filter: drop-shadow(0 0 14px currentColor); transform: scale(1.15); }
+  100% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); transform: scale(1); }
+}
+
+.animate-boot-led {
+  animation: led-boot 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes needle-boot-sweep {
+  0% { transform: rotate(-45deg); }
+  35% { transform: rotate(38deg); }
+  65% { transform: rotate(-22deg); }
+  85% { transform: rotate(8deg); }
+  100% { transform: rotate(-16deg); }
+}
+
+@keyframes needle-sway {
+  0%, 100% { transform: rotate(-16deg); }
+  30% { transform: rotate(10deg); }
+  60% { transform: rotate(-4deg); }
+  80% { transform: rotate(16deg); }
+}
+
+.stagger > * {
+  animation: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger > *:nth-child(3) { animation-delay: 0.14s; }
+.stagger > *:nth-child(4) { animation-delay: 0.20s; }
+.stagger > *:nth-child(5) { animation-delay: 0.26s; }
+.stagger > *:nth-child(6) { animation-delay: 0.32s; }
+
+/* Film-grain over the whole app = kills the "flat void" feeling */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Custom scrollbar */
@@ -22,143 +174,135 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #050505;
+  background: #0F0C0A;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: #332B23;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #D4AF37;
+  background: #C6934F;
 }
 
 /* ================================================
    LAYOUT CONTAINMENT — prevents table overflow breaking layout
    ================================================ */
 
-/* Every direct child of the messages scroll container must stay within bounds */
 .messages-container > * {
   max-width: 100%;
   min-width: 0;
 }
 
-/* Ensure flex children never escape their allocated width */
 .flex-col-contained {
   min-width: 0;
   overflow: hidden;
 }
 
+/* ================================================
+   SPEC-SHEET TABLE — reads like a gear datasheet, not a generic HTML table
+   ================================================ */
 
 .prose-table {
   border-collapse: collapse;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: 0.72rem;
+  line-height: 1.4;
   width: max-content;
   min-width: 100%;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-/* Header cells */
 .prose-table th {
-  background-color: #111111;
-  color: #D4AF37;
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+  background-color: #1A1512;
+  color: #C6934F;
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   text-align: left;
-  padding: 0.625rem 1rem;
-  border-bottom: 2px solid #D4AF37;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 2px solid #C6934F;
   white-space: nowrap;
 }
 
-/* Data cells */
 .prose-table td {
-  padding: 0.625rem 1rem;
-  border-bottom: 1px solid #1e1e1e;
-  color: #CCCCCC;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid #241E19;
+  color: #D9CFC0;
   vertical-align: top;
-  min-width: 120px;
+  min-width: 90px;
+  max-width: 170px;
   white-space: normal;
   word-break: break-word;
+  font-size: 0.7rem;
+  line-height: 1.5;
 }
 
-/* Last row — no bottom border */
 .prose-table tr:last-child td {
   border-bottom: none;
 }
 
-/* Row alternating backgrounds */
 .prose-table tbody tr:nth-child(even) td {
-  background-color: #0d0d0d;
+  background-color: #150F0C;
 }
 
-/* Row hover — entire row highlights together */
 .prose-table tbody tr:hover td {
-  background-color: #1a1a1a;
-  color: #e0e0e0;
+  background-color: #231D18;
+  color: #EDE6DA;
 }
 
-/* ── Sticky first column (Feature labels) ── */
 .prose-table th:first-child,
 .prose-table td:first-child {
   position: sticky;
   left: 0;
-  background-color: #0A0A0A;
+  background-color: #14100D;
   z-index: 2;
-  border-right: 1px solid #2A2A2A;
-  color: #aaaaaa;
+  border-right: 1px solid #332B23;
+  color: #9C8F7D;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.64rem;
   white-space: nowrap;
+  min-width: unset;
+  max-width: 84px;
+  padding: 0.5rem 0.5rem;
 }
 
-/* Header first child */
 .prose-table th:first-child {
-  background-color: #111111;
-  color: #D4AF37;
+  background-color: #1A1512;
+  color: #C6934F;
   z-index: 3;
+  max-width: 84px;
 }
 
-/* Sticky first column matches even-row bg */
 .prose-table tbody tr:nth-child(even) td:first-child {
-  background-color: #0d0d0d;
+  background-color: #150F0C;
 }
 
-/* Sticky first column matches hover bg — fixes the "detached" look */
 .prose-table tbody tr:hover td:first-child {
-  background-color: #1a1a1a;
-  color: #cccccc;
+  background-color: #231D18;
+  color: #EDE6DA;
+}
+
+@media (max-width: 480px) {
+  .prose-table { font-size: 0.68rem; }
+  .prose-table th { font-size: 0.58rem; padding: 0.45rem 0.5rem; letter-spacing: 0.05em; }
+  .prose-table td { font-size: 0.66rem; padding: 0.45rem 0.5rem; min-width: 80px; max-width: 135px; }
+  .prose-table th:first-child,
+  .prose-table td:first-child { font-size: 0.6rem; max-width: 70px; padding: 0.45rem 0.4rem; }
 }
 
 /* ================================================
    SCROLLBAR UTILITIES
    ================================================ */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-area-top { padding-top: env(safe-area-inset-top, 0px); }
 
-/* Safe area support for mobile browsers */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
+.scroll-touch { -webkit-overflow-scrolling: touch; }
 
-.safe-area-top {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
-/* Fix for iOS momentum scrolling */
-.scroll-touch {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Horizontal touch scrolling for toolbars */
 .scroll-x-touch {
   -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
@@ -167,88 +311,76 @@ body {
   scroll-snap-type: none;
 }
 
-/* Fix for mobile scroll containers */
 .mobile-scroll-fix {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y pinch-zoom;
   overscroll-behavior: contain;
 }
 
-/* Unrestricted touch for scrollable areas */
-.touch-pan-all {
-  touch-action: auto;
-}
+.touch-pan-all { touch-action: auto; }
 
-/* Thin scrollbar for subtle horizontal scroll indicators */
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: #2a2a2a #050505;
-}
+.scrollbar-thin { scrollbar-width: thin; scrollbar-color: #332B23 #0F0C0A; }
+.scrollbar-thin::-webkit-scrollbar { height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: #14100D; border-radius: 4px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #332B23; border-radius: 4px; border: 1px solid #241E19; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #C6934F; }
 
-.scrollbar-thin::-webkit-scrollbar {
-  height: 6px;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #241E19; border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #C6934F; }
 
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: #080808;
-  border-radius: 4px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
-  border-radius: 4px;
-  border: 1px solid #1a1a1a;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #D4AF37;
-}
-
-/* Custom scrollbar for sidebar sessions list */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #1e1e1e;
-  border-radius: 2px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #D4AF37;
-}
-
-/* Mobile viewport height fix */
 @supports (height: 100dvh) {
-  .h-screen-mobile {
-    height: 100dvh;
-  }
-
-  .max-h-modal-mobile {
-    max-height: 85dvh;
-  }
+  .h-screen-mobile { height: 100dvh; }
+  .max-h-modal-mobile { max-height: 85dvh; }
 }
 
 /* ================================================
-   THINKING PULSE ANIMATION
+   VU-METER LOADER — the app's signature "thinking" motif.
+   Five bars bouncing like a spectrum analyzer instead of generic dots.
    ================================================ */
-@keyframes thinking-pulse {
-  0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
+.meter-loader {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 14px;
 }
 
-.thinking-dot {
-  animation: thinking-pulse 1.4s ease-in-out infinite;
+.meter-loader span {
+  width: 3px;
+  height: 100%;
+  background: #C6934F;
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: meter-bar 1s ease-in-out infinite;
 }
 
-.thinking-dot:nth-child(2) {
-  animation-delay: 0.2s;
+.meter-loader span:nth-child(1) { animation-delay: 0ms; height: 40%; }
+.meter-loader span:nth-child(2) { animation-delay: 120ms; height: 100%; }
+.meter-loader span:nth-child(3) { animation-delay: 240ms; height: 65%; }
+.meter-loader span:nth-child(4) { animation-delay: 360ms; height: 90%; }
+.meter-loader span:nth-child(5) { animation-delay: 480ms; height: 50%; }
+
+@keyframes meter-bar {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.6; }
+  50% { transform: scaleY(1); opacity: 1; }
 }
 
-.thinking-dot:nth-child(3) {
-  animation-delay: 0.4s;
+/* Frequency-axis divider — a small callback to FR-graph reading, used sparingly */
+.freq-axis {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: #6b6155;
+  text-transform: uppercase;
+}
+.freq-axis::before,
+.freq-axis::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #332B23, transparent);
 }

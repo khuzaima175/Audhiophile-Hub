@@ -34,12 +34,28 @@ export interface KnowledgeEntry {
   timestamp: number;
 }
 
+export type PEQFilterType = 'PK' | 'LS' | 'HS' | 'HP' | 'LP' | 'NOTCH';
+
+export interface PEQFilter {
+  id: string;
+  type: PEQFilterType;
+  freq: number;
+  gain: number;
+  q: number;
+  enabled?: boolean;
+}
+
 export interface EQPreset {
   id: string;
   name: string;
   hardware: string; // The IEM/Headphone name
   type: 'Wavelet' | 'Parametric' | 'Other';
+  mode?: '10-band' | '15-band' | '31-band' | 'peq';
   bands: string; // Text representation of bands/values
+  graphicGains?: number[]; // Array of slider gains
+  peqFilters?: PEQFilter[]; // Parametric filters
+  targetCurveId?: string; // Target reference ID
+  preamp?: number; // Preamp attenuation in dB
   timestamp: number;
 }
 
@@ -64,6 +80,11 @@ export interface AudioProfile {
   savedMemories: string[];
   eqLibrary: EQPreset[];
   gearLibrary: GearItem[]; // Favorites/wishlist tracking
+  faderState?: {
+    bassGain: number;
+    sibilanceGain: number;
+    airGain: number;
+  };
 }
 
 export const DEFAULT_PROFILE: AudioProfile = {
@@ -91,5 +112,10 @@ export const DEFAULT_PROFILE: AudioProfile = {
     "UPGRADE TARGET: Simgot EG280 (Gaming Pick)."
   ],
   eqLibrary: [],
-  gearLibrary: []
+  gearLibrary: [],
+  faderState: {
+    bassGain: 0,
+    sibilanceGain: -2,
+    airGain: 1,
+  },
 };
