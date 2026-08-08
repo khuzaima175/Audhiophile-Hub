@@ -103,7 +103,7 @@ export const resampleToSynthesisFrequencies = (
 };
 
 /**
- * Main parse function for measurement text content
+ * Main parse function for measurement text content (supports CSV, TSV, REW, and GraphicEQ formats)
  */
 export const parseMeasurementFile = (
   textContent: string,
@@ -113,61 +113,104 @@ export const parseMeasurementFile = (
 ): MeasurementData | null => {
   if (!textContent || !textContent.trim()) return null;
 
-  const lines = textContent.split(/\r?\n/);
   const headerComments: string[] = [];
   const rawReadings: { freq: number; spl: number }[] = [];
 
-  for (let line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
+  // 1. Check if the content is in GraphicEQ format (e.g. "GraphicEQ: 20 -4.8; 25 -4.2; ...")
+  if (textContent.includes('GraphicEQ:') || (textContent.includes(';') && !textContent.includes('\n'))) {
+    const cleaned = textContent.replace(/GraphicEQ\s*:/i, '').trim();
+    const pairs = cleaned.split(';');
 
-    // Detect and skip non-numeric header lines
-    const isComment =
-      trimmed.startsWith('*') ||
-      trimmed.startsWith('#') ||
-      trimmed.startsWith('//') ||
-      trimmed.startsWith(';') ||
-      trimmed.toLowerCase().startsWith('measurement') ||
-      trimmed.toLowerCase().startsWith('date:') ||
-      trimmed.toLowerCase().startsWith('freq') ||
-      trimmed.toLowerCase().startsWith('hz');
+    for (let pair of pairs) {
+      const trimmedPair = pair.trim();
+      if (!trimmedPair) continue;
 
-    if (isComment) {
-      headerComments.push(trimmed);
-      continue;
+      const tokens = trimmedPair.split(/[\s,]+/).filter((t) => t.length > 0);
+      if (tokens.length >= 2) {
+        const freq = parseFloat(tokens[0]);
+        const spl = parseFloat(tokens[1]);
+
+        if (!isNaN(freq) && !isNaN(spl) && freq >= 5 && freq <= 96000) {
+          rawReadings.push({ freq, spl });
+        }
+      }
     }
-
-    // Split on comma, tab, semicolon, or consecutive whitespace
-    const parts = trimmed
-      .split(/[\t,;]+|\s{2,}|\s+/)
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0);
-
-    if (parts.length < 2) continue;
-
-    const num1 = parseFloat(parts[0]);
-    const num2 = parseFloat(parts[1]);
-    const num3 = parts.length >= 3 ? parseFloat(parts[2]) : NaN;
-
-    // Validate that at least first two tokens are numbers
-    if (isNaN(num1) || isNaN(num2)) {
-      headerComments.push(trimmed);
-      continue;
-    }
-
-    // Sanity check for audio frequencies (5 Hz to 96 kHz)
-    if (num1 < 5 || num1 > 96000) continue;
-
-    // If 3 columns (e.g. Left and Right channel SPLs), average them
-    let spl = num2;
-    if (!isNaN(num3) && Math.abs(num3) < 200 && Math.abs(num2) < 200) {
-      spl = (num2 + num3) / 2;
-    }
-
-    rawReadings.push({ freq: num1, spl });
   }
 
+  // 2. If GraphicEQ didn't yield enough points, fallback to line-by-line CSV / TSV / Space parser
   if (rawReadings.length < 5) {
+    rawReadings.length = 0; // reset
+    const lines = textContent.split(/\r?\n/);
+
+    for (let line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // Handle lines that contain GraphicEQ inside a multi-line file
+      if (trimmed.toLowerCase().startsWith('graphiceq:')) {
+        const subPairs = trimmed.replace(/graphiceq\s*:/i, '').split(';');
+        for (let pair of subPairs) {
+          const tokens = pair.trim().split(/[\s,]+/).filter((t) => t.length > 0);
+          if (tokens.length >= 2) {
+            const freq = parseFloat(tokens[0]);
+            const spl = parseFloat(tokens[1]);
+            if (!isNaN(freq) && !isNaN(spl) && freq >= 5 && freq <= 96000) {
+              rawReadings.push({ freq, spl });
+            }
+          }
+        }
+        continue;
+      }
+
+      // Detect and skip non-numeric header lines
+      const isComment =
+        trimmed.startsWith('*') ||
+        trimmed.startsWith('#') ||
+        trimmed.startsWith('//') ||
+        trimmed.startsWith(';') ||
+        trimmed.toLowerCase().startsWith('measurement') ||
+        trimmed.toLowerCase().startsWith('date:') ||
+        trimmed.toLowerCase().startsWith('freq') ||
+        trimmed.toLowerCase().startsWith('hz') ||
+        trimmed.toLowerCase().startsWith('frequency');
+
+      if (isComment) {
+        headerComments.push(trimmed);
+        continue;
+      }
+
+      // Split on comma, tab, semicolon, or consecutive whitespace
+      const parts = trimmed
+        .split(/[\t,;]+|\s{2,}|\s+/)
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+
+      if (parts.length < 2) continue;
+
+      const num1 = parseFloat(parts[0]);
+      const num2 = parseFloat(parts[1]);
+      const num3 = parts.length >= 3 ? parseFloat(parts[2]) : NaN;
+
+      // Validate that at least first two tokens are numbers
+      if (isNaN(num1) || isNaN(num2)) {
+        headerComments.push(trimmed);
+        continue;
+      }
+
+      // Sanity check for audio frequencies (5 Hz to 96 kHz)
+      if (num1 < 5 || num1 > 96000) continue;
+
+      // If 3 columns (e.g. Left and Right channel SPLs), average them
+      let spl = num2;
+      if (!isNaN(num3) && Math.abs(num3) < 200 && Math.abs(num2) < 200) {
+        spl = (num2 + num3) / 2;
+      }
+
+      rawReadings.push({ freq: num1, spl });
+    }
+  }
+
+  if (rawReadings.length < 3) {
     return null;
   }
 

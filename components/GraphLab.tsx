@@ -238,24 +238,33 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   };
 
   const handleProcessFile = async (file: File) => {
-    const text = await file.text();
-    const parsed = parseMeasurementFile(text, file.name, labState.smoothing, 1000);
-    if (parsed) {
-      const colors = ['#E7B87A', '#F06543', '#72B01D', '#3F88C5', '#D1495B'];
-      const color = colors[(labState.curves.length - 1) % colors.length] || '#E7B87A';
-      labStore.addCurve({
-        id: `measured-${Date.now()}`,
-        name: parsed.name || file.name.replace(/\.[^/.]+$/, ''),
-        color,
-        points: parsed.rawPoints,
-        provenance: 'measured',
-        provenanceDetails: `CSV Import • ${parsed.sampleCount} pts • norm 1 kHz`,
-        pointsCount: parsed.sampleCount,
-        offset: 0,
-        visible: true,
-        solo: false,
-      });
-      showToast(`Imported ${parsed.name} (${parsed.sampleCount} pts)`);
+    try {
+      const text = await file.text();
+      const parsed = parseMeasurementFile(text, file.name, labState.smoothing, labState.normHz);
+      if (parsed && parsed.rawPoints.length > 0) {
+        const colors = ['#E7B87A', '#F06543', '#72B01D', '#3F88C5', '#D1495B', '#9D4EDD'];
+        const color = colors[(labState.curves.length - 1) % colors.length] || '#E7B87A';
+        const newCurve: LabCurve = {
+          id: `measured-${Date.now()}`,
+          name: parsed.name || file.name.replace(/\.[^/.]+$/, ''),
+          color,
+          points: parsed.rawPoints,
+          provenance: 'measured',
+          provenanceDetails: `Imported • ${parsed.sampleCount} pts • norm ${labState.normHz}Hz`,
+          pointsCount: parsed.sampleCount,
+          offset: 0,
+          visible: true,
+          solo: false,
+        };
+        labStore.addCurve(newCurve);
+        labStore.setPrimaryCurve(newCurve.id);
+        showToast(`✓ Ingested ${newCurve.name} (${parsed.sampleCount} points)`);
+      } else {
+        showToast('⚠️ Could not parse points. Supported: GraphicEQ, CSV, TSV, REW format.');
+      }
+    } catch (err) {
+      console.error('File parsing error:', err);
+      showToast('⚠️ Error reading measurement file.');
     }
   };
 
@@ -288,7 +297,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) handleProcessFile(f);
+                if (f) {
+                  handleProcessFile(f);
+                  e.target.value = '';
+                }
               }}
             />
           </div>
