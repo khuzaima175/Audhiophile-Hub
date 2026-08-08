@@ -38,8 +38,13 @@ export const useLiveTabCapture = ({
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const streamNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
+  // Track capturing state in a ref so teardown logic can read it synchronously
+  const isCapturingRef = useRef(false);
+
   // Clean disconnect teardown
-  const stopTabCapture = useCallback(() => {
+  const stopTabCapture = useCallback((wasCapturing?: boolean) => {
+    const shouldNotify = wasCapturing ?? isCapturingRef.current;
+
     if (streamNodeRef.current) {
       try {
         streamNodeRef.current.disconnect();
@@ -56,9 +61,14 @@ export const useLiveTabCapture = ({
       mediaStreamRef.current = null;
     }
 
+    isCapturingRef.current = false;
     setIsCapturing(false);
     setTelemetry((prev) => ({ ...prev, isActive: false }));
-    onStreamEnded();
+
+    // Only notify parent (and show toast) when a stream was actually running
+    if (shouldNotify) {
+      onStreamEnded();
+    }
   }, [onStreamEnded]);
 
   // Actual getDisplayMedia capture execution
@@ -107,6 +117,7 @@ export const useLiveTabCapture = ({
       const outLat = (ctx as any).outputLatency || 0.013;
       const totalLatencyMs = Math.round((baseLat + outLat) * 1000);
 
+      isCapturingRef.current = true;
       setIsCapturing(true);
       setTelemetry({
         isActive: true,
@@ -119,12 +130,12 @@ export const useLiveTabCapture = ({
       onStreamAvailable(sourceNode, stream);
     } catch (err: any) {
       if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
-        // User cancelled picker dialog
+        // User cancelled picker dialog — no stream ever started, don't notify
         setError(null);
       } else {
         setError(err.message || 'Failed to capture tab audio');
       }
-      stopTabCapture();
+      stopTabCapture(false); // no stream was active, skip onStreamEnded toast
     } finally {
       setShowFeedbackGuard(false);
     }
@@ -150,10 +161,10 @@ export const useLiveTabCapture = ({
     setShowFeedbackGuard(false);
   }, []);
 
-  // Cleanup on unmount
+  // Cleanup on unmount — only notify if we were actually capturing
   useEffect(() => {
     return () => {
-      stopTabCapture();
+      stopTabCapture(isCapturingRef.current);
     };
   }, [stopTabCapture]);
 

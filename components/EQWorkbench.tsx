@@ -1241,7 +1241,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
               }`}
               title="A/B Bypass Switch: Instantly compare EQ curve against raw bypass audio"
             >
-              <Led color={isBypassed ? 'amber' : 'green'} pulse={!isBypassed && isPlaying} size="sm" />
+              <Led color={isBypassed ? 'amber' : 'green'} pulse={!isBypassed && isPlaying && activeSource !== 'liveTab' && activeSource !== 'none'} size="sm" />
               <span>{isBypassed ? 'BYPASS (FLAT)' : 'EQ ACTIVE (A/B)'}</span>
             </button>
           </div>
