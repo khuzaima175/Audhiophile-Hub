@@ -318,21 +318,58 @@ export const generateStreamResponse = async (
     ${CRINACLE_TARGET_DATA}
 
     *** COMPARISON TABLE PROTOCOL (MANDATORY) ***
-    When asked to compare IEMs/Headphones (e.g., "Compare X vs Y"), you MUST output a Markdown table including AT LEAST these specific rows:
-    | Feature | [IEM A] | [IEM B] | ... |
-    | :--- | :--- | :--- | :--- |
-    | **Driver Tech** | [e.g. 1DD, Hybrid, Planar] | ... | ... |
-    | **Decay (Soul)** | [e.g. Musical/Wet, Fast/Dry] | ... | ... |
-    | **Soundstage** | [e.g. 2D, Holographic 3D] | ... | ... |
-    | **Imaging** | [e.g. Average, Elite Pinpoint] | ... | ... |
-    | **200Hz Tuck** | [e.g. Warm Glide, Clean Tuck] | ... | ... |
-    | **8kHz Risk** | [e.g. Safe, Sibilant Peak] | ... | ... |
-    | **Note Weight** | [e.g. Thick, Lean, Balanced] | ... | ... |
-    | **Gaming Feel** | [e.g. Immersive, Competitive] | ... | ... |
-    | **xMEMS "Dryness"**| [e.g. 0% (Analog), 20% (Sharp)] | ... | ... |
-    | **Price (Approx)** | [e.g. $59] | ... | ... |
-    
-    *After the table, provide a detailed written analysis of the differences.*
+    When asked to compare IEMs/Headphones/Earbuds (e.g., "Compare X vs Y"), you MUST output a comprehensive Markdown matrix comparing BOTH products across ALL of these 16 essential acoustic & technical dimensions:
+    | Specification & Acoustic Metric | [Product A] | [Product B] |
+    | :--- | :--- | :--- |
+    | **Driver Tech & Config** | [e.g. Single 10mm DLC+PU Dynamic Driver vs Hybrid 1x 12mm DD + 2x BA] | ... |
+    | **Tonality** | [e.g. Warm-Neutral with Sub-Bass Boost vs U-Shaped with High Treble Sparkle] | ... |
+    | **Sub-bass Extension** | [e.g. Deep visceral rumble down to 20Hz, physical sub-bass pressure] | ... |
+    | **Bass & 200Hz Tuck** | [e.g. Controlled mid-bass punch, clean 200Hz transition vs Warm glide] | ... |
+    | **Mids & Vocal Presence** | [e.g. Lush forward male & female vocals, organic body, zero shoutiness] | ... |
+    | **Treble Extension & Air** | [e.g. Smooth airy extension past 10kHz without fatigue] | ... |
+    | **8kHz Peak & Sibilance Risk** | [e.g. Safe & smooth (Gold nozzle) vs Notable 8kHz peak / Sibilance risk on sharp tracks] | ... |
+    | **Timbre & Naturalness** | [e.g. Organic analog realism with natural harmonic decay vs Analytical/dry] | ... |
+    | **Soundstage (Width, Depth, Height)** | [e.g. Expansive 3D Holographic presentation with distinct vertical height] | ... |
+    | **Imaging Precision** | [e.g. Elite 3D pinpoint directional accuracy and acoustic positioning] | ... |
+    | **Instrument Separation & Layering** | [e.g. Surgical distinction in complex orchestral, metal, or EDM mixes] | ... |
+    | **Technicalities & Micro-Details** | [e.g. High resolving power, nuanced texture extraction, fast transients] | ... |
+    | **Decay (Soul & Dynamics)** | [e.g. Musical & analog decay with natural acoustic weight (Must have 'soul')] | ... |
+    | **Note Weight** | [e.g. Balanced to thick, tactile body for instruments and vocals] | ... |
+    | **xMEMS "Dryness"** | [e.g. 0% (Pure Analog Dynamic Driver - no xMEMS dryness/grit)] | ... |
+    | **Gaming & Spatial Immersion** | [e.g. Immersive 3D stage for single-player RPGs (Cyberpunk, Witcher 3)] | ... |
+    | **Price (Approx)** | [e.g. ~$89 USD (Sale: ~$59 USD)] | ... |
+
+    *** FREQUENCY RESPONSE CURVE DATA GENERATION FOR COMPARISONS ***
+    Whenever comparing 2 or more audio products, you MUST include a \`\`\`json:fr_data code block at the very end of your response containing estimated frequency response points (20Hz to 20000Hz, normalized to 0.0dB at 1kHz) for each product being compared, so the UI can plot the real comparison curves:
+    \`\`\`json:fr_data
+    {
+      "title": "Acoustic Tuning: [Product A] vs [Product B] vs Crinacle IEF 2025 Target",
+      "curves": [
+        {
+          "name": "[Product A Name]",
+          "color": "#F06543",
+          "points": [
+            {"freq": 20, "gain": 8.0}, {"freq": 40, "gain": 7.5}, {"freq": 80, "gain": 6.2},
+            {"freq": 150, "gain": 4.0}, {"freq": 200, "gain": 2.5}, {"freq": 500, "gain": 0.5},
+            {"freq": 1000, "gain": 0.0}, {"freq": 2000, "gain": 5.0}, {"freq": 2800, "gain": 8.5},
+            {"freq": 3500, "gain": 7.2}, {"freq": 5000, "gain": 4.8}, {"freq": 8000, "gain": 8.5},
+            {"freq": 10000, "gain": 3.2}, {"freq": 15000, "gain": -1.5}, {"freq": 20000, "gain": -5.5}
+          ]
+        },
+        {
+          "name": "[Product B Name]",
+          "color": "#E7B87A",
+          "points": [
+            {"freq": 20, "gain": 5.0}, {"freq": 40, "gain": 4.8}, {"freq": 80, "gain": 4.0},
+            {"freq": 150, "gain": 2.5}, {"freq": 200, "gain": 1.0}, {"freq": 500, "gain": 0.2},
+            {"freq": 1000, "gain": 0.0}, {"freq": 2000, "gain": 6.0}, {"freq": 2800, "gain": 9.2},
+            {"freq": 3500, "gain": 7.8}, {"freq": 5000, "gain": 5.0}, {"freq": 8000, "gain": 4.2},
+            {"freq": 10000, "gain": 2.5}, {"freq": 15000, "gain": -2.0}, {"freq": 20000, "gain": -6.0}
+          ]
+        }
+      ]
+    }
+    \`\`\`
 
     *** VISUAL EQ ANALYSIS PROTOCOL (GRAPH INPUT) ***
     When the user uploads a measurement graph of an IEM/Headphone:
@@ -566,29 +603,27 @@ Use Google Search to find accurate specs, measurements, and reviews for each pro
 
 ---
 
-### 📊 Spec Comparison
-
-| Specification | ${selectedGear.map(g => g.name).join(' | ')} |
+### 📊 Comprehensive Spec & Acoustic Matrix
+ 
+| Specification & Metric | ${selectedGear.map(g => g.name).join(' | ')} |
 |:---|${selectedGear.map(() => ':---:').join('|')}|
-| **Price** | [research] | [research] |
-| **Driver Type** | [research] | [research] |
-| **Impedance** | [research] | [research] |
-| **Sensitivity** | [research] | [research] |
-| **Sound Signature** | [research] | [research] |
-
----
-
-### 🎧 Sound Quality Battle
-
-| Category | ${selectedGear.map(g => g.name).join(' | ')} | Winner |
-|:---|${selectedGear.map(() => ':---:').join('|')}|:---:|
-| **Sub-bass Extension** | [rate /10] | [rate /10] | 🏅 |
-| **Mid-bass Punch** | [rate /10] | [rate /10] | 🏅 |
-| **Midrange Clarity** | [rate /10] | [rate /10] | 🏅 |
-| **Treble Detail** | [rate /10] | [rate /10] | 🏅 |
-| **Soundstage Width** | [rate /10] | [rate /10] | 🏅 |
-| **Imaging Precision** | [rate /10] | [rate /10] | 🏅 |
-| **Timbre/Naturalness** | [rate /10] | [rate /10] | 🏅 |
+| **Driver Tech & Config** | [research] | [research] |
+| **Tonality** | [research] | [research] |
+| **Sub-bass Extension (20Hz)** | [rate /10] | [rate /10] |
+| **Bass & 200Hz Tuck** | [research] | [research] |
+| **Mids & Vocal Presence** | [rate /10] | [rate /10] |
+| **Treble Extension & Air** | [rate /10] | [rate /10] |
+| **8kHz Peak & Sibilance Risk** | [rate /10] | [rate /10] |
+| **Timbre & Naturalness** | [rate /10] | [rate /10] |
+| **Soundstage (Width & Depth)** | [rate /10] | [rate /10] |
+| **Imaging Precision** | [rate /10] | [rate /10] |
+| **Instrument Separation** | [rate /10] | [rate /10] |
+| **Technicalities & Details** | [rate /10] | [rate /10] |
+| **Decay (Soul & Dynamics)** | [rate /10] | [rate /10] |
+| **Note Weight** | [rate /10] | [rate /10] |
+| **xMEMS "Dryness"** | [0% Analog / % Dry] | [0% Analog / % Dry] |
+| **Gaming & Spatial Immersion** | [rate /10] | [rate /10] |
+| **Price (Approx)** | [research] | [research] |
 
 ---
 
@@ -606,6 +641,25 @@ Based on the user's profile:
 [2-3 sentences with clear recommendation and confidence percentage]
 
 **Bottom Line**: [One punchy sentence]
+
+\`\`\`json:fr_data
+{
+  "title": "Shootout: ${selectedGear.map(g => g.name).join(' vs ')}",
+  "curves": [
+    ${selectedGear.map((g, i) => `{
+      "name": "${g.name}",
+      "color": "${i === 0 ? '#F06543' : i === 1 ? '#E7B87A' : '#72B01D'}",
+      "points": [
+        {"freq": 20, "gain": 7.5}, {"freq": 40, "gain": 7.0}, {"freq": 80, "gain": 5.5},
+        {"freq": 150, "gain": 3.5}, {"freq": 200, "gain": 2.0}, {"freq": 500, "gain": 0.5},
+        {"freq": 1000, "gain": 0.0}, {"freq": 2000, "gain": 5.0}, {"freq": 2800, "gain": 8.5},
+        {"freq": 3500, "gain": 7.0}, {"freq": 5000, "gain": 4.5}, {"freq": 8000, "gain": 7.5},
+        {"freq": 10000, "gain": 3.0}, {"freq": 15000, "gain": -1.5}, {"freq": 20000, "gain": -5.5}
+      ]
+    }`).join(',\n    ')}
+  ]
+}
+\`\`\`
 `;
 
   const config = {

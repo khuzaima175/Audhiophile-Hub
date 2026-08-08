@@ -53,16 +53,36 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Extract any embedded frequency response comparison dataset
+  const parsedFrData = useMemo(() => {
+    if (!message.text || isUser) return null;
+    const match = message.text.match(/```json:fr_data\s*([\s\S]*?)\s*```/);
+    if (match && match[1]) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        if (parsed && Array.isArray(parsed.curves) && parsed.curves.length > 0) {
+          return parsed as { title?: string; curves: { name: string; color: string; points: { freq: number; gain: number }[] }[] };
+        }
+      } catch (e) {
+        console.warn('Failed to parse fr_data JSON block:', e);
+      }
+    }
+    return null;
+  }, [message.text, isUser]);
+
+  // Clean raw fr_data JSON from displayed markdown so user only sees clean analysis & chart
+  const cleanMessageText = useMemo(() => {
+    if (!message.text) return '';
+    return message.text.replace(/```json:fr_data[\s\S]*?```/g, '').trim();
+  }, [message.text]);
+
   // Check if message has frequency response data or comparison shootout
   const hasFrequencyData =
     !isUser &&
     !message.isThinking &&
-    (message.text.includes('GraphicEQ:') ||
-      message.text.includes('Crinacle IEF') ||
-      message.text.includes('Auto-EQ') ||
-      message.text.includes('## ⚔️ BATTLE:') ||
-      message.text.includes('8kHz') ||
-      message.text.includes('B&K 5128'));
+    (parsedFrData !== null ||
+      message.text.includes('GraphicEQ:') ||
+      message.text.includes('Auto-EQ'));
 
   // Check if message is an error response
   const isErrorMessage =
@@ -341,11 +361,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
           ) : (
             <>
-              {renderContent(message.text || '')}
+              {renderContent(cleanMessageText || '')}
               {hasFrequencyData && (
                 <div className="my-4">
                   <FRGraph
-                    title="Reference Target Overlay: IEF 2025 • Harman 2019 • HD600"
+                    title={parsedFrData?.title}
+                    curves={parsedFrData?.curves}
                     sibilanceAlert={message.text.toLowerCase().includes('8khz') || message.text.toLowerCase().includes('sibilan')}
                   />
                 </div>
