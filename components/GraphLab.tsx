@@ -153,21 +153,19 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           // GraphicEQ / AutoEQ Filter Curves:
           const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
 
-          if (labState.viewMode === 'rawFilter') {
-            // "Filter Cuts": raw negative/positive EQ slider adjustments
-            dispGain = rawGain + curve.offset;
+          if (labState.viewMode === 'rawFilter' || (curve.isInverted && labState.viewMode !== 'rawFilter')) {
+            // "Filter Cuts" or inverted toggle: raw negative/positive EQ slider adjustments
+            dispGain = (curve.isInverted && labState.viewMode === 'rawFilter'
+              ? srcTargetGain - rawGain - reconstructedIemAtNormHz + labState.normDb
+              : rawGain) + curve.offset;
 
           } else if (labState.viewMode === 'netPostEq') {
             // "Post-EQ Net": what the headphone sounds like with EQ active
-            // Normalized to normDb at 1000 Hz
             const netGain = srcTargetGain - srcTargetAtNormHz + labState.normDb;
             dispGain = netGain + curve.offset;
 
           } else {
             // Default & "IEM vs Target": Reconstruct the natural IEM frequency response!
-            // IEM_raw(f) = SourceTarget(f) - Filter(f)
-            // Normalized to normDb at 1000 Hz:
-            // IEM_plot(f) = IEM_raw(f) - IEM_raw(1000Hz) + normDb + offset
             const iemRaw = srcTargetGain - rawGain;
             const iemNormalized = iemRaw - reconstructedIemAtNormHz + labState.normDb;
             dispGain = iemNormalized + curve.offset;
@@ -176,9 +174,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         } else {
           // Standard Measured / AI-Estimate Curves:
           // Normalized to normDb at normHz (1000 Hz)
-          // M_plot(f) = M(f) - M(1000Hz) + normDb + offset
           const normalized = rawGain - curveNormGain + labState.normDb;
-          dispGain = normalized + curve.offset;
+          dispGain = (curve.isInverted ? -normalized : normalized) + curve.offset;
         }
 
         return { freq: f, gain: parseFloat(dispGain.toFixed(2)) };

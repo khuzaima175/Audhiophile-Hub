@@ -94,47 +94,53 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({
           <span className="text-audio-muted">dB</span>
         </div>
 
-        {/* Individual Invert / Reconstruct Toggle */}
-        <button
-          type="button"
-          onClick={() => labStore.toggleInvertCurve(curve.id)}
-          className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all border ${
-            curve.isInverted
-              ? 'bg-audio-accent text-black border-audio-accent shadow-glow-brass'
-              : 'bg-audio-surface border-audio-border/60 text-audio-muted hover:text-audio-text'
-          }`}
-          title="Invert / Reconstruct: Flip between raw negative filter cuts and natural positive IEM response"
-        >
-          [+/-]
-        </button>
+        {/* Individual Invert / Reconstruct Toggle (Non-Target Curves only) */}
+        {!curve.isTarget && (
+          <button
+            type="button"
+            onClick={() => labStore.toggleInvertCurve(curve.id)}
+            className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all border ${
+              curve.isInverted
+                ? 'bg-audio-accent text-black border-audio-accent shadow-glow-brass'
+                : 'bg-audio-surface border-audio-border/60 text-audio-muted hover:text-audio-text'
+            }`}
+            title="Invert / Reconstruct: Flip between raw negative filter cuts and natural positive IEM response"
+          >
+            [+/-]
+          </button>
+        )}
 
-        {/* Individual Delta Compensate */}
-        <button
-          type="button"
-          onClick={() => labStore.toggleDeltaCompensate(curve.id)}
-          className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all border ${
-            curve.deltaCompensate
-              ? 'bg-audio-warn text-black border-audio-warn'
-              : 'bg-audio-surface border-audio-border/60 text-audio-muted hover:text-audio-text'
-          }`}
-          title="Curve Delta: Subtracts this specific curve from the active Target curve"
-        >
-          [Δ]
-        </button>
+        {/* Individual Delta Compensate (Non-Target Curves only) */}
+        {!curve.isTarget && (
+          <button
+            type="button"
+            onClick={() => labStore.toggleDeltaCompensate(curve.id)}
+            className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all border ${
+              curve.deltaCompensate
+                ? 'bg-audio-warn text-black border-audio-warn'
+                : 'bg-audio-surface border-audio-border/60 text-audio-muted hover:text-audio-text'
+            }`}
+            title="Curve Delta: Subtracts this specific curve from the active Target curve"
+          >
+            [Δ]
+          </button>
+        )}
 
-        {/* Solo Button */}
-        <button
-          type="button"
-          onClick={() => labStore.toggleSolo(curve.id)}
-          className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all border ${
-            curve.solo
-              ? 'bg-audio-signal text-black border-audio-signal shadow-glow-teal'
-              : 'bg-audio-surface border-audio-border/60 text-audio-muted hover:text-audio-text'
-          }`}
-          title="Solo: Isolate this curve + Target baseline"
-        >
-          SOLO
-        </button>
+        {/* Solo Button (Non-Target Curves only) */}
+        {!curve.isTarget && (
+          <button
+            type="button"
+            onClick={() => labStore.toggleSolo(curve.id)}
+            className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all border ${
+              curve.solo
+                ? 'bg-audio-signal text-black border-audio-signal shadow-glow-teal'
+                : 'bg-audio-surface border-audio-border/60 text-audio-muted hover:text-audio-text'
+            }`}
+            title="Solo: Isolate this curve + Target baseline"
+          >
+            SOLO
+          </button>
+        )}
       </div>
 
       {/* 3. Actions: Auto-PEQ, CSV Export, Remove */}
