@@ -1,5 +1,5 @@
 import React from 'react';
-import { ViewportDimensions, freqToX } from '../../utils/curveSynthesizer';
+import { ViewportDimensions, freqToX } from '@/utils/curveSynthesizer';
 
 interface BandLabelsProps {
   viewport: ViewportDimensions;

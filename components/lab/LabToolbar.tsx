@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useLabStore, labStore } from '../../store/labStore';
-import { TARGET_CURVES } from '../../constants/targetCurves';
-import { LabZoomRange, SmoothingType } from '../../types';
-import { encodeLabStateToUrl } from '../../utils/shareCodec';
-import Led from '../ui/Led';
-import Engraved from '../ui/Engraved';
+import { useLabStore, labStore } from '@/store/labStore';
+import { TARGET_CURVES } from '@/constants/targetCurves';
+import { LabZoomRange, SmoothingType } from '@/types';
+import { encodeLabStateToUrl } from '@/utils/shareCodec';
+import Led from '@/components/ui/Led';
+import Engraved from '@/components/ui/Engraved';
 
 interface LabToolbarProps {
   onExportCsv?: () => void;

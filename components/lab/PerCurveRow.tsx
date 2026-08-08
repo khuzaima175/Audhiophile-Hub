@@ -1,6 +1,6 @@
 import React from 'react';
-import { LabCurve } from '../../types';
-import { labStore } from '../../store/labStore';
+import { LabCurve } from '@/types';
+import { labStore } from '@/store/labStore';
 
 interface PerCurveRowProps {
   curve: LabCurve;
