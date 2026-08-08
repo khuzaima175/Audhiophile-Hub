@@ -161,8 +161,12 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
             dispGain = (curve.isInverted ? iemNormalized : rawGain) + curve.offset;
 
           } else if (labState.viewMode === 'netPostEq') {
-            // "Post-EQ Net" mode: shows ideal equalized sound, inverts polarity if inverted
-            dispGain = (curve.isInverted ? -netGain : netGain) + curve.offset;
+            // "Post-EQ Net" mode: shows ideal equalized sound; if inverted, shows residual error vs active target
+            const activeTargetGain = activeTarget
+              ? getInterpolatedTargetGain(f, activeTarget.points) - activeTargetNormGain + labState.normDb
+              : netGain;
+            const residualDelta = netGain - activeTargetGain;
+            dispGain = (curve.isInverted ? residualDelta : netGain) + curve.offset;
 
           } else {
             // Default & "IEM vs Target": Reconstructs natural IEM response, flips to raw cuts if inverted
