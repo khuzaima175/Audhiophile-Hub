@@ -318,26 +318,27 @@ export const generateStreamResponse = async (
     ${CRINACLE_TARGET_DATA}
 
     *** COMPARISON TABLE PROTOCOL (MANDATORY) ***
-    When asked to compare IEMs/Headphones/Earbuds (e.g., "Compare X vs Y"), you MUST output a comprehensive Markdown matrix comparing BOTH products across ALL of these 16 essential acoustic & technical dimensions:
+    When asked to compare IEMs/Headphones/Earbuds (e.g., "Compare X vs Y"), you MUST output a comprehensive Markdown matrix comparing BOTH products across ALL of these 16 essential acoustic & technical dimensions.
+    IMPORTANT: For EVERY row, you MUST provide an explicit numeric score / rating (e.g. "8.8/10", "9.2/10") along with the detailed acoustic description:
     | Specification & Acoustic Metric | [Product A] | [Product B] |
     | :--- | :--- | :--- |
-    | **Driver Tech & Config** | [e.g. Single 10mm DLC+PU Dynamic Driver vs Hybrid 1x 12mm DD + 2x BA] | ... |
-    | **Tonality** | [e.g. Warm-Neutral with Sub-Bass Boost vs U-Shaped with High Treble Sparkle] | ... |
-    | **Sub-bass Extension** | [e.g. Deep visceral rumble down to 20Hz, physical sub-bass pressure] | ... |
-    | **Bass & 200Hz Tuck** | [e.g. Controlled mid-bass punch, clean 200Hz transition vs Warm glide] | ... |
-    | **Mids & Vocal Presence** | [e.g. Lush forward male & female vocals, organic body, zero shoutiness] | ... |
-    | **Treble Extension & Air** | [e.g. Smooth airy extension past 10kHz without fatigue] | ... |
-    | **8kHz Peak & Sibilance Risk** | [e.g. Safe & smooth (Gold nozzle) vs Notable 8kHz peak / Sibilance risk on sharp tracks] | ... |
-    | **Timbre & Naturalness** | [e.g. Organic analog realism with natural harmonic decay vs Analytical/dry] | ... |
-    | **Soundstage (Width, Depth, Height)** | [e.g. Expansive 3D Holographic presentation with distinct vertical height] | ... |
-    | **Imaging Precision** | [e.g. Elite 3D pinpoint directional accuracy and acoustic positioning] | ... |
-    | **Instrument Separation & Layering** | [e.g. Surgical distinction in complex orchestral, metal, or EDM mixes] | ... |
-    | **Technicalities & Micro-Details** | [e.g. High resolving power, nuanced texture extraction, fast transients] | ... |
-    | **Decay (Soul & Dynamics)** | [e.g. Musical & analog decay with natural acoustic weight (Must have 'soul')] | ... |
-    | **Note Weight** | [e.g. Balanced to thick, tactile body for instruments and vocals] | ... |
-    | **xMEMS "Dryness"** | [e.g. 0% (Pure Analog Dynamic Driver - no xMEMS dryness/grit)] | ... |
-    | **Gaming & Spatial Immersion** | [e.g. Immersive 3D stage for single-player RPGs (Cyberpunk, Witcher 3)] | ... |
-    | **Price (Approx)** | [e.g. ~$89 USD (Sale: ~$59 USD)] | ... |
+    | **Driver Tech & Config** | [e.g. Single 10mm DLC+PU Dynamic Driver] | [e.g. Hybrid 1x 12mm DD + 2x BA] |
+    | **Tonality** | [e.g. 9.0/10 — Warm-Neutral with Sub-Bass Boost] | [e.g. 8.2/10 — U-Shaped with High Treble Sparkle] |
+    | **Sub-bass Extension** | [e.g. 8.7/10 — Deep visceral rumble down to 20Hz, physical pressure] | [e.g. 9.3/10 — Massive sub-bass shelf, earth-shaking rumble] |
+    | **Bass & 200Hz Tuck** | [e.g. 9.1/10 — Controlled punch, clean 200Hz tuck, zero bleed] | [e.g. 7.8/10 — Warm mid-bass glide, slight bleed into lower mids] |
+    | **Mids & Vocal Presence** | [e.g. 9.2/10 — Lush forward male & female vocals, organic body] | [e.g. 8.0/10 — Slightly recessed lower mids, crisp upper mids] |
+    | **Treble Extension & Air** | [e.g. 8.5/10 — Smooth airy extension past 10kHz, non-fatiguing] | [e.g. 8.8/10 — High sparkle and air with extended BA shimmer] |
+    | **8kHz Peak & Sibilance Risk** | [e.g. 9.4/10 (Safe) — Smooth 8kHz dip, zero sibilance or harshness] | [e.g. 6.8/10 (Moderate Risk) — Notable 8kHz peak, sibilant on 's/t' tracks] |
+    | **Timbre & Naturalness** | [e.g. 9.5/10 — Organic analog realism with natural harmonic decay] | [e.g. 7.9/10 — Fast BA transients but slight metallic timbre] |
+    | **Soundstage (Width, Depth, Height)** | [e.g. 8.9/10 — Expansive 3D Holographic presentation with vertical height] | [e.g. 9.3/10 — Class-leading width and deep out-of-head projection] |
+    | **Imaging Precision** | [e.g. 9.0/10 — Elite 3D pinpoint positional localization] | [e.g. 9.2/10 — Surgical spatial separation and pinpoint cue placement] |
+    | **Instrument Separation & Layering** | [e.g. 9.1/10 — Surgical distinction in complex orchestral or metal mixes] | [e.g. 8.8/10 — Good multi-driver layering, slightly busy in mid-bass] |
+    | **Technicalities & Micro-Details** | [e.g. 8.8/10 — High resolving power, nuanced texture extraction] | [e.g. 9.1/10 — Ultra-fast transient attack, pulls micro-nuances forward] |
+    | **Decay (Soul & Dynamics)** | [e.g. 9.6/10 — Musical & analog decay with acoustic weight (Rich 'Soul')] | [e.g. 7.5/10 — Fast snappy BA decay, less lingering resonance] |
+    | **Note Weight** | [e.g. 9.0/10 — Balanced to thick, tactile body for instruments and vocals] | [e.g. 7.8/10 — Leaner note weight, quick and snappy presentation] |
+    | **xMEMS "Dryness"** | [e.g. 0% (Pure Analog Dynamic Driver - no xMEMS dryness/grit)] | [e.g. 0% (Traditional Hybrid - rich analog presentation)] |
+    | **Gaming & Spatial Immersion** | [e.g. 9.2/10 — Immersive 3D stage for single-player RPGs (Cyberpunk, Witcher 3)] | [e.g. 9.4/10 — Pinpoint footsteps and wide soundstage for gaming] |
+    | **Price & Value (Approx)** | [e.g. 9.5/10 — ~$89 USD (Exceptional value for full DLC driver)] | [e.g. 8.8/10 — ~$129 USD (Competitive price for hybrid setup)] |
 
     *** FREQUENCY RESPONSE CURVE DATA GENERATION FOR COMPARISONS ***
     Whenever comparing 2 or more audio products, you MUST include a \`\`\`json:fr_data code block at the very end of your response containing estimated frequency response points (20Hz to 20000Hz, normalized to 0.0dB at 1kHz) for each product being compared, so the UI can plot the real comparison curves:

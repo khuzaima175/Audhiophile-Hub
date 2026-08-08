@@ -207,6 +207,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     });
   }, [resampledMeasuredPoints, currentTarget, selectedTargetId, maxAutoFilters, smoothing]);
 
+  // View Mode: 'filter' (raw EQ cuts/boosts) vs 'simulated' (Target + EQ Net Response)
+  const [eqViewMode, setEqViewMode] = useState<'filter' | 'simulated'>('filter');
+
   // Calculate live composite curve points for pure EQ preview
   const compositeCurvePoints = useMemo(() => {
     return evaluateCompositeCurve(
@@ -217,10 +220,25 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     );
   }, [currentIsoBands, currentIsoGains, peqFilters, eqMode]);
 
+  // Simulated acoustic net response = Target + Filter (shows how EQ shapes towards reference)
+  const simulatedResponsePoints = useMemo(() => {
+    return compositeCurvePoints.map((p) => {
+      const targetDb = currentTarget && selectedTargetId !== 'none'
+        ? getInterpolatedTargetGain(p.freq, currentTarget.points)
+        : 0;
+      return { freq: p.freq, gain: parseFloat((targetDb + p.gain).toFixed(2)) };
+    });
+  }, [compositeCurvePoints, currentTarget, selectedTargetId]);
+
+  // Active displayed EQ curve based on view mode
+  const activeEqPoints = useMemo(() => {
+    return eqViewMode === 'simulated' ? simulatedResponsePoints : compositeCurvePoints;
+  }, [eqViewMode, simulatedResponsePoints, compositeCurvePoints]);
+
   // AUTO-RANGE Y-AXIS (Accommodates Harman, measured deep bass, and corrected curves)
   const { minY, maxY, yTicks } = useMemo(() => {
     const targetPoints = selectedTargetId !== 'none' && currentTarget ? currentTarget.points : [];
-    const curveList = [compositeCurvePoints, targetPoints];
+    const curveList = [activeEqPoints, targetPoints];
     if (resampledMeasuredPoints.length > 0) {
       curveList.push(resampledMeasuredPoints.map((p) => ({ freq: p.freq, gain: p.gain })));
     }
@@ -228,7 +246,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
       curveList.push(autoPeqResult.correctedPoints);
     }
     return calculateAutoRangedYBounds(curveList, selectedTargetId !== 'none');
-  }, [compositeCurvePoints, currentTarget, selectedTargetId, resampledMeasuredPoints, autoPeqResult]);
+  }, [activeEqPoints, currentTarget, selectedTargetId, resampledMeasuredPoints, autoPeqResult]);
 
   const workbenchViewport: ViewportDimensions = useMemo(() => ({
     ...DEFAULT_VIEWPORT,
@@ -240,8 +258,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
 
   // Generate SVG path for live manual EQ curve
   const compositeSvgPath = useMemo(() => {
-    return generateSvgPathFromPoints(compositeCurvePoints, workbenchViewport, minY, maxY);
-  }, [compositeCurvePoints, workbenchViewport, minY, maxY]);
+    return generateSvgPathFromPoints(activeEqPoints, workbenchViewport, minY, maxY);
+  }, [activeEqPoints, workbenchViewport, minY, maxY]);
 
   // Target Curve SVG Path
   const targetSvgPath = useMemo(() => {
@@ -865,34 +883,65 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
             )}
           </div>
 
-          {/* Target Reference Chips */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[9px] font-mono text-audio-muted mr-1">TARGET:</span>
-            {TARGET_CURVES.map((target) => (
+          {/* View Mode Toggle & Target Reference Chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Display Mode: Filter vs Simulated Net */}
+            <div className="flex items-center bg-[#18130F] p-0.5 rounded-lg border border-audio-border/80">
               <button
-                key={target.id}
                 type="button"
-                onClick={() => setSelectedTargetId(target.id)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold transition-all ${
-                  selectedTargetId === target.id
-                    ? 'bg-[#1D1713] border-2 border-audio-accent text-audio-text shadow-glow-brass'
-                    : 'bg-audio-surface border border-audio-border text-audio-muted hover:text-audio-text'
+                onClick={() => setEqViewMode('filter')}
+                className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-semibold transition-all ${
+                  eqViewMode === 'filter'
+                    ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
+                    : 'text-audio-muted hover:text-audio-text'
+                }`}
+                title="View raw corrective EQ filter cuts and boosts applied to your audio"
+              >
+                EQ Filter (Cuts)
+              </button>
+              <button
+                type="button"
+                onClick={() => setEqViewMode('simulated')}
+                className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-semibold transition-all ${
+                  eqViewMode === 'simulated'
+                    ? 'bg-audio-signal text-black font-bold shadow-glow-teal'
+                    : 'text-audio-muted hover:text-audio-text'
+                }`}
+                title="View simulated acoustic response (Target + EQ Net Tuning)"
+              >
+                Simulated Net FR
+              </button>
+            </div>
+
+            {/* Target Reference Chips */}
+            <div className="flex items-center gap-1 bg-[#18130F] p-0.5 rounded-lg border border-audio-border/80">
+              <span className="text-[9px] font-mono text-audio-muted px-1">TARGET:</span>
+              {TARGET_CURVES.map((target) => (
+                <button
+                  key={target.id}
+                  type="button"
+                  onClick={() => setSelectedTargetId(target.id)}
+                  className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-semibold transition-all ${
+                    selectedTargetId === target.id
+                      ? 'bg-[#251A14] border border-audio-accent text-audio-text shadow-glow-brass'
+                      : 'text-audio-muted hover:text-audio-text'
+                  }`}
+                >
+                  {target.shortName}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSelectedTargetId('none')}
+                className={`px-2 py-0.5 rounded text-[9.5px] font-mono transition-all ${
+                  selectedTargetId === 'none'
+                    ? 'bg-[#251A14] border border-audio-accent text-audio-text'
+                    : 'text-audio-muted hover:text-audio-text'
                 }`}
               >
-                {target.shortName}
+                None
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setSelectedTargetId('none')}
-              className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-all ${
-                selectedTargetId === 'none'
-                  ? 'bg-[#1D1713] border-2 border-audio-accent text-audio-text'
-                  : 'bg-audio-surface border border-audio-border text-audio-muted hover:text-audio-text'
-              }`}
-            >
-              None
-            </button>
+            </div>
           </div>
         </div>
 
@@ -1109,14 +1158,18 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
         {/* Legend & Provenance Trust Caption */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[9px] font-mono text-audio-muted/70">
           <div className="flex flex-wrap items-center gap-3">
-            {measurement && (
-              <span className="flex items-center gap-1.5 text-[#EDE6DA]">
-                <span className="w-2.5 h-[2px] bg-[#EDE6DA]" /> Measured (Solid Cream)
+            <span className="flex items-center gap-1.5 text-audio-accent font-semibold">
+              <span className="w-2.5 h-[2px] bg-audio-accent" />
+              {eqViewMode === 'simulated' ? 'Simulated Net FR (Target + EQ)' : 'EQ Filter Cuts/Boosts (Solid Brass)'}
+            </span>
+            {selectedTargetId !== 'none' && (
+              <span className="flex items-center gap-1.5 text-audio-signal font-semibold">
+                <span className="w-2.5 h-[2px] border-b border-dashed border-audio-signal" /> Target Reference (Dashed Teal)
               </span>
             )}
-            {selectedTargetId !== 'none' && (
-              <span className="flex items-center gap-1.5 text-audio-accent">
-                <span className="w-2.5 h-[2px] border-b border-dashed border-audio-accent" /> Target Reference (Dashed)
+            {measurement && (
+              <span className="flex items-center gap-1.5 text-[#EDE6DA]">
+                <span className="w-2.5 h-[2px] bg-[#EDE6DA]" /> Measured Raw IEM (Solid Cream)
               </span>
             )}
             {autoPeqResult && (
