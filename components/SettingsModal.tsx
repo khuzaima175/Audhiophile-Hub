@@ -3,6 +3,15 @@ import { AudioProfile, KnowledgeEntry, EQPreset, GearItem, DEFAULT_PROFILE } fro
 import { PlusIcon, TrashIcon, BrainIcon, EqIcon, SaveIcon, LinkIcon, HeadphonesIcon, StarIcon, SwordsIcon, XIcon, CheckIcon, WaveformIcon, ActivityIcon } from './Icon';
 import { generateBattleComparison } from '../services/geminiService';
 import { EQWorkbench } from './EQWorkbench';
+import {
+  getStoredApoConfigPath,
+  setStoredApoConfigPath,
+  getStoredApoEnabled,
+  setStoredApoEnabled,
+  getStoredApoLastApplied,
+  testApoWrite,
+  toggleApoManagedBridge,
+} from '../services/apoBridgeClient';
 import { v4 as uuidv4 } from 'uuid';
 import Led from './ui/Led';
 import Engraved from './ui/Engraved';
@@ -70,10 +79,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSavedFlash, setIsSavedFlash] = useState(false);
   const [justAddedToast, setJustAddedToast] = useState<string | null>(null);
 
-// Fader state for sound signature synthesis
+  // Equalizer APO System Bridge State
+  const [apoConfigPath, setApoConfigPath] = useState(getStoredApoConfigPath());
+  const [apoBridgeEnabled, setApoBridgeEnabled] = useState(getStoredApoEnabled());
+  const [apoLastApplied, setApoLastApplied] = useState(getStoredApoLastApplied());
+  const [apoTestStatus, setApoTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+
+  // Fader state for sound signature synthesis
   const [bassGain, setBassGain] = useState(profile?.faderState?.bassGain ?? 0);
   const [sibilanceGain, setSibilanceGain] = useState(profile?.faderState?.sibilanceGain ?? -2);
   const [airGain, setAirGain] = useState(profile?.faderState?.airGain ?? 1);
+
 
   // Memory & Form State
   const [newMemory, setNewMemory] = useState('');
@@ -1094,6 +1110,103 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     >
                       Get Key from Google AI Studio ↗
                     </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* SYSTEM EQ BRIDGE (EQUALIZER APO HOT-RELOAD) */}
+              <div className="pt-5 border-t border-audio-border/60">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Engraved size="xs" glow>
+                      SYSTEM EQ BRIDGE (EQUALIZER APO)
+                    </Engraved>
+                    <Led color={apoBridgeEnabled ? 'green' : 'amber'} pulse={apoBridgeEnabled} size="sm" />
+                  </div>
+                  {apoLastApplied && (
+                    <span className="text-[10px] font-mono text-audio-signal">
+                      LAST APPLIED {apoLastApplied}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-audio-border bg-[#120D0A] space-y-3">
+                  <div>
+                    <label className={labelClass}>Equalizer APO config.txt Path (Windows)</label>
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={apoConfigPath}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setApoConfigPath(val);
+                          setStoredApoConfigPath(val);
+                        }}
+                        placeholder="C:\Program Files\Equalizer APO\config\config.txt"
+                        className={inputClass}
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setApoTestStatus('testing');
+                          try {
+                            const res = await testApoWrite(apoConfigPath);
+                            if (res.success) {
+                              setApoTestStatus('success');
+                              setImportMessage({ type: 'success', text: `✓ Equalizer APO permissions verified! Sibling audiosage-eq.txt writable.` });
+                            } else {
+                              setApoTestStatus('error');
+                              setImportMessage({ type: 'error', text: `APO Bridge Test Failed: ${res.error || 'Check path permissions'}` });
+                            }
+                          } catch (e: any) {
+                            setApoTestStatus('error');
+                            setImportMessage({ type: 'error', text: `Bridge error: ${e.message}` });
+                          }
+                          setTimeout(() => setImportMessage(null), 6000);
+                        }}
+                        className="px-3.5 py-2 rounded-xl border border-audio-border bg-audio-surface text-xs font-mono font-bold text-audio-accent hover:border-audio-accent flex-shrink-0"
+                      >
+                        {apoTestStatus === 'testing' ? 'Testing…' : 'Test Write'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bridge Toggle & Safety Guardrails */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-audio-border/40">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const nextState = !apoBridgeEnabled;
+                          const res = await toggleApoManagedBridge(nextState, apoConfigPath);
+                          if (res.success) {
+                            setApoBridgeEnabled(nextState);
+                            setStoredApoEnabled(nextState);
+                            setImportMessage({
+                              type: 'success',
+                              text: nextState
+                                ? '✓ Equalizer APO hot-sync active. Every profile save will tune your PC in real-time!'
+                                : 'Equalizer APO managed include line removed from config.txt.',
+                            });
+                          } else {
+                            setImportMessage({ type: 'error', text: `Failed to toggle bridge: ${res.error}` });
+                          }
+                          setTimeout(() => setImportMessage(null), 5000);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
+                          apoBridgeEnabled
+                            ? 'bg-[#15231C] border-audio-signal text-audio-signal shadow-glow-teal'
+                            : 'bg-audio-surface border-audio-border text-audio-muted hover:text-audio-text'
+                        }`}
+                      >
+                        <Led color={apoBridgeEnabled ? 'green' : 'amber'} size="sm" />
+                        <span>{apoBridgeEnabled ? 'BRIDGE ACTIVE (HOT RELOAD)' : 'ENABLE APO HOT BRIDGE'}</span>
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] font-mono text-audio-muted/70">
+                      Non-destructive: writes sibling <code className="text-audio-accent">audiosage-eq.txt</code> &amp; creates <code className="text-audio-muted">.bak</code>
+                    </p>
                   </div>
                 </div>
               </div>

@@ -119,3 +119,69 @@ export const DEFAULT_PROFILE: AudioProfile = {
     airGain: 1,
   },
 };
+
+export type SmoothingType = 'RAW' | '1/6 OCT' | '1/3 OCT';
+
+
+export interface MeasurementPoint {
+  freq: number;
+  gain: number; // Normalized to 0dB at 1kHz (or user datum)
+  rawSpl: number; // Original measured dB SPL
+}
+
+export interface MeasurementData {
+  name: string;
+  rawPoints: MeasurementPoint[];
+  smoothedPoints: MeasurementPoint[];
+  normOffset: number; // dB subtracted at 1kHz datum
+  sampleCount: number;
+  smoothing: SmoothingType;
+  headerComments?: string[];
+}
+
+export interface AutoPeqFitOptions {
+  maxFilters: number; // 5 to 20 filters
+  targetCurveId: string;
+  minGain?: number; // default -12 dB
+  maxGain?: number; // default +12 dB
+  smoothing?: SmoothingType;
+}
+
+export interface AutoPeqFitResult {
+  filters: PEQFilter[];
+  preamp: number;
+  initialRms: number;
+  finalRms: number;
+  matchPercentage: number;
+  correctedPoints: { freq: number; gain: number }[];
+  residualPoints: { freq: number; gain: number }[];
+}
+
+export interface ApoBridgeStatus {
+  connected: boolean;
+  path: string;
+  exists: boolean;
+  hasManagedInclude: boolean;
+  hasBackup: boolean;
+  lastModified?: number;
+  lastSyncedAt?: number;
+  error?: string;
+}
+
+export interface ApoBridgeSyncResult {
+  success: boolean;
+  path: string;
+  includePath: string;
+  backupCreated: boolean;
+  managedLineAdded: boolean;
+  timestamp: number;
+  error?: string;
+}
+
+export interface LiveTabTelemetry {
+  isActive: boolean;
+  latencyMs: number;
+  streamTitle?: string;
+  sampleRate?: number;
+  audioTracks?: number;
+}

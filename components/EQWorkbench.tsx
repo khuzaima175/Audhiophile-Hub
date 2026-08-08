@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { EQPreset, PEQFilter, PEQFilterType } from '../types';
+import { EQPreset, PEQFilter, PEQFilterType, MeasurementData, SmoothingType } from '../types';
 import {
   ISO_10_BANDS,
   ISO_15_BANDS,
@@ -30,7 +30,11 @@ import {
   parseImportedEQText,
   calculatePreampHeadroom,
 } from '../utils/importExportParser';
+import { parseMeasurementFile, smoothLogCurve, resampleToSynthesisFrequencies } from '../utils/measurementParser';
+import { synthesizeAutoPeq } from '../utils/autoPeqGenerator';
 import { useAudioEngine } from '../hooks/useAudioEngine';
+import { useLiveTabCapture, isTabAudioSupported } from '../hooks/useLiveTabCapture';
+import { syncApoProfileToServer, getStoredApoEnabled } from '../services/apoBridgeClient';
 import {
   PlusIcon,
   TrashIcon,
@@ -55,13 +59,19 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
   onSavePresets,
   className = '',
 }) => {
-  // State Machine: 'IDLE' | 'ADDING' | 'IMPORTING'
-  const [workbenchState, setWorkbenchState] = useState<'IDLE' | 'ADDING' | 'IMPORTING'>('IDLE');
+  // State Machine: 'IDLE' | 'ADDING' | 'IMPORTING' | 'MEASUREMENT'
+  const [workbenchState, setWorkbenchState] = useState<'IDLE' | 'ADDING' | 'IMPORTING' | 'MEASUREMENT'>('IDLE');
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
 
   // Active Mode: '10-band' | '15-band' | '31-band' | 'peq'
   const [eqMode, setEqMode] = useState<'10-band' | '15-band' | '31-band' | 'peq'>('10-band');
   const [selectedTargetId, setSelectedTargetId] = useState<string>('crinacle-ief-2025');
+
+  // Measurement Ingestion State
+  const [measurement, setMeasurement] = useState<MeasurementData | null>(null);
+  const [smoothing, setSmoothing] = useState<SmoothingType>('1/3 OCT');
+  const [maxAutoFilters, setMaxAutoFilters] = useState<number>(10);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   // Form Fields
   const [presetName, setPresetName] = useState('');
@@ -88,9 +98,19 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Hover Crosshair on Curve
-  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; freq: number; db: number } | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<{
+    x: number;
+    y: number;
+    freq: number;
+    measuredDb?: number;
+    targetDb?: number;
+    correctedDb?: number;
+    db: number;
+  } | null>(null);
+
   const svgRef = useRef<SVGSVGElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const measurementFileInputRef = useRef<HTMLInputElement>(null);
 
   // A/B Bypass Latch
   const [isBypassed, setIsBypassed] = useState(false);
@@ -117,9 +137,12 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     setVolume,
     playPinkNoise,
     playSineSweep,
+    playLiveTab,
     handleFileUpload,
     toggleFilePlayback,
     stopAudio,
+    getAudioContext,
+    audioContext,
   } = useAudioEngine({
     isoBands: eqMode === 'peq' ? [] : currentIsoBands,
     isoGains: eqMode === 'peq' ? [] : currentIsoGains,
@@ -127,12 +150,64 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     isBypassed,
   });
 
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  }, []);
+
+  // Live Tab Capture Hook
+  const {
+    isCapturing,
+    showFeedbackGuard,
+    error: tabError,
+    telemetry: tabTelemetry,
+    startTabCapture,
+    stopTabCapture,
+    confirmFeedbackGuard,
+    dismissFeedbackGuard,
+    isSupported: tabSupported,
+  } = useLiveTabCapture({
+    audioContext,
+    onStreamAvailable: (streamNode) => {
+      playLiveTab(streamNode);
+      showToast('Live Tab stream connected bit-perfect');
+    },
+    onStreamEnded: () => {
+      stopAudio();
+      showToast('Capture ended. Clean disconnect.');
+    },
+  });
+
   // Selected Target Curve
   const currentTarget = useMemo(() => {
     return TARGET_CURVES.find((t) => t.id === selectedTargetId) || TARGET_CURVES[0];
   }, [selectedTargetId]);
 
-  // Calculate live composite curve points
+  // Update measurement smoothing reactively
+  const activeSmoothedPoints = useMemo(() => {
+    if (!measurement) return [];
+    return smoothLogCurve(measurement.rawPoints, smoothing);
+  }, [measurement, smoothing]);
+
+  // Resampled measured points on 180-frequency grid
+  const resampledMeasuredPoints = useMemo(() => {
+    if (!activeSmoothedPoints || activeSmoothedPoints.length === 0) return [];
+    return resampleToSynthesisFrequencies(activeSmoothedPoints);
+  }, [activeSmoothedPoints]);
+
+  // Auto-PEQ Greedy Residual Synthesizer calculation
+  const autoPeqResult = useMemo(() => {
+    if (!resampledMeasuredPoints || resampledMeasuredPoints.length === 0 || !currentTarget || selectedTargetId === 'none') {
+      return null;
+    }
+    return synthesizeAutoPeq(resampledMeasuredPoints, currentTarget.points, {
+      maxFilters: maxAutoFilters,
+      targetCurveId: selectedTargetId,
+      smoothing,
+    });
+  }, [resampledMeasuredPoints, currentTarget, selectedTargetId, maxAutoFilters, smoothing]);
+
+  // Calculate live composite curve points for pure EQ preview
   const compositeCurvePoints = useMemo(() => {
     return evaluateCompositeCurve(
       SYNTHESIS_FREQUENCIES,
@@ -142,11 +217,18 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     );
   }, [currentIsoBands, currentIsoGains, peqFilters, eqMode]);
 
-  // AUTO-RANGE Y-AXIS (Un-clips Harman's -20.1dB treble cliff and accommodates parametric peaks)
+  // AUTO-RANGE Y-AXIS (Accommodates Harman, measured deep bass, and corrected curves)
   const { minY, maxY, yTicks } = useMemo(() => {
     const targetPoints = selectedTargetId !== 'none' && currentTarget ? currentTarget.points : [];
-    return calculateAutoRangedYBounds([compositeCurvePoints, targetPoints], selectedTargetId !== 'none');
-  }, [compositeCurvePoints, currentTarget, selectedTargetId]);
+    const curveList = [compositeCurvePoints, targetPoints];
+    if (resampledMeasuredPoints.length > 0) {
+      curveList.push(resampledMeasuredPoints.map((p) => ({ freq: p.freq, gain: p.gain })));
+    }
+    if (autoPeqResult?.correctedPoints) {
+      curveList.push(autoPeqResult.correctedPoints);
+    }
+    return calculateAutoRangedYBounds(curveList, selectedTargetId !== 'none');
+  }, [compositeCurvePoints, currentTarget, selectedTargetId, resampledMeasuredPoints, autoPeqResult]);
 
   const workbenchViewport: ViewportDimensions = useMemo(() => ({
     ...DEFAULT_VIEWPORT,
@@ -156,7 +238,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     maxY,
   }), [minY, maxY]);
 
-  // Generate SVG path for live curve
+  // Generate SVG path for live manual EQ curve
   const compositeSvgPath = useMemo(() => {
     return generateSvgPathFromPoints(compositeCurvePoints, workbenchViewport, minY, maxY);
   }, [compositeCurvePoints, workbenchViewport, minY, maxY]);
@@ -167,15 +249,60 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     return generateSvgPathFromPoints(currentTarget.points, workbenchViewport, minY, maxY);
   }, [currentTarget, selectedTargetId, workbenchViewport, minY, maxY]);
 
+  // Measured Response SVG Path (Solid Cream)
+  const measuredSvgPath = useMemo(() => {
+    if (!resampledMeasuredPoints || resampledMeasuredPoints.length === 0) return '';
+    const pts = resampledMeasuredPoints.map((p) => ({ freq: p.freq, gain: p.gain }));
+    return generateSvgPathFromPoints(pts, workbenchViewport, minY, maxY);
+  }, [resampledMeasuredPoints, workbenchViewport, minY, maxY]);
+
+  // Corrected Response SVG Path (Phosphor Teal)
+  const correctedSvgPath = useMemo(() => {
+    if (!autoPeqResult?.correctedPoints || autoPeqResult.correctedPoints.length === 0) return '';
+    return generateSvgPathFromPoints(autoPeqResult.correctedPoints, workbenchViewport, minY, maxY);
+  }, [autoPeqResult, workbenchViewport, minY, maxY]);
+
   // Preamp headroom calculation
   const currentPreamp = useMemo(() => {
+    if (autoPeqResult && workbenchState === 'MEASUREMENT') {
+      return autoPeqResult.preamp;
+    }
     const allGains = eqMode === 'peq' ? peqFilters.map((f) => f.gain || 0) : currentIsoGains;
     return calculatePreampHeadroom(allGains);
-  }, [eqMode, peqFilters, currentIsoGains]);
+  }, [eqMode, peqFilters, currentIsoGains, autoPeqResult, workbenchState]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+  // Measurement File Drop & Parse Handler
+  const handleProcessMeasurementText = useCallback((text: string, name: string) => {
+    const parsed = parseMeasurementFile(text, name, smoothing, 1000);
+    if (!parsed) {
+      showToast('Error: Could not parse measurement file. Check CSV/TSV format.');
+      return;
+    }
+    setMeasurement(parsed);
+    setPresetName(parsed.name ? `${parsed.name} Auto-EQ` : 'Auto-PEQ Target');
+    setHardwareAssigned(parsed.name || 'Custom IEM');
+    setWorkbenchState('MEASUREMENT');
+    showToast(`Loaded ${parsed.sampleCount} measurement points (Norm 1kHz)`);
+  }, [smoothing, showToast]);
+
+  const handleMeasurementFileSelect = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        handleProcessMeasurementText(content, file.name);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Load Auto-PEQ Filters into the editable PEQ Editor
+  const handleLoadAutoPeqIntoEditor = () => {
+    if (!autoPeqResult || autoPeqResult.filters.length === 0) return;
+    setPeqFilters(autoPeqResult.filters);
+    setEqMode('peq');
+    setWorkbenchState('ADDING');
+    showToast(`Loaded ${autoPeqResult.filters.length} Auto-PEQ filters into editor`);
   };
 
   // Reset band to 0dB on double click
@@ -237,8 +364,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     );
   };
 
-  // Save current EQ preset
-  const handleSaveProfile = () => {
+  // Save current EQ preset (with silent Equalizer APO bridge hot push if enabled)
+  const handleSaveProfile = async () => {
     if (!presetName.trim()) return;
 
     let bandsString = '';
@@ -270,11 +397,33 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     }
 
     onSavePresets(updatedPresets);
+
+    // Silent hot-push to Equalizer APO if bridge is enabled
+    if (getStoredApoEnabled()) {
+      const apoExport = exportToEqualizerAPO(
+        preset.peqFilters || (eqMode === 'peq' ? peqFilters : []),
+        currentIsoBands,
+        preset.graphicGains || currentIsoGains,
+        preset.preamp ?? currentPreamp
+      );
+      try {
+        const syncRes = await syncApoProfileToServer(apoExport);
+        if (syncRes.success) {
+          showToast(`Saved & Hot-Synced to Equalizer APO`);
+        } else {
+          showToast(`Saved preset. (APO Bridge: ${syncRes.error || 'skipped'})`);
+        }
+      } catch (e) {
+        showToast(`Saved "${preset.name}" to EQ Library`);
+      }
+    } else {
+      showToast(`Saved "${preset.name}" to EQ Library`);
+    }
+
     setWorkbenchState('IDLE');
     setEditingPresetId(null);
     setPresetName('');
     setHardwareAssigned('');
-    showToast(`Saved "${preset.name}" to EQ Library`);
   };
 
   // Load preset into workbench for editing / audition
@@ -392,7 +541,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
     showToast(`Downloaded ${name}_EqualizerAPO.txt`);
   };
 
-  // Crosshair move over SVG with dual-curve readout
+  // Crosshair move over SVG with multi-curve readout
   const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -409,14 +558,28 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
       clientY <= workbenchViewport.height - workbenchViewport.padding.bottom
     ) {
       const freq = xToFreq(clientX, workbenchViewport);
-      const measuredDb = getInterpolatedTargetGain(freq, compositeCurvePoints);
-      const targetDb = currentTarget && selectedTargetId !== 'none' ? getInterpolatedTargetGain(freq, currentTarget.points) : 0;
-      const curveY = dbToY(measuredDb, workbenchViewport, minY, maxY);
+      const measuredDb = resampledMeasuredPoints.length > 0
+        ? getInterpolatedTargetGain(freq, resampledMeasuredPoints.map((p) => ({ freq: p.freq, gain: p.gain })))
+        : undefined;
+      const targetDb = currentTarget && selectedTargetId !== 'none'
+        ? getInterpolatedTargetGain(freq, currentTarget.points)
+        : undefined;
+      const correctedDb = autoPeqResult?.correctedPoints
+        ? getInterpolatedTargetGain(freq, autoPeqResult.correctedPoints)
+        : undefined;
+      const eqDb = getInterpolatedTargetGain(freq, compositeCurvePoints);
+
+      const displayDb = correctedDb !== undefined ? correctedDb : measuredDb !== undefined ? measuredDb : eqDb;
+      const curveY = dbToY(displayDb, workbenchViewport, minY, maxY);
+
       setHoveredPoint({
         x: clientX,
         y: curveY,
         freq,
-        db: parseFloat(measuredDb.toFixed(1)),
+        measuredDb: measuredDb !== undefined ? parseFloat(measuredDb.toFixed(1)) : undefined,
+        targetDb: targetDb !== undefined ? parseFloat(targetDb.toFixed(1)) : undefined,
+        correctedDb: correctedDb !== undefined ? parseFloat(correctedDb.toFixed(1)) : undefined,
+        db: parseFloat(displayDb.toFixed(1)),
       });
     } else {
       setHoveredPoint(null);
@@ -429,24 +592,32 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
 
   return (
     <div className={`space-y-5 max-w-5xl mx-auto select-none ${className}`}>
-      {/* 1. TOP HEADER & STATE MACHINE BUTTONS */}
+      {/* 1. TOP HEADER & WORKBENCH ACTIONS */}
       <div className="flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-audio-border/60">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-audio-accent shadow-glow-brass" />
             <Engraved size="sm" glow>
-              ACOUSTIC EQ WORKBENCH &amp; AUDITION ENGINE
+              ACOUSTIC EQ WORKBENCH &amp; AUTO-PEQ ENGINE
             </Engraved>
           </div>
           <p className="text-xs text-audio-muted mt-0.5 font-sans">
-            Real-time Web Audio audition, target curve overlays, and ISO standard / PEQ shaping.
+            Measurement upload, greedy auto-PEQ synthesis, live tab audio isolation, and system-wide APO hot-push.
           </p>
         </div>
 
-        {/* Action controls in header — Always [+ New Profile], NEVER says Cancel */}
+        {/* Action controls in header */}
         <div className="flex items-center gap-2">
           {workbenchState === 'IDLE' && (
             <>
+              <button
+                type="button"
+                onClick={() => measurementFileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-lg border border-audio-signal/40 bg-audio-surface text-xs font-mono text-audio-signal hover:bg-audio-surface/80 transition-all flex items-center gap-1.5 shadow-panel"
+                title="Upload CSV, TSV, or TXT REW measurement file"
+              >
+                <span>📊 Load Measurement CSV</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -473,10 +644,169 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
               </button>
             </>
           )}
+
+          {workbenchState === 'MEASUREMENT' && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleLoadAutoPeqIntoEditor}
+                className="px-3.5 py-1.5 rounded-lg bg-audio-signal text-black font-mono font-bold text-xs hover:bg-audio-signal/90 shadow-glow-teal flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                <span>[LOAD INTO PEQ EDITOR]</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMeasurement(null);
+                  setWorkbenchState('IDLE');
+                }}
+                className="px-3 py-1.5 rounded-lg border border-audio-border text-xs font-mono text-audio-muted hover:text-audio-text"
+              >
+                ✕ Clear
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 2. IMPORT AUTOEQ DRAWER */}
+      {/* Hidden Measurement File Input */}
+      <input
+        type="file"
+        ref={measurementFileInputRef}
+        accept=".csv,.tsv,.txt"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleMeasurementFileSelect(file);
+          if (measurementFileInputRef.current) measurementFileInputRef.current.value = '';
+        }}
+      />
+
+      {/* 2. MEASUREMENT UPLOAD DROPZONE DRAWER */}
+      {(!measurement || workbenchState === 'MEASUREMENT') && (
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDraggingFile(true);
+          }}
+          onDragLeave={() => setIsDraggingFile(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDraggingFile(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) handleMeasurementFileSelect(file);
+          }}
+          className={`p-3.5 rounded-2xl border transition-all ${
+            isDraggingFile
+              ? 'border-audio-signal bg-[#15231C] shadow-glow-teal'
+              : measurement
+              ? 'border-audio-signal/40 bg-[#121915]'
+              : 'border-dashed border-audio-border bg-[#100D0A]'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-audio-surface border border-audio-border flex items-center justify-center text-audio-accent">
+                📊
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold text-audio-text">
+                    {measurement ? `MEASUREMENT: ${measurement.name}` : 'MEASUREMENT INPUT (REW / CSV / TSV)'}
+                  </span>
+                  {measurement && (
+                    <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-audio-surface border border-audio-signal/30 text-audio-signal">
+                      {measurement.sampleCount} PTS • NORM 1kHz: {measurement.normOffset > 0 ? `+${measurement.normOffset}` : measurement.normOffset} dB
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-audio-muted mt-0.5">
+                  {measurement
+                    ? 'Synthesized corrective PEQ residual against selected reference target curve.'
+                    : 'Drag & drop or click to ingest raw frequency response measurement. Auto-normalizes to 1kHz datum.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Smoothing Chips & Filter Slider */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 bg-[#1A1410] p-1 rounded-xl border border-audio-border">
+                <span className="text-[9px] font-mono text-audio-muted px-1.5">SMOOTH:</span>
+                {(['RAW', '1/6 OCT', '1/3 OCT'] as SmoothingType[]).map((sm) => (
+                  <button
+                    key={sm}
+                    type="button"
+                    onClick={() => setSmoothing(sm)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold transition-all ${
+                      smoothing === sm
+                        ? 'bg-audio-accent text-black font-bold shadow-glow-brass'
+                        : 'text-audio-muted hover:text-audio-text'
+                    }`}
+                  >
+                    {sm}
+                  </button>
+                ))}
+              </div>
+
+              {measurement && (
+                <div className="flex items-center gap-1.5 bg-[#1A1410] px-3 py-1.5 rounded-xl border border-audio-border">
+                  <span className="text-[9px] font-mono text-audio-muted">FILTERS:</span>
+                  <input
+                    type="range"
+                    min={5}
+                    max={20}
+                    step={1}
+                    value={maxAutoFilters}
+                    onChange={(e) => setMaxAutoFilters(parseInt(e.target.value, 10))}
+                    className="w-16 accent-audio-accent cursor-pointer"
+                  />
+                  <span className="text-xs font-mono font-bold text-audio-accent">{maxAutoFilters}</span>
+                </div>
+              )}
+
+              {!measurement && (
+                <button
+                  type="button"
+                  onClick={() => measurementFileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass"
+                >
+                  Select File
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Mono Stats Readout for Auto-PEQ Synthesis */}
+          {autoPeqResult && (
+            <div className="mt-3 pt-2.5 border-t border-audio-signal/20 flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-audio-text">
+              <div className="flex items-center gap-2">
+                <Led color="teal" size="sm" pulse />
+                <span className="text-audio-signal font-bold">
+                  RESIDUAL RMS {autoPeqResult.finalRms} dB
+                </span>
+                <span className="text-audio-muted">•</span>
+                <span>MATCH {autoPeqResult.matchPercentage}%</span>
+                <span className="text-audio-muted">•</span>
+                <span>{autoPeqResult.filters.length} FILTERS</span>
+                <span className="text-audio-muted">•</span>
+                <span className="text-audio-warn">PREAMP {autoPeqResult.preamp} dB</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-audio-muted">INITIAL RMS: {autoPeqResult.initialRms} dB</span>
+                <button
+                  type="button"
+                  onClick={handleLoadAutoPeqIntoEditor}
+                  className="text-audio-signal hover:underline font-bold"
+                >
+                  Load into Parametric EQ Editor →
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. IMPORT AUTOEQ DRAWER */}
       {workbenchState === 'IMPORTING' && (
         <div className="p-4 md:p-5 bg-[#120D0A] rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3 space-y-3">
           <div className="flex items-center justify-between">
@@ -521,7 +851,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
         </div>
       )}
 
-      {/* 3. LIVE SVG CURVE VISUALIZER OVERLAY */}
+      {/* 4. LIVE SVG CURVE VISUALIZER (Measured Cream, Target Dashed, Corrected Phosphor Teal) */}
       <div className="p-4 md:p-5 rounded-2xl bg-[#120D0A] border border-audio-border shadow-panel space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -581,8 +911,16 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                 <stop offset="50%" stopColor="#E7B87A" />
                 <stop offset="100%" stopColor="#C6934F" />
               </linearGradient>
+              <linearGradient id="eq-teal-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#4FB38B" />
+                <stop offset="50%" stopColor="#6FC9A6" />
+                <stop offset="100%" stopColor="#4FB38B" />
+              </linearGradient>
               <filter id="eq-curve-glow" x1="-10%" y1="-10%" width="120%" height="120%">
                 <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#C6934F" floodOpacity="0.45" />
+              </filter>
+              <filter id="teal-curve-glow" x1="-10%" y1="-10%" width="120%" height="120%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#6FC9A6" floodOpacity="0.55" />
               </filter>
             </defs>
 
@@ -667,7 +1005,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
               );
             })}
 
-            {/* Selected Reference Target Curve (Dashed Phosphor) */}
+            {/* Selected Reference Target Curve (Dashed) */}
             {targetSvgPath && (
               <path
                 d={targetSvgPath}
@@ -680,16 +1018,44 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
               />
             )}
 
-            {/* Active Live Composite EQ Curve (Solid Brushed Brass) */}
-            <path
-              d={compositeSvgPath}
-              fill="none"
-              stroke="url(#eq-brass-grad)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter="url(#eq-curve-glow)"
-            />
+            {/* Ingested Measurement Curve (Solid Cream) */}
+            {measuredSvgPath && (
+              <path
+                d={measuredSvgPath}
+                fill="none"
+                stroke="#EDE6DA"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.9"
+              />
+            )}
+
+            {/* Corrected Response Curve (Phosphor Teal) */}
+            {correctedSvgPath && (
+              <path
+                d={correctedSvgPath}
+                fill="none"
+                stroke="url(#eq-teal-grad)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#teal-curve-glow)"
+              />
+            )}
+
+            {/* Active Live Manual EQ Curve (Brushed Brass) - when no measurement active */}
+            {!measuredSvgPath && compositeSvgPath && (
+              <path
+                d={compositeSvgPath}
+                fill="none"
+                stroke="url(#eq-brass-grad)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#eq-curve-glow)"
+              />
+            )}
 
             {/* Dual-Curve Crosshair & Dynamic Readout */}
             {hoveredPoint && (
@@ -713,10 +1079,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                   strokeWidth="1.5"
                 />
                 <rect
-                  x={Math.min(hoveredPoint.x + 8, workbenchViewport.width - workbenchViewport.padding.right - 100)}
-                  y={Math.max(hoveredPoint.y - 24, workbenchViewport.padding.top + 4)}
-                  width="96"
-                  height="20"
+                  x={Math.min(hoveredPoint.x + 8, workbenchViewport.width - workbenchViewport.padding.right - 120)}
+                  y={Math.max(hoveredPoint.y - 28, workbenchViewport.padding.top + 4)}
+                  width="115"
+                  height="24"
                   rx="4"
                   fill="#1A1410"
                   stroke="#C6934F"
@@ -724,26 +1090,40 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                   filter="drop-shadow(0 4px 10px rgba(0,0,0,0.6))"
                 />
                 <text
-                  x={Math.min(hoveredPoint.x + 56, workbenchViewport.width - workbenchViewport.padding.right - 52)}
-                  y={Math.max(hoveredPoint.y - 10, workbenchViewport.padding.top + 18)}
+                  x={Math.min(hoveredPoint.x + 65, workbenchViewport.width - workbenchViewport.padding.right - 62)}
+                  y={Math.max(hoveredPoint.y - 12, workbenchViewport.padding.top + 20)}
                   fill="#EDE6DA"
-                  fontSize="8.5"
+                  fontSize="8"
                   fontFamily="monospace"
                   fontWeight="bold"
                   textAnchor="middle"
                 >
                   {hoveredPoint.freq >= 1000 ? `${(hoveredPoint.freq / 1000).toFixed(1)}k` : `${hoveredPoint.freq}`}Hz • {hoveredPoint.db > 0 ? `+${hoveredPoint.db}` : hoveredPoint.db}dB
+                  {hoveredPoint.correctedDb !== undefined && ` (Corr: ${hoveredPoint.correctedDb > 0 ? `+${hoveredPoint.correctedDb}` : hoveredPoint.correctedDb})`}
                 </text>
               </g>
             )}
           </svg>
         </div>
 
-        {/* Provenance Trust Caption */}
+        {/* Legend & Provenance Trust Caption */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[9px] font-mono text-audio-muted/70">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-audio-signal/80" />
-            <span>{currentTarget?.provenance || 'SRC: squig.link • norm 1 kHz'}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {measurement && (
+              <span className="flex items-center gap-1.5 text-[#EDE6DA]">
+                <span className="w-2.5 h-[2px] bg-[#EDE6DA]" /> Measured (Solid Cream)
+              </span>
+            )}
+            {selectedTargetId !== 'none' && (
+              <span className="flex items-center gap-1.5 text-audio-accent">
+                <span className="w-2.5 h-[2px] border-b border-dashed border-audio-accent" /> Target Reference (Dashed)
+              </span>
+            )}
+            {autoPeqResult && (
+              <span className="flex items-center gap-1.5 text-audio-signal">
+                <span className="w-2.5 h-[2px] bg-audio-signal shadow-glow-teal" /> Corrected Response (Phosphor Teal)
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-audio-signal">
@@ -754,12 +1134,43 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
           </div>
         </div>
 
-        {/* 4. WEB AUDIO PREVIEW AUDITION TOOLBAR (Tier 2 Engine) */}
+        {/* 5. WEB AUDIO PREVIEW AUDITION & LIVE TAB CAPTURE TOOLBAR */}
         <div className="p-3 bg-[#16110D] rounded-xl border border-audio-border flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <Engraved size="xs" glow className="mr-1">
-              WEB AUDIO AUDITION:
+              AUDITION ENGINE:
             </Engraved>
+
+            {/* LIVE TAB CAPTURE LATCH BUTTON */}
+            <button
+              type="button"
+              onClick={isCapturing ? stopTabCapture : startTabCapture}
+              disabled={!tabSupported}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
+                isCapturing
+                  ? 'bg-[#2E1410] border-audio-warn text-audio-warn shadow-panel animate-pulse'
+                  : !tabSupported
+                  ? 'bg-audio-surface border-audio-border text-audio-muted/40 cursor-not-allowed'
+                  : 'bg-audio-surface border-audio-border text-audio-muted hover:text-audio-text hover:border-audio-accent/60'
+              }`}
+              title={
+                !tabSupported
+                  ? 'Chrome / Edge tab capture only'
+                  : isCapturing
+                  ? 'Click to stop live browser tab capture'
+                  : 'Capture and EQ a live YouTube or Spotify Web tab in real-time'
+              }
+            >
+              <Led color={isCapturing ? 'red' : 'amber'} pulse={isCapturing} size="sm" />
+              <span>{isCapturing ? 'LIVE TAB ACTIVE' : 'LIVE TAB CAPTURE'}</span>
+            </button>
+
+            {/* Telemetry Readout for Live Tab */}
+            {isCapturing && (
+              <span className="px-2 py-1 rounded bg-[#100B09] border border-audio-warn/40 text-[9px] font-mono text-audio-warn font-bold">
+                LIVE • LATENCY {tabTelemetry.latencyMs}ms
+              </span>
+            )}
 
             {/* Pink Noise Generator */}
             <button
@@ -837,7 +1248,43 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
         </div>
       </div>
 
-      {/* 5. ADDING / EDITING DRAWER (With Form-Level Save & Cancel) */}
+      {/* FEEDBACK SAFETY GUARD OVERLAY MODAL */}
+      {showFeedbackGuard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="panel p-5 md:p-6 bg-[#16110D] max-w-md w-full rounded-2xl border border-audio-warn shadow-2xl space-y-4">
+            <div className="flex items-center gap-2.5">
+              <Led color="amber" size="md" pulse />
+              <Engraved size="xs" glow className="text-audio-warn">
+                AUDIO FEEDBACK GUARD PROTOCOL
+              </Engraved>
+            </div>
+            <p className="text-xs text-audio-text leading-relaxed">
+              Select the specific browser tab making sound (e.g., <strong>YouTube, Spotify Web</strong>).
+            </p>
+            <div className="p-3 bg-[#24130D] rounded-xl border border-audio-warn/40 text-[11px] font-mono text-audio-warn">
+              ⚠️ <strong>Never select this AudioSage tab</strong> or your Entire Screen — doing so creates an acoustic feedback loop.
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={dismissFeedbackGuard}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmFeedbackGuard}
+                className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass"
+              >
+                Select Audio Tab →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. ADDING / EDITING DRAWER (With Form-Level Save & Cancel) */}
       {workbenchState === 'ADDING' && (
         <div className="p-4 md:p-5 bg-[#120D0A] rounded-2xl border border-audio-accent/70 shadow-panel animate-in slide-in-from-top-3 space-y-4">
           <div className="flex items-center justify-between">
@@ -891,7 +1338,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
             ))}
           </div>
 
-          {/* A. GRAPHIC ISO SLIDERS (Zero blue pixels, knurled brass thumbs, double-click reset) */}
+          {/* A. GRAPHIC ISO SLIDERS */}
           {eqMode !== 'peq' && (
             <div className="p-3.5 bg-[#16110D] rounded-xl border border-audio-border overflow-x-auto scrollbar-thin">
               <div
@@ -913,7 +1360,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                       onDoubleClick={() => handleResetBand(i)}
                       title={`Band: ${freq}Hz | Gain: ${gain > 0 ? `+${gain}` : gain}dB (Double-click to reset)`}
                     >
-                      {/* Gain Numeric Readout */}
                       <span
                         className={`text-[9px] font-mono font-bold mb-1 transition-colors ${
                           isGainActive ? 'text-audio-accent' : 'text-audio-muted/60'
@@ -922,12 +1368,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                         {gain > 0 ? `+${gain}` : gain}
                       </span>
 
-                      {/* Custom Tactile Chassis Vertical Track & Thumb */}
                       <div className="relative h-28 w-6 flex items-center justify-center bg-[#0B0908] rounded-full border border-[#332B23] shadow-inner py-1">
-                        {/* Center Zero Line */}
                         <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-audio-accent/40" />
-
-                        {/* Input Range Slider with custom CSS */}
                         <input
                           type="range"
                           min={-12}
@@ -944,7 +1386,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                         />
                       </div>
 
-                      {/* Frequency Label */}
                       <span className="text-[8px] font-mono text-audio-muted mt-1 group-hover/fader:text-audio-text">
                         {freqLabel}
                       </span>
@@ -983,7 +1424,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                     #{fIdx + 1}
                   </span>
 
-                  {/* Filter Type */}
                   <select
                     value={filter.type}
                     onChange={(e) => handleUpdatePeqFilter(filter.id, { type: e.target.value as PEQFilterType })}
@@ -997,7 +1437,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                     <option value="NOTCH">NOTCH (Band Stop)</option>
                   </select>
 
-                  {/* Frequency Input */}
                   <div className="flex items-center gap-1">
                     <span className="text-[9px] font-mono text-audio-muted">Fc:</span>
                     <input
@@ -1012,7 +1451,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                     <span className="text-[9px] font-mono text-audio-muted">Hz</span>
                   </div>
 
-                  {/* Gain Input */}
                   <div className="flex items-center gap-1">
                     <span className="text-[9px] font-mono text-audio-muted">Gain:</span>
                     <input
@@ -1027,7 +1465,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                     <span className="text-[9px] font-mono text-audio-muted">dB</span>
                   </div>
 
-                  {/* Q Factor */}
                   <div className="flex items-center gap-1">
                     <span className="text-[9px] font-mono text-audio-muted">Q:</span>
                     <input
@@ -1041,7 +1478,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
                     />
                   </div>
 
-                  {/* Delete Button */}
                   <button
                     type="button"
                     onClick={() => handleDeletePeqFilter(filter.id)}
@@ -1105,7 +1541,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
         </div>
       )}
 
-      {/* 6. SAVED PRESETS RACK */}
+      {/* 7. SAVED PRESETS RACK */}
       <div className="space-y-3 pt-2">
         <div className="flex justify-between items-center px-1">
           <Engraved size="xs">
@@ -1194,28 +1630,36 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({
               </div>
             ))
           ) : (
-            /* EMPTY STATE: Illustrated dashed curve + [+ Create first profile] */
             <div className="col-span-2 text-center py-12 border border-dashed border-audio-border rounded-2xl bg-[#120D0A] flex flex-col items-center justify-center p-6">
               <div className="w-12 h-12 rounded-2xl bg-audio-surface border border-audio-border flex items-center justify-center text-audio-accent mb-3 shadow-panel">
                 <EqIcon />
               </div>
               <h3 className="font-display font-bold text-base text-audio-text">Your EQ Library is Ready</h3>
               <p className="text-xs text-audio-muted mt-1 max-w-sm">
-                Synthesize custom curves against Crinacle IEF 2025 or paste AutoEQ presets to audition them live.
+                Synthesize custom curves against Crinacle IEF 2025 or ingest real frequency response CSVs to auto-generate corrective PEQ.
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingPresetId(null);
-                  setPresetName('');
-                  setHardwareAssigned('');
-                  setWorkbenchState('ADDING');
-                }}
-                className="mt-4 px-4 py-2 rounded-xl bg-audio-accent hover:bg-audio-accent-bright text-black font-mono font-bold text-xs shadow-glow-brass flex items-center gap-2 active:scale-95 transition-all"
-              >
-                <PlusIcon />
-                <span>+ Create First EQ Profile</span>
-              </button>
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => measurementFileInputRef.current?.click()}
+                  className="px-4 py-2 rounded-xl bg-audio-signal text-black font-mono font-bold text-xs shadow-glow-teal flex items-center gap-2 active:scale-95 transition-all"
+                >
+                  <span>📊 Ingest Measurement CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingPresetId(null);
+                    setPresetName('');
+                    setHardwareAssigned('');
+                    setWorkbenchState('ADDING');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-audio-accent hover:bg-audio-accent-bright text-black font-mono font-bold text-xs shadow-glow-brass flex items-center gap-2 active:scale-95 transition-all"
+                >
+                  <PlusIcon />
+                  <span>+ Create Profile</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

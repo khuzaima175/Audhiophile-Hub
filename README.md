@@ -50,10 +50,32 @@ Whether you're deciding between planar magnetic IEMs, fine-tuning your daily dri
 
 ## 🚀 Comprehensive Feature Catalog
 
-### 1. 🎛️ EQ Workbench & Live Web Audio DSP Audition Engine
+### 1. 🎛️ EQ Workbench, Auto-PEQ Synthesis & Live Web Audio DSP Engine
 
-The built-in Acoustic EQ Workbench is a studio-grade DSP synthesizer and real-time audio playback lab running directly in the browser via Web Audio API:
+The built-in Acoustic EQ Workbench is a studio-grade DSP synthesizer, measurement ingestion lab, and real-time audio playback control room running directly in the browser:
 
+* **Measurement Upload & Lenient Ingestion (`utils/measurementParser.ts`)**:
+  * **Lenient Header Skipping**: Ingest `.csv`, `.tsv`, and `.txt` REW/Squiglink exports while automatically bypassing non-numeric comments (`*`, `Measurement:`, `Date:`, `Frequency`, `Hz`, `#`, `//`).
+  * **Automatic Column Detection**: Reads Frequency ($f$ in Hz) and Magnitude/SPL (dB); averages $(L+R)/2$ if multi-channel data is detected.
+  * **1 kHz Datum Normalization**: Automatically calculates the datum offset at 1 kHz and normalizes curves to share a common 0 dB reference with any chosen target.
+  * **Log-Frequency Smoothing Chips**: Toggle between `RAW`, `1/6 OCT`, and `1/3 OCT` (default) log-domain moving averages for stable, artifact-free PEQ fitting.
+* **Greedy Residual Auto-PEQ Generator (`utils/autoPeqGenerator.ts`)**:
+  * **Residual Target Function**: $R(f) = \text{Target}(f) - \text{Measurement}(f)$ calculated across the synthesis grid.
+  * **Candidate Filter Pool**: 48 steps/decade logarithmic grid spanning $20\text{ Hz} \to 20\text{ kHz}$ across Quality factors $Q \in \{0.5, 0.7, 1.0, 1.4, 2.0, 2.8, 4.0\}$, plus low-shelf (`LS`) and high-shelf (`HS`) candidates for bass targets and treble air.
+  * **Iterative RMS Minimization**: Evaluates real biquad filter transfer functions, evaluates $\Delta\text{RMS} = \text{RMS}_{\text{current}} - \text{RMS}_{\text{test}}$, commits the optimal filter, and subtracts its response from the residual until max filters (slider 5–20, default 10) or $\text{RMS} \le 0.5\text{ dB}$ is achieved.
+  * **`[LOAD INTO PEQ EDITOR]` Action**: 1-click transfer of synthesized filters into editable PEQ rows.
+* **Live Browser Tab EQ Capture (`hooks/useLiveTabCapture.ts`)**:
+  * **Raw Tab Audio Routing**: Bit-perfect audio isolation via `navigator.mediaDevices.getDisplayMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })`.
+  * **Immediate Video Track Discard**: Instantly calls `videoTrack.stop()` to eliminate GPU/CPU decoding overhead.
+  * **Acoustic Feedback Safety Guard**: Modal confirmation warning users to select audio tabs (YouTube, Spotify Web) and avoid self-tab capture.
+  * **Mutual Exclusion Routing Matrix**: Engaging live tab cleanly halts pink noise, sweeps, or local files; `track.onended` cleanly tears down audio nodes.
+  * **Real-Time Latency Telemetry**: Mono readout `LIVE • LATENCY 23ms` derived from `baseLatency + outputLatency`.
+  * **A/B Bypass on Live Streams**: 30ms anti-pop crossfader allows live A/B comparison on real video and audio streams.
+* **System-Wide Equalizer APO Hot-Reload Bridge (`server/apoBridge.ts`)**:
+  * **Non-Destructive Include-File Strategy**: Never touches user presets in `config.txt`; writes all AudioSage preamps and filters to a sibling `audiosage-eq.txt` and manages a single line `Include: audiosage-eq.txt # AudioSage managed`.
+  * **Automatic `.bak` Backup**: Automatically creates `config.txt.audiosage.bak` on initial touch.
+  * **Permission Verification (`[Test Write]`)**: Writes and reads back a verification marker with live LED indicator.
+  * **Silent Workbench Hot-Push**: While the bridge is enabled, clicking `[Save EQ Profile]` in AudioSage silently pushes to the include file—**tuning your whole PC in real time!**
 * **Interactive Transfer Function**: Real-time 60 FPS SVG curve synthesis calculated dynamically over a continuous 180-point logarithmic frequency continuum ($20\text{ Hz} \to 20\text{ kHz}$).
 * **Multi-Band ISO Graphic Modes**:
   * **10-Band (Octave)**: Standard octave studio faders ($31.25\text{ Hz} \to 16\text{ kHz}$, $Q=1.41$).
@@ -71,10 +93,8 @@ The built-in Acoustic EQ Workbench is a studio-grade DSP synthesizer and real-ti
   * **Local Audio Audition Track**: Upload your own `.mp3`, `.wav`, `.flac`, `.aac`, or `.ogg` tracks to hear your active EQ curves applied live in real-time.
   * **Zero-Pop Latching A/B Bypass Switch**: Features a 30ms linear crossfade gain transition between wet (filtered) and dry (unprocessed) channels with amber/green LED indicators.
 * **Preamp Clipping Safety Guard**: Calculates the maximum positive boost and automatically derives negative digital headroom ($\text{Preamp} = \min(0, -\max(\text{Gain}) - 0.2\text{ dB})$) to eliminate digital inter-sample clipping in export files.
-* **Universal Import & Export**: One-click bidirectional parser and text generator for:
-  * **Equalizer APO / Peace GUI (Windows)**
-  * **Wavelet GraphicEQ (Android)**
-  * **Parametric EQ Configs / AutoEQ (`.txt`)**
+* **Universal Import & Export**: One-click bidirectional parser and text generator for Equalizer APO / Peace GUI, Wavelet GraphicEQ, and AutoEQ.
+
 
 ---
 
@@ -277,7 +297,7 @@ Audhiophile-Hub/
 │   │   └── VUMeter.tsx          # Dual analog needle VU meter with boot sweep
 │   ├── CommandPalette.tsx       # Global ⌘K quick-action power layer
 │   ├── CompositeSineCanvas.tsx  # Harmonic FFT oscilloscope visualizer
-│   ├── EQWorkbench.tsx          # Full DSP tuning workbench & Web Audio engine
+│   ├── EQWorkbench.tsx          # Full DSP tuning workbench, Auto-PEQ & live tab latch
 │   ├── ErrorCard.tsx            # Connection fault handler with raw error drawer
 │   ├── FRGraph.tsx              # CrinGraph 20Hz-20kHz curve visualizer
 │   ├── GlossaryTooltip.tsx      # Audiophile dictionary with hover cards
@@ -286,23 +306,29 @@ Audhiophile-Hub/
 │   ├── Icon.tsx                 # Curated Hi-Fi vector SVG icon library
 │   ├── InputConsole.tsx         # Segmented query inputs, mic recorder & graph upload
 │   ├── MessageBubble.tsx        # Assistant panels, signal chips & spec tables
-│   ├── SettingsModal.tsx        # 5-tab modal: Profile, EQ, Gear Rack, Facts, RAG
+│   ├── SettingsModal.tsx        # 5-tab modal: Profile, EQ, Gear Rack, Facts, RAG & APO Bridge
 │   └── Sidebar.tsx              # Session history, pin actions & model telemetry
 ├── constants/
 │   └── targetCurves.ts          # Harman 2019 (301pts), IEF 2025, HD600 & ISO bands
 ├── hooks/
-│   └── useAudioEngine.ts        # Web Audio API lifecycle, filter cascade & A/B bypass
+│   ├── useAudioEngine.ts        # Web Audio API lifecycle, filter cascade, routing & A/B bypass
+│   └── useLiveTabCapture.ts     # Bit-perfect getDisplayMedia audio capture & latency telemetry
+├── server/
+│   └── apoBridge.ts             # Equalizer APO hot-reload bridge & Vite middleware plugin
 ├── services/
+│   ├── apoBridgeClient.ts       # Client-side Equalizer APO bridge sync & permission test service
 │   └── geminiService.ts         # Gemini 3.6 Flash SDK client, RAG & Battle Analyst
 ├── utils/
+│   ├── autoPeqGenerator.ts      # Greedy residual minimization & biquad PEQ synthesis
 │   ├── curveSynthesizer.ts      # Biquad filter formulas & dynamic Y auto-ranging
-│   └── importExportParser.ts    # Equalizer APO, Wavelet & AutoEQ bidirectional parser
-├── types.ts                     # TypeScript schemas (AudioProfile, EQPreset, GearItem)
+│   ├── importExportParser.ts    # Equalizer APO, Wavelet & AutoEQ bidirectional parser
+│   └── measurementParser.ts     # Lenient CSV/TSV REW parser, 1kHz norm & log smoothing
+├── types.ts                     # TypeScript schemas (Measurement, AutoPeq, LiveTab, ApoBridge)
 ├── index.css                    # Hardware design tokens, chassis grain & table layouts
 ├── tailwind.config.js           # Warm Hi-Fi chassis palette & keyframe animations
 ├── index.html                   # HTML entrypoint & typography font imports
 ├── App.tsx                      # Root application container & multimodal controller
-├── vite.config.ts               # Vite bundler configuration
+├── vite.config.ts               # Vite bundler configuration & APO bridge plugin
 └── package.json                 # Project dependencies and npm scripts
 ```
 

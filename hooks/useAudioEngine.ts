@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PEQFilter, PEQFilterType } from '../types';
 
-export type AuditionSourceType = 'none' | 'pink-noise' | 'sweep' | 'file';
+export type AuditionSourceType = 'none' | 'pink-noise' | 'sweep' | 'file' | 'liveTab';
 
 interface UseAudioEngineProps {
   isoBands: number[];
@@ -145,7 +145,7 @@ export const useAudioEngine = ({
       }
     }
 
-    // Direct connection to dry gain for A/B bypass
+    // Direct connection to dry gain for zero-pop A/B bypass
     if (dryGainRef.current) {
       inputNode.connect(dryGainRef.current);
     }
@@ -168,6 +168,22 @@ export const useAudioEngine = ({
       }
     });
   }, [isoGains, isoBands]);
+
+  // Real-time update for PEQ filter nodes
+  useEffect(() => {
+    if (!audioCtxRef.current || filterNodesRef.current.length === 0) return;
+    const ctx = audioCtxRef.current;
+    const offset = isoBands.length;
+
+    peqFilters.forEach((filter, idx) => {
+      const node = filterNodesRef.current[offset + idx];
+      if (node && filter.enabled !== false) {
+        node.frequency.setTargetAtTime(filter.freq, ctx.currentTime, 0.015);
+        node.gain.setTargetAtTime(filter.gain || 0, ctx.currentTime, 0.015);
+        node.Q.setTargetAtTime(filter.q || 1.41, ctx.currentTime, 0.015);
+      }
+    });
+  }, [peqFilters, isoBands]);
 
   // Smooth A/B bypass crossfade
   useEffect(() => {
@@ -205,6 +221,16 @@ export const useAudioEngine = ({
     setActiveSource('none');
   }, []);
 
+  // Play live tab audio stream
+  const playLiveTab = useCallback(async (sourceNode: MediaStreamAudioSourceNode) => {
+    stopAudio();
+    const ctx = await getAudioContext();
+    sourceNodeRef.current = sourceNode;
+    rebuildFilterChain(ctx, sourceNode);
+    setIsPlaying(true);
+    setActiveSource('liveTab');
+  }, [getAudioContext, rebuildFilterChain, stopAudio]);
+
   // Play pink noise
   const playPinkNoise = useCallback(async () => {
     if (isPlaying && activeSource === 'pink-noise') {
@@ -226,7 +252,7 @@ export const useAudioEngine = ({
     setActiveSource('pink-noise');
   }, [isPlaying, activeSource, getAudioContext, rebuildFilterChain, stopAudio]);
 
-  // Play logarithmic frequency sine sweep (20Hz to 20kHz over 7 seconds)
+  // Play logarithmic frequency sine sweep (20Hz to 20kHz over 6 seconds)
   const playSineSweep = useCallback(async () => {
     if (isPlaying && activeSource === 'sweep') {
       stopAudio();
@@ -320,8 +346,12 @@ export const useAudioEngine = ({
     setVolume,
     playPinkNoise,
     playSineSweep,
+    playLiveTab,
     handleFileUpload,
     toggleFilePlayback,
     stopAudio,
+    getAudioContext,
+    audioContext: audioCtxRef.current,
   };
 };
+
