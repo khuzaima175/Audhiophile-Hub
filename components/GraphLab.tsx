@@ -195,8 +195,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
 
   // Visible points for Auto-Ranging (focuses on solo'd curve + target if solo is active)
   const isTargetInVisible = useMemo(() => {
-    return labState.curves.some((c) => c.isTarget && c.visible && (!anySolo || c.solo || c.isTarget));
-  }, [labState.curves, anySolo]);
+    return labState.curves.some((c) => c.isTarget && c.visible);
+  }, [labState.curves]);
 
   const activeVisiblePointSets = useMemo(() => {
     return displayCurves
