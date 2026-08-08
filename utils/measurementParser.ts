@@ -117,8 +117,12 @@ export const parseMeasurementFile = (
   const rawReadings: { freq: number; spl: number }[] = [];
   let isGraphicEQ = false;
 
-  // 1. Check if the content is in GraphicEQ or semicolon format (e.g. "GraphicEQ: 20 -4.8; 25 -4.2; ...")
-  if (textContent.includes(';') || textContent.toLowerCase().includes('graphiceq:')) {
+  // 1. Check if the content is explicitly in GraphicEQ format (e.g. "GraphicEQ: 20 -4.8; 25 -4.2; ...")
+  const isExplicitGraphicEQ = textContent.toLowerCase().includes('graphiceq:');
+  const nonCommentLines = textContent.split(/\r?\n/).filter((l) => l.trim().length > 0 && !l.trim().startsWith('#') && !l.trim().startsWith('*'));
+
+  // Semicolon stream detection: explicitly prefixed OR single/two-line semicolon stream
+  if (isExplicitGraphicEQ || (textContent.includes(';') && nonCommentLines.length <= 2)) {
     const cleaned = textContent.replace(/GraphicEQ\s*:/i, '').trim();
     const pairs = cleaned.split(';');
 
@@ -141,7 +145,7 @@ export const parseMeasurementFile = (
     }
   }
 
-  // 2. If semicolon parser didn't yield enough points, fallback to line-by-line CSV / TSV / Space parser
+  // 2. If not a GraphicEQ stream, parse line-by-line as standard CSV / TSV / Semicolon / Space table
   if (rawReadings.length < 3) {
     rawReadings.length = 0; // reset
     isGraphicEQ = false;
