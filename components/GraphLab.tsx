@@ -82,6 +82,14 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       const isTargetCurve = curve.isTarget;
       const isFilter = curve.isFilterCurve;
 
+      // For filter curves: look up the source target (the target the filter was designed for)
+      // This is locked at import time and never changes when you switch display targets.
+      let sourceTargetPoints: CurvePoint[] | null = null;
+      if (isFilter && curve.sourceTargetId) {
+        const srcTarget = TARGET_CURVES.find((t) => t.id === curve.sourceTargetId);
+        if (srcTarget) sourceTargetPoints = srcTarget.points;
+      }
+
       // Base anchor gain at normalization frequency
       const normGain = getInterpolatedTargetGain(labState.normHz, curve.points);
 
@@ -100,32 +108,49 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           dispGain = rawGain - targetGain + curve.offset;
 
         } else if ((curve.isInverted || labState.viewMode === 'reconstructed') && !isTargetCurve) {
-          // "IEM vs Target" — Reconstruction / Inversion
-          // For FILTER curves (GraphicEQ/AutoEQ): simply negate the raw correction values.
-          //   If filter = -7 dB at 5.6k → IEM is 7 dB ABOVE whatever target the filter was made for.
-          //   This is always correct regardless of which target is currently selected.
-          // For RAW measurements: this mode doesn't apply (they're already positive IEM curves).
-          if (isFilter) {
+          // "IEM vs Target" — Reconstruct the actual IEM frequency response
+          //
+          // For FILTER curves (GraphicEQ/AutoEQ):
+          //   The filter correction = SourceTarget - IEM, so IEM = SourceTarget - Filter.
+          //   We ALWAYS use the SOURCE target (the one the filter was designed for),
+          //   NOT the currently selected display target. This ensures the reconstructed
+          //   IEM shape is always correct — you're just overlaying it on different targets
+          //   for visual comparison.
+          //
+          // For raw measurement curves: show the raw data with normalization
+          if (isFilter && sourceTargetPoints) {
+            const srcTargetGain = getInterpolatedTargetGain(f, sourceTargetPoints);
+            dispGain = srcTargetGain - rawGain + curve.offset;
+          } else if (isFilter) {
+            // Fallback if no source target: just negate
             dispGain = -rawGain + curve.offset;
-          } else if (activeTarget) {
-            // For non-filter raw curves, show deviation above/below target
-            const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-            dispGain = rawGain - targetGain + curve.offset;
           } else {
-            dispGain = -rawGain + curve.offset;
+            // Raw measurement curves: show with normalization
+            const normalized = rawGain - normGain + labState.normDb;
+            dispGain = normalized + curve.offset;
           }
 
         } else if (labState.viewMode === 'netPostEq' && activeTarget && !isTargetCurve) {
-          // Post-EQ Net: show the target curve directly (flat reference)
-          const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-          dispGain = targetGain + curve.offset;
+          // Post-EQ Net: show what the IEM sounds like after applying the filter
+          // For filter curves: IEM + Filter ≈ SourceTarget (the intended result)
+          if (isFilter && sourceTargetPoints) {
+            const srcTargetGain = getInterpolatedTargetGain(f, sourceTargetPoints);
+            dispGain = srcTargetGain + curve.offset;
+          } else if (activeTarget) {
+            const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
+            dispGain = targetGain + curve.offset;
+          }
 
         } else if (labState.viewMode === 'rawFilter' && !isTargetCurve) {
           // "Filter Cuts" — show raw correction values as-is
-          // For filter curves: raw negative attenuation cuts
+          // For filter curves: raw negative attenuation cuts (no normalization!)
           // For measurements: normalized response
-          const normalized = rawGain - normGain + labState.normDb;
-          dispGain = normalized + curve.offset;
+          if (isFilter) {
+            dispGain = rawGain + curve.offset;
+          } else {
+            const normalized = rawGain - normGain + labState.normDb;
+            dispGain = normalized + curve.offset;
+          }
 
         } else {
           // Default: Normalization
@@ -291,6 +316,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           visible: true,
           solo: false,
           isFilterCurve: isFilter,
+          sourceTargetId: isFilter ? labState.targetCurveId : undefined,
         };
         labStore.addCurve(newCurve);
         labStore.setPrimaryCurve(newCurve.id);

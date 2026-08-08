@@ -239,6 +239,7 @@ export interface LabCurve {
   deltaCompensate?: boolean; // When true, subtracts from active target
   isInverted?: boolean; // When true, inverts/reconstructs raw filter cuts into positive IEM response
   isFilterCurve?: boolean; // When true, this is a corrective filter (GraphicEQ/AutoEQ), not a raw IEM measurement
+  sourceTargetId?: string; // The target curve ID this filter was designed for (locked at import time)
 }
 
 export interface LabState {
