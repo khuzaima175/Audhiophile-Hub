@@ -152,28 +152,26 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         } else if (isFilter) {
           // GraphicEQ / AutoEQ Filter Curves:
           const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
-          const isFilterCutsMode = labState.viewMode === 'rawFilter';
-          const showRawCuts = isFilterCutsMode ? !curve.isInverted : !!curve.isInverted;
+          const netGain = srcTargetGain - srcTargetAtNormHz + labState.normDb;
+          const iemRaw = srcTargetGain - rawGain;
+          const iemNormalized = iemRaw - reconstructedIemAtNormHz + labState.normDb;
 
-          if (showRawCuts) {
-            // "Filter Cuts" mode or inverted toggle: raw corrective EQ adjustments
-            dispGain = rawGain + curve.offset;
+          if (labState.viewMode === 'rawFilter') {
+            // "Filter Cuts" mode: shows raw cuts by default, flips to reconstructed if inverted
+            dispGain = (curve.isInverted ? iemNormalized : rawGain) + curve.offset;
 
           } else if (labState.viewMode === 'netPostEq') {
-            // "Post-EQ Net": what the headphone sounds like with EQ active
-            const netGain = srcTargetGain - srcTargetAtNormHz + labState.normDb;
-            dispGain = netGain + curve.offset;
+            // "Post-EQ Net" mode: shows ideal equalized sound, inverts polarity if inverted
+            dispGain = (curve.isInverted ? -netGain : netGain) + curve.offset;
 
           } else {
-            // Default & "IEM vs Target": Reconstruct the natural IEM frequency response!
-            const iemRaw = srcTargetGain - rawGain;
-            const iemNormalized = iemRaw - reconstructedIemAtNormHz + labState.normDb;
-            dispGain = iemNormalized + curve.offset;
+            // Default & "IEM vs Target": Reconstructs natural IEM response, flips to raw cuts if inverted
+            dispGain = (curve.isInverted ? rawGain : iemNormalized) + curve.offset;
           }
 
         } else {
           // Standard Measured / AI-Estimate Curves:
-          // Normalized to normDb at normHz (1000 Hz)
+          // Normalized to normDb at normHz (1000 Hz), inverts polarity if inverted
           const normalized = rawGain - curveNormGain + labState.normDb;
           dispGain = (curve.isInverted ? -normalized : normalized) + curve.offset;
         }
