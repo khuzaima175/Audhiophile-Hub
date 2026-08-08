@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { labStore } from '../store/labStore';
 import { MenuIcon, SettingsIcon, SearchIcon, WaveformIcon, ActivityIcon } from './Icon';
 import Led from './ui/Led';
 import Engraved from './ui/Engraved';

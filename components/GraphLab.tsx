@@ -198,10 +198,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     if (peqResult) {
       audioEngine.loadExternalPeq(peqResult.filters, peqResult.preamp);
       setAuditionResult({
-        rmsResidual: parseFloat(peqResult.fitScore.toFixed(2)),
+        rmsResidual: parseFloat(peqResult.finalRms.toFixed(2)),
         filterCount: peqResult.filters.length,
       });
-      showToast(`Audition Delta PEQ Loaded (${peqResult.filters.length} filters • RMS ${peqResult.fitScore}dB)`);
+      showToast(`Audition Delta PEQ Loaded (${peqResult.filters.length} filters • RMS ${peqResult.finalRms}dB)`);
     }
   };
 

@@ -34,6 +34,11 @@ export interface KnowledgeEntry {
   timestamp: number;
 }
 
+export interface CurvePoint {
+  freq: number;
+  gain: number;
+}
+
 export type PEQFilterType = 'PK' | 'LS' | 'HS' | 'HP' | 'LP' | 'NOTCH';
 
 export interface PEQFilter {

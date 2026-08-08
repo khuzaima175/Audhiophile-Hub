@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ChatSession, AudioProfile } from '../types';
+import { labStore } from '../store/labStore';
 import { SearchIcon, WaveformIcon, EqIcon, HeadphonesIcon, BrainIcon, ActivityIcon, PlusIcon, StarIcon } from './Icon';
 import Engraved from './ui/Engraved';
 import Led from './ui/Led';

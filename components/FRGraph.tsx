@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
+import { labStore } from '../store/labStore';
 import {
   HARMAN_IE_2019_POINTS,
   CRINACLE_IEF_2025_POINTS,

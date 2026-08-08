@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { EQPreset, PEQFilter, PEQFilterType, MeasurementData, SmoothingType } from '../types';
+import { labStore } from '../store/labStore';
 import {
   ISO_10_BANDS,
   ISO_15_BANDS,

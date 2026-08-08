@@ -69,16 +69,29 @@ export const labStore = {
       targetCurveId: targetId || state.targetCurveId,
       primaryCurveId: initialCurves?.[0]?.id || state.primaryCurveId || updatedCurves[0]?.id || null,
     };
+    if (typeof window !== 'undefined' && !window.location.hash.startsWith('#/lab')) {
+      window.location.hash = '#/lab';
+    }
     notify();
   },
 
   closeLab: () => {
     state = { ...state, isOpen: false };
+    if (typeof window !== 'undefined' && window.location.hash.startsWith('#/lab')) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
     notify();
   },
 
   setIsOpen: (isOpen: boolean) => {
     state = { ...state, isOpen };
+    if (typeof window !== 'undefined') {
+      if (isOpen && !window.location.hash.startsWith('#/lab')) {
+        window.location.hash = '#/lab';
+      } else if (!isOpen && window.location.hash.startsWith('#/lab')) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
     notify();
   },
 

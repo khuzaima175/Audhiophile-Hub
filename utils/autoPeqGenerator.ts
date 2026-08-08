@@ -1,4 +1,4 @@
-import { PEQFilter, PEQFilterType, AutoPeqFitResult, AutoPeqFitOptions, MeasurementPoint } from '../types';
+import { PEQFilter, PEQFilterType, AutoPeqFitResult, AutoPeqFitOptions, MeasurementPoint, CurvePoint } from '../types';
 import { SYNTHESIS_FREQUENCIES, calculateFilterGainAtFreq } from './curveSynthesizer';
 import { calculatePreampHeadroom } from './importExportParser';
 import { getInterpolatedTargetGain } from '../constants/targetCurves';
@@ -45,7 +45,7 @@ export const calculateRmsError = (residuals: number[]): number => {
  * and a chosen target curve (e.g. Crinacle IEF 2025).
  */
 export const synthesizeAutoPeq = (
-  measuredPoints: MeasurementPoint[],
+  measuredPoints: (MeasurementPoint | CurvePoint)[],
   targetPoints: { freq: number; gain: number }[],
   options: AutoPeqFitOptions
 ): AutoPeqFitResult => {
