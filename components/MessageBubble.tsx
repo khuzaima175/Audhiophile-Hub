@@ -177,7 +177,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {headers.map((h, i) => (
                   <th
                     key={i}
-                    className="bg-[#1A1410] text-audio-accent font-semibold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3 py-2 text-[10px] font-mono"
+                    className="bg-[#1A1410] text-audio-accent font-semibold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3 py-2.5 text-[11px] font-mono"
                     style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                   >
                     {h}
@@ -204,9 +204,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                       <td
                         key={cI}
                         className={[
-                          'px-3 py-2 text-[11px] leading-snug border-b border-audio-border/40 font-sans',
+                          'px-3 py-2.5 text-[13px] leading-snug border-b border-audio-border/40 font-sans',
                           rI % 2 === 1 ? 'bg-black/20' : 'bg-transparent',
-                          'text-audio-text/85 group-hover/row:bg-audio-highlight group-hover/row:text-audio-text',
+                          'text-audio-text/90 group-hover/row:bg-audio-highlight group-hover/row:text-audio-text',
                         ].join(' ')}
                         style={{ verticalAlign: 'top', wordBreak: 'break-word', whiteSpace: 'normal' }}
                       >

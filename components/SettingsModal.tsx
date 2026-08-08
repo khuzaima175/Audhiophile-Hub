@@ -639,9 +639,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ========================================================================= */}
           {activeTab === 'eq' && (
             <EQWorkbench
-              presets={formData.eqPresets || []}
+              presets={formData.eqLibrary || []}
               onSavePresets={(updated) => {
-                const next = { ...formData, eqPresets: updated };
+                const next = { ...formData, eqLibrary: updated };
                 setFormData(next);
                 onSave(next);
               }}

@@ -111,7 +111,32 @@ export const DEFAULT_PROFILE: AudioProfile = {
     "UPGRADE TARGET: Simgot EW300 - Tribrid, Soundstage Monster (Top Pick).",
     "UPGRADE TARGET: Simgot EG280 (Gaming Pick)."
   ],
-  eqLibrary: [],
+  eqLibrary: [
+    {
+      id: 'kefine-delci-ae-golden-nozzle',
+      name: 'Kefine Delci AE — Golden Nozzle',
+      hardware: 'Kefine Delci AE',
+      type: 'Wavelet',
+      mode: '31-band',
+      bands: 'GraphicEQ: 20 -4.9; 25 -4.7; 31.5 -3.7; 40 -3.3; 50 -3.1; 63 -3.1; 80 -3.1; 100 -3.2; 125 -3.5; 160 -3.2; 200 -2.6; 250 -2.0; 315 -1.1; 400 -0.3; 500 0.0; 630 -0.6; 800 -1.4; 1000 -2.0; 1250 -2.5; 1600 -3.0; 2000 -3.4; 2500 -2.4; 3150 -0.6; 4000 -2.3; 5000 -5.8; 6300 -6.9; 8000 -4.0; 10000 -3.4; 12500 -3.1; 16000 -3.0; 20000 -3.0',
+      graphicGains: [-4.9, -4.7, -3.7, -3.3, -3.1, -3.1, -3.1, -3.2, -3.5, -3.2, -2.6, -2.0, -1.1, -0.3, 0.0, -0.6, -1.4, -2.0, -2.5, -3.0, -3.4, -2.4, -0.6, -2.3, -5.8, -6.9, -4.0, -3.4, -3.1, -3.0, -3.0],
+      targetCurveId: 'crinacle-ief-2025',
+      preamp: 0,
+      timestamp: 1754600000000,
+    },
+    {
+      id: 'kefine-delci-ae-signature-nozzle',
+      name: 'Kefine Delci AE — Signature Nozzle',
+      hardware: 'Kefine Delci AE',
+      type: 'Wavelet',
+      mode: '31-band',
+      bands: 'GraphicEQ: 20 -4.9; 25 -4.7; 31.5 -3.7; 40 -3.3; 50 -3.1; 63 -3.1; 80 -3.1; 100 -3.2; 125 -3.5; 160 -3.2; 200 -2.6; 250 -2.0; 315 -1.1; 400 -0.3; 500 0.0; 630 -0.6; 800 -1.4; 1000 -2.0; 1250 -2.5; 1600 -3.0; 2000 -3.4; 2500 -2.4; 3150 -0.6; 4000 -2.3; 5000 -5.8; 6300 -6.9; 8000 -4.0; 10000 -3.4; 12500 -3.1; 16000 -3.0; 20000 -3.0',
+      graphicGains: [-4.9, -4.7, -3.7, -3.3, -3.1, -3.1, -3.1, -3.2, -3.5, -3.2, -2.6, -2.0, -1.1, -0.3, 0.0, -0.6, -1.4, -2.0, -2.5, -3.0, -3.4, -2.4, -0.6, -2.3, -5.8, -6.9, -4.0, -3.4, -3.1, -3.0, -3.0],
+      targetCurveId: 'crinacle-ief-2025',
+      preamp: 0,
+      timestamp: 1754600001000,
+    },
+  ],
   gearLibrary: [],
   faderState: {
     bassGain: 0,
