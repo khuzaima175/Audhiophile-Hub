@@ -191,12 +191,14 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     });
   }, [labState.curves, labState.normDb, labState.normHz, labState.deltaMode, labState.viewMode, activeTarget]);
 
-  // Visible points for Auto-Ranging
+  const anySolo = useMemo(() => labState.curves.some((c) => c.solo), [labState.curves]);
+
+  // Visible points for Auto-Ranging (focuses on solo'd curve + target if solo is active)
   const activeVisiblePointSets = useMemo(() => {
     return displayCurves
-      .filter((c) => c.visible && (!c.solo || c.solo))
+      .filter((c) => c.visible && (!anySolo || c.solo || c.isTarget))
       .map((c) => c.displayPoints);
-  }, [displayCurves]);
+  }, [displayCurves, anySolo]);
 
   const { minY, maxY, yTicks } = useMemo(() => {
     return calculateAutoRangedYBounds(activeVisiblePointSets, true);
@@ -238,7 +240,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     if (clientX >= viewport.padding.left && clientX <= viewport.width - viewport.padding.right) {
       const freq = xToFreq(clientX, viewport);
       const values = displayCurves
-        .filter((c) => c.visible)
+        .filter((c) => c.visible && (!anySolo || c.solo || c.isTarget))
         .map((c) => ({
           name: c.name,
           db: parseFloat(getInterpolatedTargetGain(freq, c.displayPoints).toFixed(1)),
@@ -590,7 +592,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
 
               {/* Render Curves */}
               {renderedPaths
-                .filter((c) => c.visible && (!c.solo || c.solo))
+                .filter((c) => c.visible && (!anySolo || c.solo || c.isTarget))
                 .map((c) => {
                   const isPrimary = c.id === labState.primaryCurveId;
                   return (
