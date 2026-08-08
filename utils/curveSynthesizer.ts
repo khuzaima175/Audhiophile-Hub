@@ -170,29 +170,73 @@ export const calculateFilterGainAtFreq = (
   }
 };
 
-// Evaluate composite EQ curve (sum of all active graphic bands and parametric filters)
+// Monotonic Cubic Hermite / Catmull-Rom interpolation in log10(frequency) space (matching squig.link / AutoEQ)
+export const interpolateGraphicBandsSmooth = (
+  f: number,
+  isoBands: number[],
+  isoGains: number[]
+): number => {
+  if (!isoBands || isoBands.length === 0) return 0;
+  if (f <= isoBands[0]) return isoGains[0] || 0;
+  if (f >= isoBands[isoBands.length - 1]) return isoGains[isoGains.length - 1] || 0;
+
+  // Find bounding segment
+  for (let i = 0; i < isoBands.length - 1; i++) {
+    const f0 = isoBands[i];
+    const f1 = isoBands[i + 1];
+    if (f >= f0 && f <= f1) {
+      const logF = Math.log10(f);
+      const logF0 = Math.log10(f0);
+      const logF1 = Math.log10(f1);
+      const h = logF1 - logF0;
+      if (h === 0) return isoGains[i] || 0;
+
+      const t = (logF - logF0) / h;
+      const y0 = isoGains[i] || 0;
+      const y1 = isoGains[i + 1] || 0;
+
+      // Estimate tangents using centered finite differences with zero-slope at boundaries
+      const ym1 = i > 0 ? (isoGains[i - 1] || 0) : y0;
+      const yp2 = i < isoBands.length - 2 ? (isoGains[i + 2] || 0) : y1;
+
+      const m0 = (y1 - ym1) / 2;
+      const m1 = (yp2 - y0) / 2;
+
+      // Standard Hermite basis functions
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const h00 = 2 * t3 - 3 * t2 + 1;
+      const h10 = t3 - 2 * t2 + t;
+      const h01 = -2 * t3 + 3 * t2;
+      const h11 = t3 - t2;
+
+      return h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1;
+    }
+  }
+  return 0;
+};
+
+// Evaluate composite EQ curve (smooth log-spline for Graphic bands + sum of PEQ filters)
 export const evaluateCompositeCurve = (
   frequencies: number[],
   isoBands: number[],
   isoGains: number[],
   peqFilters: PEQFilter[] = []
 ): CurvePoint[] => {
+  const hasGraphic = isoBands && isoBands.length > 0 && isoGains.some((g) => g !== 0);
+
   return frequencies.map((f) => {
     let totalDb = 0;
 
-    // Sum ISO graphic bands (modeled as Peaking bells with standard ISO Q)
-    const isoQ = isoBands.length === 31 ? 4.3 : isoBands.length === 15 ? 2.0 : 1.41;
-    for (let i = 0; i < isoBands.length; i++) {
-      const gain = isoGains[i] || 0;
-      if (gain !== 0) {
-        totalDb += calculateFilterGainAtFreq(f, 'PK', isoBands[i], gain, isoQ);
-      }
+    // Smooth GraphicEQ interpolation across ISO bands (squig.link / AutoEQ smooth curve)
+    if (hasGraphic) {
+      totalDb += interpolateGraphicBandsSmooth(f, isoBands, isoGains);
     }
 
-    // Sum active Parametric EQ filters
+    // Sum active Parametric EQ filters (if any)
     for (let i = 0; i < peqFilters.length; i++) {
       const filter = peqFilters[i];
-      if (filter.enabled !== false && filter.gain !== undefined) {
+      if (filter.enabled !== false && filter.gain !== undefined && filter.gain !== 0) {
         totalDb += calculateFilterGainAtFreq(f, filter.type, filter.freq, filter.gain, filter.q);
       }
     }
