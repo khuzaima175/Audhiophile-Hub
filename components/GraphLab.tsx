@@ -194,6 +194,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   const anySolo = useMemo(() => labState.curves.some((c) => c.solo), [labState.curves]);
 
   // Visible points for Auto-Ranging (focuses on solo'd curve + target if solo is active)
+  const isTargetInVisible = useMemo(() => {
+    return labState.curves.some((c) => c.isTarget && c.visible && (!anySolo || c.solo || c.isTarget));
+  }, [labState.curves, anySolo]);
+
   const activeVisiblePointSets = useMemo(() => {
     return displayCurves
       .filter((c) => c.visible && (!anySolo || c.solo || c.isTarget))
@@ -201,8 +205,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   }, [displayCurves, anySolo]);
 
   const { minY, maxY, yTicks } = useMemo(() => {
-    return calculateAutoRangedYBounds(activeVisiblePointSets, true);
-  }, [activeVisiblePointSets]);
+    return calculateAutoRangedYBounds(activeVisiblePointSets, isTargetInVisible);
+  }, [activeVisiblePointSets, isTargetInVisible]);
 
   // Viewport with responsive zoom range
   const viewport: ViewportDimensions = useMemo(() => {

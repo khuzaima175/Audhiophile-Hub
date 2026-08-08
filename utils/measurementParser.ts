@@ -117,9 +117,8 @@ export const parseMeasurementFile = (
   const rawReadings: { freq: number; spl: number }[] = [];
   let isGraphicEQ = false;
 
-  // 1. Check if the content is in GraphicEQ format (e.g. "GraphicEQ: 20 -4.8; 25 -4.2; ...")
-  if (textContent.includes('GraphicEQ:') || textContent.toLowerCase().includes('graphiceq:')) {
-    isGraphicEQ = true;
+  // 1. Check if the content is in GraphicEQ or semicolon format (e.g. "GraphicEQ: 20 -4.8; 25 -4.2; ...")
+  if (textContent.includes(';') || textContent.toLowerCase().includes('graphiceq:')) {
     const cleaned = textContent.replace(/GraphicEQ\s*:/i, '').trim();
     const pairs = cleaned.split(';');
 
@@ -137,27 +136,13 @@ export const parseMeasurementFile = (
         }
       }
     }
-  }
-
-  // Also try: single line with semicolons but no GraphicEQ prefix
-  if (rawReadings.length < 5 && textContent.includes(';') && !textContent.includes('\n')) {
-    rawReadings.length = 0;
-    isGraphicEQ = true;
-    const pairs = textContent.trim().split(';');
-    for (let pair of pairs) {
-      const tokens = pair.trim().split(/[\s,]+/).filter((t) => t.length > 0);
-      if (tokens.length >= 2) {
-        const freq = parseFloat(tokens[0]);
-        const spl = parseFloat(tokens[1]);
-        if (!isNaN(freq) && !isNaN(spl) && freq >= 5 && freq <= 96000) {
-          rawReadings.push({ freq, spl });
-        }
-      }
+    if (rawReadings.length >= 3) {
+      isGraphicEQ = true;
     }
   }
 
-  // 2. If GraphicEQ didn't yield enough points, fallback to line-by-line CSV / TSV / Space parser
-  if (rawReadings.length < 5) {
+  // 2. If semicolon parser didn't yield enough points, fallback to line-by-line CSV / TSV / Space parser
+  if (rawReadings.length < 3) {
     rawReadings.length = 0; // reset
     isGraphicEQ = false;
     const lines = textContent.split(/\r?\n/);

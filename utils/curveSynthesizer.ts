@@ -33,8 +33,8 @@ export const calculateAutoRangedYBounds = (
   curvePointSets: (CurvePoint[] | undefined)[],
   isTargetVisible = true
 ): { minY: number; maxY: number; yTicks: number[] } => {
-  let minGain = isTargetVisible ? -12 : -12;
-  let maxGain = isTargetVisible ? 12 : 12;
+  let minGain = Infinity;
+  let maxGain = -Infinity;
 
   let hasPoints = false;
   curvePointSets.forEach((pts) => {
@@ -49,6 +49,15 @@ export const calculateAutoRangedYBounds = (
 
   if (!hasPoints) {
     return { minY: -12, maxY: 18, yTicks: [-12, -6, 0, 6, 12, 18] };
+  }
+
+  // Ensure minimum baseline view range for target or isolated curves
+  if (isTargetVisible) {
+    minGain = Math.min(minGain, -12);
+    maxGain = Math.max(maxGain, 12);
+  } else {
+    minGain = Math.min(minGain, -6);
+    maxGain = Math.max(maxGain, 6);
   }
 
   // Add 2.0 dB pad
@@ -195,12 +204,25 @@ export const interpolateGraphicBandsSmooth = (
       const y0 = isoGains[i] || 0;
       const y1 = isoGains[i + 1] || 0;
 
-      // Estimate tangents using centered finite differences with zero-slope at boundaries
+      // Estimate tangents using centered finite differences with monotonic clamping (Fritsch-Carlson)
       const ym1 = i > 0 ? (isoGains[i - 1] || 0) : y0;
       const yp2 = i < isoBands.length - 2 ? (isoGains[i + 2] || 0) : y1;
 
-      const m0 = (y1 - ym1) / 2;
-      const m1 = (yp2 - y0) / 2;
+      let m0 = (y1 - ym1) / 2;
+      let m1 = (yp2 - y0) / 2;
+
+      // Monotonicity check: if interval is flat, clamp slopes to 0
+      const delta = y1 - y0;
+      if (delta === 0) {
+        m0 = 0;
+        m1 = 0;
+      } else {
+        // Prevent overshoot beyond secant slope
+        if (m0 * delta < 0) m0 = 0;
+        if (m1 * delta < 0) m1 = 0;
+        if (Math.abs(m0) > 3 * Math.abs(delta)) m0 = 3 * delta;
+        if (Math.abs(m1) > 3 * Math.abs(delta)) m1 = 3 * delta;
+      }
 
       // Standard Hermite basis functions
       const t2 = t * t;
