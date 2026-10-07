@@ -39,6 +39,7 @@ export const exportToEqualizerAPO = (
   isoBands: number[] = [],
   isoGains: number[] = [],
   customPreamp?: number,
+  sampleRate = 48000,
 ): string => {
   const hasParametric = peqFilters && peqFilters.length > 0;
   const response = evaluateCompositeCurve(
@@ -49,11 +50,11 @@ export const exportToEqualizerAPO = (
   );
   const calculatedPreamp = Math.min(
     customPreamp ?? 0,
-    safePreamp(hasParametric ? peqFilters : graphicFilters(isoBands, isoGains)),
+    safePreamp(hasParametric ? peqFilters : graphicFilters(isoBands, isoGains), sampleRate),
   );
   const lines: string[] = [];
 
-  lines.push(`# AudioSage EQ Export - Equalizer APO / Peace`);
+  lines.push(`# AudioSage EQ Export - Equalizer APO / Peace; intended sample rate ${sampleRate} Hz`);
   lines.push(`Preamp: ${calculatedPreamp > 0 ? `+${calculatedPreamp}` : calculatedPreamp} dB`);
 
   if (peqFilters && peqFilters.length > 0) {

@@ -75,6 +75,12 @@ export const useLiveTabCapture = ({
     }
   }, []);
 
+  useEffect(() => {
+    const switched = (event: Event) => { if ((event as CustomEvent).detail === audioContext) stopTabCapture(); };
+    window.addEventListener('audiosage-playback-switch', switched);
+    return () => window.removeEventListener('audiosage-playback-switch', switched);
+  }, [audioContext, stopTabCapture]);
+
   // Actual getDisplayMedia capture execution
   const executeCapture = useCallback(
     async (ctx: AudioContext) => {

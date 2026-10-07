@@ -1,3 +1,4 @@
+import { effectivePreamp } from '../utils/audioPolicy';
 import { audioWorkspace, useAudioWorkspace, useDraftField, draftFromPreset, getMeasurementRecords, storeMeasurement, freshDraft } from '../store/audioWorkspace';
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { EQPreset, PEQFilter, PEQFilterType, MeasurementData, SmoothingType } from '../types';
@@ -118,9 +119,12 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     return gains10;
   }, [eqMode, gains10, gains15, gains31]);
 
+  const [levelMatched, setLevelMatched] = useState(false);
   // Web Audio Preview Engine
   const {
     error: audioError,
+    sampleRate: playbackRate,
+    matchDb,
     isPlaying,
     activeSource,
     fileName,
@@ -139,7 +143,12 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     isoGains: eqMode === 'peq' ? [] : currentIsoGains,
     peqFilters: eqMode === 'peq' ? peqFilters : [],
     isBypassed,
+    requestedPreamp: draft.requestedPreamp,
+    preampMode: draft.preampMode,
+    intendedSampleRate: draft.sampleRate,
+    levelMatched,
   });
+  useEffect(() => { if (audioContext && draft.sampleRate !== playbackRate) audioWorkspace.update({ sampleRate: playbackRate }, false); }, [audioContext, playbackRate]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -201,12 +210,13 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
   // Calculate live composite curve points for pure EQ filter preview
   const compositeCurvePoints = useMemo(() => {
     return evaluateCompositeCurve(
-      SYNTHESIS_FREQUENCIES,
+      SYNTHESIS_FREQUENCIES.filter(f => f < draft.sampleRate / 2),
       eqMode === 'peq' ? [] : currentIsoBands,
       eqMode === 'peq' ? [] : currentIsoGains,
       eqMode === 'peq' ? peqFilters : [],
+      draft.sampleRate,
     );
-  }, [currentIsoBands, currentIsoGains, peqFilters, eqMode]);
+  }, [currentIsoBands, currentIsoGains, peqFilters, eqMode, draft.sampleRate]);
 
   // Reconstructed Estimated IEM Acoustic Curve: IEM = Target - EQ_Filter (since AutoEQ Filter = Target - IEM)
   // This allows direct positive visual comparison between the IEM's natural frequency response and the Target curve!
@@ -228,9 +238,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
       const measured = resampledMeasuredPoints.length
         ? getInterpolatedTargetGain(p.freq, resampledMeasuredPoints)
         : 0;
-      return { freq: p.freq, gain: measured + p.gain };
+      return { freq: p.freq, gain: measured + p.gain + effectivePreamp(eqMode === 'peq' ? peqFilters : graphicFilters(currentIsoBands, currentIsoGains), draft.preampMode, draft.requestedPreamp, draft.sampleRate) };
     });
-  }, [compositeCurvePoints, resampledMeasuredPoints]);
+  }, [compositeCurvePoints, resampledMeasuredPoints, draft.preampMode, draft.requestedPreamp, draft.sampleRate, peqFilters, currentIsoBands, currentIsoGains, eqMode]);
 
   // Active displayed EQ curve based on selected view mode
   const activeEqPoints = useMemo(() => {
@@ -285,14 +295,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     return generateSvgPathFromPoints(compensatedResponsePoints, workbenchViewport, minY, maxY);
   }, [measurement, compensatedResponsePoints, workbenchViewport, minY, maxY]);
 
-  // Preamp headroom calculation
-  const currentPreamp = useMemo(() => {
-    if (autoPeqResult && workbenchState === 'MEASUREMENT') {
-      return autoPeqResult.preamp;
-    }
-    return safePreamp(eqMode === 'peq' ? peqFilters : graphicFilters(currentIsoBands, currentIsoGains));
-  }, [eqMode, peqFilters, currentIsoBands, currentIsoGains, autoPeqResult, workbenchState]);
-
+  // One response-based attenuation policy for graph, playback, preset and export.
+  const currentPreamp = useMemo(() => effectivePreamp(eqMode === 'peq' ? peqFilters : graphicFilters(currentIsoBands, currentIsoGains), draft.preampMode, draft.requestedPreamp, draft.sampleRate), [eqMode, peqFilters, currentIsoBands, currentIsoGains, draft.preampMode, draft.requestedPreamp, draft.sampleRate]);
   // Measurement File Drop & Parse Handler
   const handleProcessMeasurementText = useCallback(
     async (text: string, name: string) => {
@@ -308,8 +312,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
           parsed.rawPoints,
           { maxFilters: 20, targetCurveId: 'imported-correction', normalize: false },
         );
+        audioWorkspace.update({ measurementRef: null, originalFit: null });
         setMeasurement(null);
         setEqMode('peq');
+        audioWorkspace.update({ requestedPreamp: fit.preamp, preampMode: 'manual' });
         setPeqFilters(fit.filters);
         setPresetName(parsed.name + ' imported EQ');
         setWorkbenchState('ADDING');
@@ -341,7 +347,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
   // Load Auto-PEQ Filters into the editable PEQ Editor
   const handleLoadAutoPeqIntoEditor = () => {
     if (!autoPeqResult) return;
-    audioWorkspace.update({ originalFit: structuredClone(autoPeqResult) });
+    audioWorkspace.update({ originalFit: structuredClone(autoPeqResult), requestedPreamp: autoPeqResult.preamp });
     setPeqFilters(autoPeqResult.filters);
     setEqMode('peq');
     setWorkbenchState('ADDING');
@@ -411,9 +417,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
     let bandsString = '';
     if (eqMode === 'peq') {
-      bandsString = exportToEqualizerAPO(peqFilters, [], [], currentPreamp);
+      bandsString = exportToEqualizerAPO(peqFilters, [], [], currentPreamp, draft.sampleRate);
     } else {
-      bandsString = exportToEqualizerAPO([], currentIsoBands, currentIsoGains, currentPreamp);
+      bandsString = exportToEqualizerAPO([], currentIsoBands, currentIsoGains, currentPreamp, draft.sampleRate);
     }
 
     const preset: EQPreset = {
@@ -452,6 +458,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
         currentIsoBands,
         preset.graphicGains || currentIsoGains,
         preset.preamp ?? currentPreamp,
+        draft.sampleRate,
       );
       try {
         const syncRes = await syncApoProfileToServer(apoExport);
@@ -542,7 +549,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
           : ISO_10_BANDS
       : currentIsoBands;
     const gains = p?.graphicGains || currentIsoGains;
-    const str = exportToEqualizerAPO(filters, bands, gains, p?.preamp ?? currentPreamp);
+    const str = exportToEqualizerAPO(filters, bands, gains, p?.preamp ?? currentPreamp, p?.sampleRate || draft.sampleRate);
 
     navigator.clipboard.writeText(str).then(() => {
       setCopiedKey(p?.id ? `apo-${p.id}` : 'apo-curr');
@@ -592,6 +599,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
         : currentIsoBands,
       p?.graphicGains || currentIsoGains,
       p?.preamp ?? currentPreamp,
+      p?.sampleRate || draft.sampleRate,
     );
     downloadPresetFile(`${name}_EqualizerAPO.txt`, str);
     showToast(`Downloaded ${name}_EqualizerAPO.txt`);
@@ -656,6 +664,15 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     <div className={`eq-workspace space-y-5 max-w-5xl mx-auto select-none ${className}`}>
       {draftError && <div role="alert" className="panel p-3">{draftError}<button onClick={() => audioWorkspace.retry()}>Retry write</button><button onClick={() => { if (window.confirm('Preserve damaged draft as recovery data and start fresh?')) audioWorkspace.recoverFresh(); }}>Start fresh</button></div>}
       {importError && <div role="alert" className="panel p-3">{importError}<button onClick={() => { audioWorkspace.update({ measurementRef: null }); setImportError(null); }}>Continue manual EQ</button></div>}
+      <div className="audio-policy-controls">
+        <label>Preamp mode<select value={draft.preampMode} onChange={e => audioWorkspace.update({ preampMode: e.target.value as 'automatic' | 'manual' })}><option value="automatic">Automatic headroom</option><option value="manual">Manual preamp</option></select></label>
+        <label>Requested preamp (dB)<input aria-label="Requested preamp" type="number" min="-36" max="36" step="0.1" value={draft.requestedPreamp} onChange={e => audioWorkspace.update({ requestedPreamp: Math.max(-36, Math.min(36, Number(e.target.value) || 0)) })} /></label>
+        <label>Intended rate<select disabled={!!audioContext} value={draft.sampleRate} onChange={e => audioWorkspace.update({ sampleRate: Number(e.target.value) })}>{[44100,48000,96000].map(rate => <option key={rate} value={rate}>{rate / 1000} kHz</option>)}</select></label>
+        <p>Effective attenuation: {currentPreamp.toFixed(2)} dB. {draft.preampMode === 'manual' && currentPreamp < draft.requestedPreamp ? 'Adjusted to leave response-based headroom.' : ''} This is response-based attenuation, not a true-peak limiter.</p>
+        <label><input type="checkbox" checked={levelMatched} onChange={e => setLevelMatched(e.target.checked)} />Level-matched file comparison (first 10 seconds, all-channel RMS, dry attenuation capped at 24 dB)</label>
+        {levelMatched && <p>{matchDb === null ? 'Matching unavailable or recalculating. Bypass currently uses raw audio.' : `Bypass matching attenuation: ${matchDb.toFixed(2)} dB.`}</p>}
+        <p>APO parameter exports preserve supported filters and effective preamp. Wavelet response sampling and Wavelet-to-PEQ fitting are approximations; deep notches and narrow filters may lose detail.</p>
+      </div>
       <nav className="audio-view-tabs" aria-label="Audio workspace views">
         <button className="secondary-button" onClick={() => setWorkbenchState('ADDING')}>Editor {draft.dirty ? '• Unsaved' : ''}</button>
         <button className="secondary-button" onClick={() => labStore.openLab()}>Compare</button>
@@ -676,7 +693,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
             Start with a new preset, import an EQ, or upload a frequency response measurement.
           </p>
           <p className="text-xs text-audio-muted mt-2">
-            DSP preview: 48 kHz. Use a reference target calibrated for your measurement rig; bundled acoustic
+            DSP preview: {draft.sampleRate / 1000} kHz. Playback uses the active AudioContext rate. Use a reference target calibrated for your measurement rig; bundled acoustic
             targets are approximations.
           </p>
         </div>
@@ -1707,7 +1724,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
                   pulse={!isBypassed && isPlaying && activeSource !== 'liveTab' && activeSource !== 'none'}
                   size="sm"
                 />
-                <span>{isBypassed ? 'EQ off' : 'EQ on'}</span>
+                <span>{isBypassed ? (levelMatched && matchDb !== null ? 'Level-matched bypass' : 'Raw bypass') : 'EQ on'}</span>
               </button>
             </div>
           </div>

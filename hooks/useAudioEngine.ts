@@ -1,3 +1,4 @@
+import { effectivePreamp, claimPlayback, releasePlayback } from '../utils/audioPolicy';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PEQFilter, PEQFilterType } from '../types';
 import { createDSPNode, graphicFilters, safePreamp, DSP_SAMPLE_RATE, filterTypeMap } from '../utils/biquad';
@@ -9,14 +10,23 @@ interface UseAudioEngineProps {
   isoGains: number[];
   peqFilters: PEQFilter[];
   isBypassed: boolean;
+  requestedPreamp?: number;
+  preampMode?: 'automatic' | 'manual';
+  intendedSampleRate?: number;
+  levelMatched?: boolean;
 }
 
-export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: UseAudioEngineProps) => {
+export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, requestedPreamp = 0, preampMode = 'automatic', intendedSampleRate = DSP_SAMPLE_RATE, levelMatched = false }: UseAudioEngineProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeSource, setActiveSource] = useState<AuditionSourceType>('none');
   const [fileName, setFileName] = useState<string | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [volume, setVolume] = useState(0.7);
+  const lease = useRef({});
+  const stopRef = useRef<() => void>(() => {});
+  const epoch = useRef(0);
+  const [sampleRate, setSampleRate] = useState(intendedSampleRate);
+  const [matchDb, setMatchDb] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -34,10 +44,12 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
 
   // Lazy initialize AudioContext with browser autoplay policy compliance
   const getAudioContext = useCallback(async (): Promise<AudioContext> => {
+    claimPlayback(lease.current, () => { stopRef.current(); window.dispatchEvent(new CustomEvent('audiosage-playback-switch', { detail: audioCtxRef.current })); });
     if (!audioCtxRef.current) {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioCtxClass({ sampleRate: DSP_SAMPLE_RATE });
+      const ctx = new AudioCtxClass({ sampleRate: intendedSampleRate });
       audioCtxRef.current = ctx;
+      setSampleRate(ctx.sampleRate);
 
       // Master output gain
       const master = ctx.createGain();
@@ -67,7 +79,7 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
     }
 
     return audioCtxRef.current;
-  }, [volume, isBypassed]);
+  }, [volume, isBypassed, intendedSampleRate]);
 
   // Generate 5-second seamless Voss-McCartney pink noise buffer
   const createPinkNoiseBuffer = (ctx: AudioContext): AudioBuffer => {
@@ -124,11 +136,7 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
         });
         preampGainRef.current?.gain.setTargetAtTime(
           10 **
-            (Math.min(
-              safePreamp(nextFilters, ctx.sampleRate),
-              externalFiltersRef.current ? externalPreampRef.current : 0,
-            ) /
-              20),
+            (effectivePreamp(nextFilters, externalFiltersRef.current ? 'manual' : preampMode, externalFiltersRef.current ? externalPreampRef.current : requestedPreamp, ctx.sampleRate) / 20),
           ctx.currentTime,
           0.015,
         );
@@ -172,17 +180,14 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
       }
 
       filterNodesRef.current = nodes;
-      const headroom = Math.min(
-        safePreamp(allFilters, ctx.sampleRate),
-        externalFiltersRef.current ? externalPreampRef.current : 0,
-      );
+      const headroom = effectivePreamp(allFilters, externalFiltersRef.current ? 'manual' : preampMode, externalFiltersRef.current ? externalPreampRef.current : requestedPreamp, ctx.sampleRate);
       preampGainRef.current?.gain.setTargetAtTime(Math.pow(10, headroom / 20), ctx.currentTime, 0.015);
     },
-    [isoBands, isoGains, peqFilters],
+    [isoBands, isoGains, peqFilters, requestedPreamp, preampMode],
   );
 
   // Rebuild when the number, enabled state, or type of filters changes too.
-  const filterSignature = JSON.stringify({ isoBands, isoGains, peqFilters });
+  const filterSignature = JSON.stringify({ isoBands, isoGains, peqFilters, requestedPreamp, preampMode });
   useEffect(() => {
     if (audioCtxRef.current && sourceNodeRef.current)
       rebuildFilterChain(audioCtxRef.current, sourceNodeRef.current);
@@ -202,15 +207,17 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
 
     if (isBypassed) {
       wetGainRef.current.gain.linearRampToValueAtTime(0, now + rampTime);
-      dryGainRef.current.gain.linearRampToValueAtTime(1, now + rampTime);
+      dryGainRef.current.gain.linearRampToValueAtTime(levelMatched && matchDb !== null ? 10 ** (matchDb / 20) : 1, now + rampTime);
     } else {
       wetGainRef.current.gain.linearRampToValueAtTime(1, now + rampTime);
       dryGainRef.current.gain.linearRampToValueAtTime(0, now + rampTime);
     }
-  }, [isBypassed]);
+  }, [isBypassed, levelMatched, matchDb]);
 
   // Stop playback cleanly
   const stopAudio = useCallback(() => {
+    epoch.current++;
+    setMatchDb(null);
     if (sourceNodeRef.current) {
       try {
         (sourceNodeRef.current as any).stop?.();
@@ -228,6 +235,8 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
     setIsPlaying(false);
     setActiveSource('none');
   }, []);
+
+  stopRef.current = stopAudio;
 
   // Play live tab audio stream
   const playLiveTab = useCallback(
@@ -281,7 +290,7 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
     const duration = 6.0;
 
     osc.frequency.setValueAtTime(20, now);
-    osc.frequency.exponentialRampToValueAtTime(20000, now + duration);
+    osc.frequency.exponentialRampToValueAtTime(Math.min(20000, ctx.sampleRate / 2 - 1), now + duration);
 
     osc.connect(oscGain);
     rebuildFilterChain(ctx, oscGain);
@@ -307,9 +316,11 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
       setError(null);
       try {
         stopAudio();
+        const requestEpoch = epoch.current;
         const ctx = await getAudioContext();
         const arrayBuffer = await file.arrayBuffer();
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        if (requestEpoch !== epoch.current) return;
         customAudioBufferRef.current = audioBuffer;
         setFileName(file.name);
 
@@ -360,10 +371,39 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
     [getAudioContext, rebuildFilterChain],
   );
 
+  // File comparison: first ten seconds, RMS over all channels, attenuation-only dry matching.
+  useEffect(() => {
+    setMatchDb(null);
+    if (!levelMatched || activeSource !== 'file' || !customAudioBufferRef.current) return;
+    let canceled = false;
+    const timer = setTimeout(async () => {
+      const buffer = customAudioBufferRef.current!, rate = audioCtxRef.current?.sampleRate || sampleRate;
+      const length = Math.min(buffer.length, Math.floor(rate * 10));
+      try {
+        const offline = new OfflineAudioContext(buffer.numberOfChannels, length, rate);
+        const source = offline.createBufferSource(); source.buffer = buffer;
+        const filters = [...graphicFilters(isoBands, isoGains), ...(externalFiltersRef.current ?? peqFilters)].filter(f => f.enabled !== false);
+        let tail: AudioNode = source;
+        filters.forEach(f => { const node = createDSPNode(offline as unknown as AudioContext, f); tail.connect(node); tail = node; });
+        const preamp = offline.createGain(); preamp.gain.value = 10 ** (effectivePreamp(filters, preampMode, requestedPreamp, rate) / 20); tail.connect(preamp); preamp.connect(offline.destination); source.start();
+        const rendered = await offline.startRendering();
+        let dry = 0, wet = 0;
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+          const a = buffer.getChannelData(c), b = rendered.getChannelData(c);
+          for (let i = 0; i < length; i++) { dry += a[i] ** 2; wet += b[i] ** 2; }
+        }
+        const db = 10 * Math.log10(wet / dry);
+        if (!canceled && Number.isFinite(db) && db <= 0) setMatchDb(Math.max(-24, db));
+      } catch { if (!canceled) setMatchDb(null); }
+    }, 250);
+    return () => { canceled = true; clearTimeout(timer); };
+  }, [levelMatched, activeSource, fileName, filterSignature, sampleRate]);
+
   // Cleanup on component unmount
   useEffect(() => {
     return () => {
       stopAudio();
+      releasePlayback(lease.current);
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close().catch(() => {});
       }
@@ -372,6 +412,8 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: U
 
   return {
     error,
+    sampleRate,
+    matchDb,
     isPlaying,
     activeSource,
     fileName,

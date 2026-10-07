@@ -4,7 +4,7 @@ const Module = require('node:module');
 (async () => {
   const result = await esbuild.build({
     stdin: {
-      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';`,
+      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -41,6 +41,14 @@ const Module = require('node:module');
     { id: 'b', type: 'PK', freq: 1000, gain: 6, q: 10 },
   ];
   assert.ok(dsp.safePreamp(overlapping) <= -12.2);
+  for (const rate of [44100, 48000, 96000]) {
+    near(dsp.effectivePreamp(overlapping, 'automatic', 3, rate), dsp.safePreamp(overlapping, rate));
+    near(dsp.effectivePreamp(overlapping, 'manual', -30, rate), -30);
+    assert.ok(dsp.effectivePreamp(overlapping, 'manual', 6, rate) <= -12);
+    const round = dsp.parseImportedEQText(dsp.exportToEqualizerAPO(overlapping, [], [], -30, rate));
+    near(round.preamp, -30);
+    assert.equal(round.peqFilters.length, overlapping.length);
+  }
   const graphic = [100, 1000, 10000],
     gains = [6, -3, 4];
   const nodes = dsp.graphicFilters(graphic, gains);
