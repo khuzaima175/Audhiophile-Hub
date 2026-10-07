@@ -1,4 +1,5 @@
 import React from 'react';
+import { Popover } from '../ui/Popover';
 import { LabCurve } from '../../types';
 import { labStore } from '../../store/labStore';
 interface PerCurveRowProps {
@@ -11,7 +12,7 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
   const download = () => {
     const csv =
       'Frequency_Hz,dB\n' +
-      curve.points.map((p) => `${p.freq},${(p.gain + curve.offset).toFixed(3)}`).join('\n');
+      curve.points.map((p) => `${p.freq},${p.gain.toFixed(3)}`).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a');
     a.href = url;
@@ -64,9 +65,7 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
         />
         dB
       </label>
-      <details className="curve-options">
-        <summary>Options ⌄</summary>
-        <div className="dropdown-menu">
+      <Popover label={`Options for ${curve.name}`}>
           {!curve.isTarget && (
             <>
               <label>
@@ -91,14 +90,13 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
               </label>
             </>
           )}
-          <button onClick={download}>Download curve CSV</button>
+          <button onClick={download}>Download original CSV</button>
           {!curve.isTarget && (
             <button className="danger-text" onClick={() => labStore.removeCurve(curve.id)}>
               Remove curve
             </button>
           )}
-        </div>
-      </details>
+      </Popover>
       {!curve.isTarget && onSendAutoPeq && (
         <button className="secondary-button curve-eq" onClick={() => onSendAutoPeq(curve)}>
           Create EQ ↗

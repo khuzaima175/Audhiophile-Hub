@@ -1,3 +1,5 @@
+import { resolveApiKey, MODEL_IDS } from './services/aiConfig';
+import { useDismissSurface } from './hooks/useDismissSurface';
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar, { WorkspacePage } from './components/Sidebar';
 import Header from './components/Header';
@@ -44,6 +46,7 @@ const App: React.FC = () => {
   const [storageError, setStorageError] = useState('');
   const graphState = useLabStore();
 
+  useDismissSurface(isMobileSidebarOpen, () => setIsMobileSidebarOpen(false), 5);
   // Global ⌘K / Ctrl+K listener
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -52,14 +55,7 @@ const App: React.FC = () => {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
       }
-      if (e.key === 'Escape') {
-        setIsMobileSidebarOpen(false);
-        document
-          .querySelectorAll(
-            '.session-menu[open], .composer-more[open], .curve-options[open], .lab-advanced[open]',
-          )
-          .forEach((element) => element.removeAttribute('open'));
-      }
+
     };
     const closeMenus = (event: MouseEvent) => {
       document
@@ -82,7 +78,7 @@ const App: React.FC = () => {
   const [isAdvancedAnalysis, setIsAdvancedAnalysis] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | undefined>(undefined);
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [activeModel, setActiveModel] = useState<string>('gemini-3.8-flash');
+  const [activeModel, setActiveModel] = useState<string>(MODEL_IDS[0]);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
 
   // Audio Recording State
@@ -584,11 +580,7 @@ const App: React.FC = () => {
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   const activeMessages = currentSession?.messages || [];
-  const hasApiKey = Boolean(
-    process.env.GEMINI_API_KEY ||
-    import.meta.env.VITE_GEMINI_API_KEY ||
-    (typeof window !== 'undefined' && localStorage.getItem('audiosage_api_key')),
-  );
+  const hasApiKey = Boolean(resolveApiKey().key);
 
   return (
     <div className="app-shell flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">

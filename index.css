@@ -1989,3 +1989,6 @@ summary::-webkit-details-marker {
     min-height: 120px;
   }
 }
+.portal-popover { position: fixed !important; z-index: 200; width: min(260px, calc(100vw - 16px)); overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px; box-shadow: 0 8px 32px #0009; }
+.portal-popover button, .portal-popover label { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px; }
+.notification-area { position: fixed; top: 78px; right: 16px; z-index: 210; max-width: min(360px, calc(100vw - 32px)); pointer-events: none; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; box-shadow: 0 6px 20px #0007; }

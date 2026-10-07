@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || '/usr/bin/chromium', headless: true });
   const page = await browser.newPage();
   await page.goto('http://127.0.0.1:3000');
   const result = await page.evaluate(async () => {

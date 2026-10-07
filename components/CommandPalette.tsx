@@ -1,3 +1,4 @@
+import { useDismissSurface } from '../hooks/useDismissSurface';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ChatSession, AudioProfile } from '../types';
 import { labStore } from '../store/labStore';
@@ -50,17 +51,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Escape key listener
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  useDismissSurface(isOpen, onClose, 30);
 
   useEffect(() => {
     if (isOpen) {

@@ -6,7 +6,7 @@ const path = require('node:path');
 
 (async () => {
   fs.mkdirSync('artifacts', { recursive: true });
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || '/usr/bin/chromium', headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(10000);
   const errors = [];

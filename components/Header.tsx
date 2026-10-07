@@ -1,4 +1,5 @@
 import React from 'react';
+import { AI_MODELS } from '../services/aiConfig';
 import { MenuIcon, SearchIcon, SettingsIcon } from './Icon';
 interface HeaderProps {
   activeModel: string;
@@ -55,9 +56,7 @@ export default function Header({
         <label className="model-select">
           <span className="sr-only">AI model</span>
           <select value={activeModel} onChange={(e) => onSelectModel(e.target.value)}>
-            <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
-            <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
-            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
+            {AI_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </label>
         <button className="icon-button" onClick={onOpenKnowledgeBase} aria-label="Open settings">

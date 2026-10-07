@@ -2,26 +2,9 @@ import { GoogleGenAI, Content, Part, Tool } from '@google/genai';
 import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-// Model fallback configuration — gemini-3.8-flash is the primary API identifier
-const MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
-
-type ModelName = (typeof MODELS)[number];
-
-const createClient = () => {
-  const localKey = typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key') : null;
-  const envKey =
-    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
-    (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const apiKey = localKey || envKey;
-
-  if (!apiKey) {
-    throw new Error(
-      'API Key is missing. Please add GEMINI_API_KEY in Settings or .env.local file.\n' +
-        'Get your free key from: https://aistudio.google.com/app/apikey',
-    );
-  }
-  return new GoogleGenAI({ apiKey });
-};
+import { MODEL_IDS, createAiClient, classifyAiError } from './aiConfig';
+const MODELS = MODEL_IDS;
+const createClient = createAiClient;
 
 // --- CRINACLE IEF PREFERENCE TARGET DATA (Verbatim 400-Point Reference) ---
 const CRINACLE_TARGET_DATA = `
@@ -554,7 +537,7 @@ export const generateStreamResponse = async (
 
       // Fallback Logic: Try next model on ANY error (Quota, Overloaded, Intervals, or Invalid Config)
       // This ensures if gemini-3.8-flash fails, we fall back to gemini-3.7-flash, then gemini-3.5-flash-lite
-      if (modelIndex < modelCandidates.length - 1) {
+      if (classifyAiError(error) === 'model' && modelIndex < modelCandidates.length - 1) {
         console.warn(`Falling back to ${modelCandidates[modelIndex + 1]}`);
         continue;
       }

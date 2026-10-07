@@ -1,3 +1,4 @@
+import { resolveApiKey, testAiConnection } from '../services/aiConfig';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AudioProfile, KnowledgeEntry, EQPreset, GearItem, DEFAULT_PROFILE } from '../types';
 import {
@@ -1229,39 +1230,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <button
                         type="button"
                         onClick={async () => {
-                          const key =
-                            (typeof window !== 'undefined'
-                              ? localStorage.getItem('audiosage_api_key')
-                              : '') || process.env.GEMINI_API_KEY;
-                          if (!key) {
-                            setImportMessage({
-                              type: 'error',
-                              text: 'Please enter a valid Gemini API Key first.',
-                            });
-                            return;
-                          }
-                          setImportMessage({
-                            type: 'success',
-                            text: 'Testing connection to Gemini 3.8 Flash…',
-                          });
-                          try {
-                            const testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
-                            const res = await fetch(testUrl);
-                            if (res.ok) {
-                              setImportMessage({
-                                type: 'success',
-                                text: 'API key accepted. Model availability depends on your account.',
-                              });
-                            } else {
-                              const errData = await res.json().catch(() => ({}));
-                              setImportMessage({
-                                type: 'error',
-                                text: `Connection Failed: ${errData.error?.message || 'Invalid API Key'}`,
-                              });
-                            }
-                          } catch (err: any) {
-                            setImportMessage({ type: 'error', text: `Network test error: ${err.message}` });
-                          }
+                          setImportMessage({ type: 'success', text: `${resolveApiKey().source}: testing streaming and grounding…` });
+                          const result = await testAiConnection();
+                          setImportMessage({ type: result.ok ? 'success' : 'error', text: result.message });
                         }}
                         className="px-3.5 py-2 rounded-xl bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass flex-shrink-0"
                       >
@@ -1270,7 +1241,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-mono text-audio-muted">
-                    <span>Keys are stored in browser localStorage or .env.local</span>
+                    <span>Personal key stays in this browser. Environment keys are local development only.</span>
                     <a
                       href="https://aistudio.google.com/app/apikey"
                       target="_blank"

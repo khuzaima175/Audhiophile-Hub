@@ -1,3 +1,4 @@
+import { useDismissSurface } from '../hooks/useDismissSurface';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useLabStore, labStore } from '../store/labStore';
 import { LabToolbar } from './lab/LabToolbar';
@@ -46,16 +47,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && labState.isOpen) {
-        labStore.closeLab();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [labState.isOpen]);
+  useDismissSurface(labState.isOpen, () => labStore.closeLab(), 10);
 
   // Audio Engine Hook for Audition Delta
   const [isBypassed, setIsBypassed] = useState(false);
@@ -88,6 +80,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     },
   });
 
+  useDismissSurface(showFeedbackGuard, dismissFeedbackGuard, 50);
   const svgRef = useRef<SVGSVGElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -828,7 +821,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         </div>
       )}
       {toastMessage && (
-        <div className="fixed bottom-4 right-4 z-50 px-3.5 py-2 bg-[#232d25] border border-audio-accent text-audio-text text-xs font-mono rounded-xl shadow-2xl animate-in slide-in-from-bottom-2">
+        <div className="notification-area" role="status" aria-live="polite">
           {toastMessage}
         </div>
       )}
