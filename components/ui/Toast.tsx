@@ -35,7 +35,7 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
 
   return (
     <div className="fixed top-5 right-5 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
-      <div className="panel px-4 py-3 rounded-xl border border-audio-border shadow-2xl flex items-start gap-3 max-w-sm bg-[#222b25]">
+      <div className="panel px-4 py-3 rounded-xl border border-audio-border shadow-2xl flex items-start gap-3 max-w-sm bg-audio-surface">
         <Led color={ledColor} pulse size="md" className="mt-1" />
         <div className="flex-1 min-w-0">
           <div className="text-xs font-semibold text-audio-text font-display tracking-tight">

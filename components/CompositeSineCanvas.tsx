@@ -97,7 +97,7 @@ export const CompositeSineCanvas: React.FC<CompositeSineCanvasProps> = ({
   }, [isStreaming]);
 
   return (
-    <div className={`relative rounded-xl border border-audio-border bg-[#151c17] overflow-hidden ${className}`}>
+    <div className={`relative rounded-xl border border-audio-border bg-audio-surface overflow-hidden ${className}`}>
       <canvas
         ref={canvasRef}
         width={240}

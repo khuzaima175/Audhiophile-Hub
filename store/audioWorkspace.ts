@@ -54,7 +54,8 @@ export const audioWorkspace = {
   subscribe: (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; },
   update(patch: Partial<AudioDraft>, history = true) {
     if (history && !gesture) { undo.push(clone(draft)); if (undo.length > 60) undo.shift(); redo.length = 0; }
-    draft = { ...draft, ...patch, dirty: patch.dirty ?? true };
+    const contentChanged = Object.keys(patch).some(k => !['workbenchState','selectedBand','editingPresetId','dirty'].includes(k));
+    draft = { ...draft, ...patch, dirty: patch.dirty ?? (contentChanged ? true : draft.dirty) };
     publish();
   },
   beginGesture() { if (!gesture) gesture = clone(draft); },

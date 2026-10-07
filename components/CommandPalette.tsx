@@ -235,10 +235,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label="Search workspace"
-        className="panel bg-[#1a211c] w-full max-w-2xl rounded-2xl border border-audio-border shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[75vh] animate-in zoom-in-95 duration-150"
+        className="panel bg-audio-surface w-full max-w-2xl rounded-2xl border border-audio-border shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[75vh] animate-in zoom-in-95 duration-150"
       >
         {/* Search Input Bar */}
-        <div className="p-3.5 border-b border-audio-border/70 flex items-center gap-3 bg-[#151a17]">
+        <div className="p-3.5 border-b border-audio-border/70 flex items-center gap-3 bg-audio-surface">
           <div className="text-audio-accent">
             <SearchIcon />
           </div>
@@ -320,7 +320,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-2.5 px-4 bg-[#0E0B08] border-t border-audio-border flex items-center justify-between text-[9px] font-mono text-audio-muted">
+        <div className="p-2.5 px-4 bg-audio-surface border-t border-audio-border flex items-center justify-between text-[9px] font-mono text-audio-muted">
           <div className="flex items-center gap-3">
             <span>↑↓ Navigate</span>
             <span>↵ Select</span>

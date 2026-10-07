@@ -1,3 +1,4 @@
+import { audioWorkspace, freshDraft } from '../store/audioWorkspace';
 import React from 'react';
 import { AudioProfile, ChatSession } from '../types';
 import { EqIcon, HeadphonesIcon, SearchIcon, WaveformIcon, PlusIcon } from './Icon';
@@ -120,18 +121,18 @@ export default function HomeConsole({
           {
             icon: <EqIcon />,
             tag: 'FINE-TUNE',
-            title: 'Make it sound like you',
+            title: 'Manual EQ',
             desc: 'Create, edit, and try an EQ preset for your headphones.',
-            action: 'Open equalizer',
-            click: () => onOpenKnowledgeBase('eq'),
+            action: 'Start manual EQ',
+            click: () => { if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return; audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING' }); onOpenKnowledgeBase('eq'); },
           },
           {
             icon: <WaveformIcon />,
             tag: 'UNDERSTAND',
-            title: 'See the bigger picture',
+            title: 'Measurement-based EQ',
             desc: 'Upload measurements and compare frequency response curves.',
-            action: 'Explore graph lab',
-            click: () => labStore.openLab(),
+            action: 'Import a measurement',
+            click: () => { audioWorkspace.update({ workbenchState: 'MEASUREMENT' }, false); onOpenKnowledgeBase('eq'); },
           },
         ].map((item) => (
           <button className="workflow-card" key={item.tag} onClick={item.click}>

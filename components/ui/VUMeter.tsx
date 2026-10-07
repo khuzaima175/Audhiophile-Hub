@@ -37,20 +37,20 @@ export const VUMeter: React.FC<VUMeterProps> = ({
 
   return (
     <div
-      className={`relative rounded-xl border border-audio-border bg-[#191f1b] p-2.5 shadow-panel overflow-hidden flex flex-col items-center ${className}`}
+      className={`relative rounded-xl border border-audio-border bg-audio-surface p-2.5 shadow-panel overflow-hidden flex flex-col items-center ${className}`}
       style={{
         backgroundImage: 'radial-gradient(ellipse at 50% 120%, rgba(198,147,79,0.18) 0%, rgba(20,16,13,0.95) 75%)',
       }}
     >
       {/* Screw dots in corners for authentic hardware aesthetic */}
-      <div className="absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-[#303833] border border-[#1b1e21] shadow-inner" />
-      <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#303833] border border-[#1b1e21] shadow-inner" />
+      <div className="absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-audio-surface border border-audio-border shadow-inner" />
+      <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-audio-surface border border-audio-border shadow-inner" />
 
       {/* Header labels */}
       <div className="w-full flex justify-between items-center px-1 text-[8px] font-mono text-audio-muted tracking-widest uppercase">
         <span className="text-[#b4e4bd]/80 font-bold">{label}</span>
         <span className="text-[7px] text-[#a1d8b1] flex items-center gap-1">
-          <span className="w-1 h-1 rounded-full bg-[#a1d8b1] animate-pulse" />
+          <span className="w-1 h-1 rounded-full bg-audio-surface animate-pulse" />
           -20dB → +3dB
         </span>
       </div>

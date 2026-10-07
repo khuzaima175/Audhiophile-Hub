@@ -193,7 +193,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
 
   return (
     <div
-      className={`panel p-4 md:p-5 rounded-2xl bg-[#171d19] border border-audio-border shadow-panel select-none ${className}`}
+      className={`panel p-4 md:p-5 rounded-2xl bg-audio-surface border border-audio-border shadow-panel select-none ${className}`}
     >
       {/* ── Header Bar ─────────────────────────────────────────────────── */}
       {activeCurves.some((c) => !c.isReference) && (
@@ -290,7 +290,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
       </div>
 
       {/* ── SVG Canvas ─────────────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden bg-[#111713] rounded-xl border border-audio-border/80">
+      <div className="relative w-full overflow-hidden bg-audio-surface rounded-xl border border-audio-border/80">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${viewport.width} ${viewport.height}`}

@@ -35,3 +35,9 @@ Core regression passes for policy and APO preamp round trips at 44.1/48/96 kHz. 
 Numbered graph handles synchronize with numeric edits and selected-band controls. Parametric frequency drag is logarithmic; gain applies only to bell/shelf types. Pass/notch controls avoid ignored gain. Graphic bands drag vertically at fixed frequencies. Pointer capture locks ownership and graph range for the whole gesture; cancel/Escape restores its start. Each drag is one capped Undo entry. Updates coalesce per animation frame and gesture persistence occurs on completion. Handles have 44 CSS-pixel hit areas, keyboard frequency/gain editing, and mobile selected-band controls. Measurements/targets remain protected. Add, Reset, Bypass, Undo, Redo are visible.
 
 TypeScript passes; browser interaction journeys are recorded with milestone 7.
+
+## Milestone 5
+
+Semantic near-black/graphite/gray/soft-white tokens drive Tailwind and CSS; the explicitly loaded Tailwind configuration is retained. Blue focus indicators and independent graph-series colors remain. Starting cards distinguish Research, Manual EQ and Measurement-based EQ; measurement guide permits direct access. Fader ticks/zero position use actual numeric ranges. Mobile primary controls have 44-pixel minimum heights and reduced motion is respected. View/selection changes no longer dirty audio parameters. Preference-to-draft action and per-answer requested/answering metadata are connected alongside the research integration in milestone 6.
+
+TypeScript passes. Browser smoke passed overview, research composer, profile persistence, gear operations, listening notes, EQ import/save/new-draft checks. Updated semantics required selector changes; complete run follows in milestone 7.

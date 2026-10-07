@@ -662,7 +662,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   };
 
   const inputClass =
-    'w-full bg-[#191f1b] border border-audio-border rounded-xl px-4 py-2.5 text-audio-text focus:outline-none focus:border-audio-accent/70 text-xs font-sans';
+    'w-full bg-audio-surface border border-audio-border rounded-xl px-4 py-2.5 text-audio-text focus:outline-none focus:border-audio-accent/70 text-xs font-sans';
   const labelClass = 'text-[10px] font-bold text-audio-accent uppercase tracking-widest font-mono pl-1';
 
   return (
@@ -788,7 +788,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         }}
       />
 
-      <details className="section-disclosure" open={!!measurement}>
+      <details className="section-disclosure" open={workbenchState === 'MEASUREMENT' || !!measurement}>
+        <ol className="measurement-guide"><li>Import numeric measurement data from your measurement rig.</li><li>Choose a compatible target and analysis smoothing.</li><li>Generate correction, edit filters, then preview and save.</li></ol>
         <summary>Auto EQ from a measurement</summary> {/* 2. MEASUREMENT UPLOAD DROPZONE DRAWER */}
         {(!measurement || workbenchState === 'MEASUREMENT') && (
           <div
@@ -805,10 +806,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             }}
             className={`p-3.5 rounded-2xl border transition-all ${
               isDraggingFile
-                ? 'border-audio-signal bg-[#203c2b] shadow-glow-teal'
+                ? 'border-audio-signal bg-audio-surface shadow-glow-teal'
                 : measurement
-                  ? 'border-audio-signal/40 bg-[#121915]'
-                  : 'border-dashed border-audio-border bg-[#100D0A]'
+                  ? 'border-audio-signal/40 bg-audio-surface'
+                  : 'border-dashed border-audio-border bg-audio-surface'
             }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -839,7 +840,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
               {/* Smoothing Chips & Filter Slider */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1 bg-[#222b25] p-1 rounded-xl border border-audio-border">
+                <div className="flex items-center gap-1 bg-audio-surface p-1 rounded-xl border border-audio-border">
                   <span className="text-[9px] font-mono text-audio-muted px-1.5">SMOOTH:</span>
                   {(['RAW', '1/6 OCT', '1/3 OCT'] as SmoothingType[]).map((sm) => (
                     <button
@@ -858,7 +859,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                 </div>
 
                 {measurement && (
-                  <div className="flex items-center gap-1.5 bg-[#222b25] px-3 py-1.5 rounded-xl border border-audio-border">
+                  <div className="flex items-center gap-1.5 bg-audio-surface px-3 py-1.5 rounded-xl border border-audio-border">
                     <span className="text-[9px] font-mono text-audio-muted">FILTERS:</span>
                     <input
                       type="range"
@@ -917,7 +918,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       </details>
       {/* 3. IMPORT AUTOEQ DRAWER */}
       {workbenchState === 'IMPORTING' && (
-        <div className="p-4 md:p-5 bg-[#171d19] rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3 space-y-3">
+        <div className="p-4 md:p-5 bg-audio-surface rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3 space-y-3">
           <div className="flex items-center justify-between">
             <Engraved size="xs" glow>
               PASTE AUTOEQ / EQUALIZER APO / WAVELET TEXT
@@ -960,7 +961,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
       {/* 6. ADDING / EDITING DRAWER (With Form-Level Save & Cancel) */}
       {workbenchState === 'ADDING' && (
-        <div className="p-4 md:p-5 bg-[#171d19] rounded-2xl border border-audio-accent/70 shadow-panel animate-in slide-in-from-top-3 space-y-4">
+        <div className="p-4 md:p-5 bg-audio-surface rounded-2xl border border-audio-accent/70 shadow-panel animate-in slide-in-from-top-3 space-y-4">
           <div className="flex items-center justify-between">
             <Engraved size="xs" glow>
               {editingPresetId ? 'Edit EQ preset' : 'Create a new EQ preset'}
@@ -1013,7 +1014,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
           </label>
           {/* A. GRAPHIC ISO SLIDERS */}
           {eqMode !== 'peq' && (
-            <div className="p-3.5 bg-[#1b211d] rounded-xl border border-audio-border overflow-x-auto scrollbar-thin">
+            <div className="p-3.5 bg-audio-surface rounded-xl border border-audio-border overflow-x-auto scrollbar-thin">
               <div
                 className="grid gap-2 text-center"
                 style={{
@@ -1046,7 +1047,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                         {gain > 0 ? `+${gain}` : gain}
                       </span>
 
-                      <div className="relative h-28 w-6 flex items-center justify-center bg-[#151c17] rounded-full border border-[#303833] shadow-inner py-1">
+                      <div className="relative h-28 w-6 flex items-center justify-center bg-audio-surface rounded-full border border-audio-border shadow-inner py-1">
                         <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-audio-accent/40" />
                         <input
                           aria-label={`Gain at ${freq} Hz`}
@@ -1083,7 +1084,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
           {/* B. PARAMETRIC PEQ FILTER ROWS */}
           {eqMode === 'peq' && (
-            <div className="space-y-2.5 p-3.5 bg-[#1b211d] rounded-xl border border-audio-border">
+            <div className="space-y-2.5 p-3.5 bg-audio-surface rounded-xl border border-audio-border">
               <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] font-mono text-audio-muted">
                   PARAMETRIC BIQUAD CASCADE ({peqFilters.length} FILTERS)
@@ -1100,7 +1101,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
               {peqFilters.map((filter, fIdx) => (
                 <div
                   key={filter.id}
-                  className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-[#151a17] border border-audio-border"
+                  className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-audio-surface border border-audio-border"
                 >
                   <span className="text-[10px] font-mono text-audio-accent font-bold w-6">#{fIdx + 1}</span>
                   <label className="flex items-center gap-1 text-xs !mb-0">
@@ -1118,7 +1119,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                     onChange={(e) =>
                       handleUpdatePeqFilter(filter.id, { type: e.target.value as PEQFilterType })
                     }
-                    className="bg-[#232b25] border border-audio-border text-audio-text rounded px-2 py-1 text-xs font-mono focus:outline-none"
+                    className="bg-audio-surface border border-audio-border text-audio-text rounded px-2 py-1 text-xs font-mono focus:outline-none"
                   >
                     <option value="PK">PK (Peak)</option>
                     <option value="LS">LS (Low Shelf)</option>
@@ -1142,7 +1143,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                           freq: Math.max(20, Math.min(20000, parseFloat(e.target.value) || 1000)),
                         })
                       }
-                      className="w-16 bg-[#232b25] border border-audio-border rounded px-1.5 py-1 text-xs font-mono text-audio-text"
+                      className="w-16 bg-audio-surface border border-audio-border rounded px-1.5 py-1 text-xs font-mono text-audio-text"
                     />
                     <span className="text-[9px] font-mono text-audio-muted">Hz</span>
                   </div>
@@ -1162,7 +1163,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                           gain: Math.max(-18, Math.min(18, parseFloat(e.target.value) || 0)),
                         })
                       }
-                      className="w-14 bg-[#232b25] border border-audio-border rounded px-1.5 py-1 text-xs font-mono text-audio-text"
+                      className="w-14 bg-audio-surface border border-audio-border rounded px-1.5 py-1 text-xs font-mono text-audio-text"
                     />
                     <span className="text-[9px] font-mono text-audio-muted">dB</span>
                   </div>
@@ -1181,7 +1182,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                           q: Math.max(0.1, Math.min(10, parseFloat(e.target.value) || 1.41)),
                         })
                       }
-                      className="w-14 bg-[#232b25] border border-audio-border rounded px-1.5 py-1 text-xs font-mono text-audio-text"
+                      className="w-14 bg-audio-surface border border-audio-border rounded px-1.5 py-1 text-xs font-mono text-audio-text"
                     />
                   </div>
 
@@ -1351,7 +1352,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         </div>
 
         {/* SVG Curve Canvas with CrinGraph Axis Craft & Auto-Ranging */}
-        <div className="relative w-full overflow-hidden bg-[#111713] rounded-xl border border-audio-border/80">
+        <div className="relative w-full overflow-hidden bg-audio-surface rounded-xl border border-audio-border/80">
           <svg
             ref={svgRef}
             viewBox={`0 0 ${workbenchViewport.width} ${workbenchViewport.height}`}
@@ -1594,7 +1595,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             )}
             {measurement && (
               <span className="flex items-center gap-1.5 text-[#edf0ec]">
-                <span className="w-2.5 h-[2px] bg-[#edf0ec]" /> Measured Raw IEM (Solid Cream)
+                <span className="w-2.5 h-[2px] bg-audio-surface" /> Measured Raw IEM (Solid Cream)
               </span>
             )}
             {autoPeqResult && (
@@ -1630,7 +1631,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             />
           </label>
           {/* 5. WEB AUDIO PREVIEW AUDITION & Capture browser audio TOOLBAR */}
-          <div className="p-3 bg-[#1b211d] rounded-xl border border-audio-border flex flex-wrap items-center justify-between gap-2.5">
+          <div className="p-3 bg-audio-surface rounded-xl border border-audio-border flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex flex-wrap items-center gap-2">
               <Engraved size="xs" glow className="mr-1">
                 Audio source
@@ -1643,7 +1644,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                 disabled={!tabSupported}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
                   isCapturing
-                    ? 'bg-[#2E1410] border-audio-warn text-audio-warn shadow-panel animate-pulse'
+                    ? 'bg-audio-surface border-audio-warn text-audio-warn shadow-panel animate-pulse'
                     : !tabSupported
                       ? 'bg-audio-surface border-audio-border text-audio-muted/40 cursor-not-allowed'
                       : 'bg-audio-surface border-audio-border text-audio-muted hover:text-audio-text hover:border-audio-accent/60'
@@ -1662,7 +1663,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
               {/* Telemetry Readout for Live Tab */}
               {isCapturing && (
-                <span className="px-2 py-1 rounded bg-[#100B09] border border-audio-warn/40 text-[9px] font-mono text-audio-warn font-bold">
+                <span className="px-2 py-1 rounded bg-audio-surface border border-audio-warn/40 text-[9px] font-mono text-audio-warn font-bold">
                   LIVE • LATENCY {tabTelemetry.latencyMs}ms
                 </span>
               )}
@@ -1743,8 +1744,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                 onClick={() => setIsBypassed(!isBypassed)}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
                   isBypassed
-                    ? 'bg-[#352925] border-audio-warn text-audio-warn'
-                    : 'bg-[#14231B] border-audio-signal text-audio-signal shadow-glow-teal'
+                    ? 'bg-audio-surface border-audio-warn text-audio-warn'
+                    : 'bg-audio-surface border-audio-signal text-audio-signal shadow-glow-teal'
                 }`}
                 title="A/B Bypass Switch: Instantly compare EQ curve against raw bypass audio"
               >
@@ -1768,7 +1769,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       {/* FEEDBACK SAFETY GUARD OVERLAY MODAL */}
       {showFeedbackGuard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in">
-          <div className="panel p-5 md:p-6 bg-[#1b211d] max-w-md w-full rounded-2xl border border-audio-warn shadow-2xl space-y-4">
+          <div className="panel p-5 md:p-6 bg-audio-surface max-w-md w-full rounded-2xl border border-audio-warn shadow-2xl space-y-4">
             <div className="flex items-center gap-2.5">
               <Led color="amber" size="md" pulse />
               <Engraved size="xs" glow className="text-audio-warn">
@@ -1778,7 +1779,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             <p className="text-xs text-audio-text leading-relaxed">
               Select the specific browser tab making sound (e.g., <strong>YouTube, Spotify Web</strong>).
             </p>
-            <div className="p-3 bg-[#24130D] rounded-xl border border-audio-warn/40 text-[11px] font-mono text-audio-warn">
+            <div className="p-3 bg-audio-surface rounded-xl border border-audio-warn/40 text-[11px] font-mono text-audio-warn">
               ⚠️ <strong>Never select this AudioSage tab</strong> or your Entire Screen — doing so creates an
               acoustic feedback loop.
             </div>
@@ -1814,7 +1815,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             presets.map((preset) => (
               <div
                 key={preset.id}
-                className="p-4 bg-[#1a211c] rounded-xl border border-audio-border hover:border-audio-accent/50 transition-all flex flex-col justify-between group shadow-panel"
+                className="p-4 bg-audio-surface rounded-xl border border-audio-border hover:border-audio-accent/50 transition-all flex flex-col justify-between group shadow-panel"
               >
                 <div>
                   <div className="flex justify-between items-start mb-2">
@@ -1830,7 +1831,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                   </div>
 
                   {/* Sparkline Visualizer Bar */}
-                  <div className="h-8 bg-[#0C0907] rounded-lg border border-audio-border/60 p-1 flex items-end gap-1 mb-3">
+                  <div className="h-8 bg-audio-surface rounded-lg border border-audio-border/60 p-1 flex items-end gap-1 mb-3">
                     {(preset.graphicGains && preset.graphicGains.length > 0
                       ? preset.graphicGains
                       : [0, 1.2, 0.5, 0, -0.5, 1.0, 2.5, 1.8, -2.0, 0.5]
@@ -1889,7 +1890,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
               </div>
             ))
           ) : (
-            <div className="col-span-2 text-center py-12 border border-dashed border-audio-border rounded-2xl bg-[#171d19] flex flex-col items-center justify-center p-6">
+            <div className="col-span-2 text-center py-12 border border-dashed border-audio-border rounded-2xl bg-audio-surface flex flex-col items-center justify-center p-6">
               <div className="w-12 h-12 rounded-2xl bg-audio-surface border border-audio-border flex items-center justify-center text-audio-accent mb-3 shadow-panel">
                 <EqIcon />
               </div>

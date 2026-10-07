@@ -4,21 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Warm, matte hi-fi chassis palette — replaces the old flat black/gold theme.
-        // Same token names as before so untouched files keep working.
-        'audio-base': '#101214',       // matte chassis black (warm, not pure #000)
-        'audio-surface': '#1b1e21',    // panel surface
-        'audio-highlight': '#252c28',  // hover / active panel
-        'audio-border': '#303833',     // hairline separators
-        'audio-accent': '#b4e4bd',     // brushed brass — primary accent
-        'audio-accent-bright': '#c9f3d0', // hover / active brass glow
-        'audio-accent-soft': '#71947c',
-        'audio-text': '#edf0ec',       // VU-meter cream — primary text
-        'audio-muted': '#9ca5a6',      // warm muted gray-brown
-        'audio-signal': '#83bfa5',     // phosphor teal — "verified / live" signal color
-        'audio-led': '#a1d8b1',        // healthy phosphor LED
-        'audio-warn': '#e6a18b',       // analog needle red-orange — peaks / destructive
-        'audio-led-red': '#eb9689',     // fault / error LED
+        'audio-base': 'var(--base)',
+        'audio-surface': 'var(--surface)',
+        'audio-highlight': 'var(--highlight)',
+        'audio-border': 'var(--border)',
+        'audio-accent': 'var(--accent)',
+        'audio-accent-bright': 'var(--text)',
+        'audio-accent-soft': 'var(--muted)',
+        'audio-text': 'var(--text)',
+        'audio-muted': 'var(--muted)',
+        'audio-signal': 'var(--signal)',
+        'audio-led': 'var(--signal)',
+        'audio-warn': 'var(--warn)',
+        'audio-led-red': '#eb9689',
       },
       fontFamily: {
         display: ['Manrope', 'sans-serif'],

@@ -3,13 +3,17 @@
 @config './tailwind.config.js';
 :root {
   color-scheme: dark;
-  --base: #101214;
-  --sidebar: #151719;
-  --surface: #1b1e21;
-  --border: #2b3033;
-  --text: #edf0ec;
-  --muted: #9ca5a6;
-  --accent: #b4e4bd;
+  --base: #0b0c0e;
+  --sidebar: #111214;
+  --surface: #191b1e;
+  --border: #33363b;
+  --text: #eceef0;
+  --muted: #a7abb2;
+  --accent: #eceef0;
+  --focus: #79aaff;
+  --highlight: #24272b;
+  --signal: #aabed8;
+  --warn: #e6a18b;
 }
 * {
   box-sizing: border-box;
@@ -49,7 +53,7 @@ button:disabled {
   opacity: 0.45;
 }
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
 input,
@@ -148,7 +152,7 @@ summary::-webkit-details-marker {
   border: 1px solid transparent;
 }
 .primary-button:hover {
-  background: #c9f3d0;
+  background: var(--text);
   transform: translateY(-1px);
 }
 .secondary-button {
@@ -1156,7 +1160,7 @@ summary::-webkit-details-marker {
   border: 1px solid #303b35;
   border-radius: 10px;
   padding: 16px 18px;
-  background: #191f1b;
+  background: var(--surface);
 }
 .section-disclosure > summary {
   display: flex;
@@ -1274,7 +1278,7 @@ summary::-webkit-details-marker {
   width: 300px;
   flex-shrink: 0;
   padding: 18px;
-  background: #171d19;
+  background: var(--surface);
   border-right: 1px solid #303b33;
   overflow: auto;
 }
@@ -1865,7 +1869,7 @@ summary::-webkit-details-marker {
   pointer-events: none;
 }
 .curve-visibility:focus-within {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 4px;
   border-radius: 4px;
 }
@@ -2001,3 +2005,6 @@ summary::-webkit-details-marker {
 .eq-handle:focus-visible > circle:nth-child(2) { stroke: #fff; stroke-width: 4; }
 .selected-band-sheet { border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
 @media (max-width: 767px) { .audio-view-tabs button { min-height: 44px; } .selected-band-sheet[open] { position: sticky; bottom: 0; z-index: 2; background: var(--surface); } }
+.measurement-guide { padding: 12px 24px; color: var(--muted); font-size: 13px; }
+@media (max-width: 767px) { .primary-button, .secondary-button, .icon-button, .lab-toolbar button { min-height: 44px; } .portal-popover { font-size: 14px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: 0s !important; scroll-behavior: auto !important; } }

@@ -473,7 +473,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleFileDrop}
-            className="p-3 rounded-xl border border-dashed border-audio-border/70 bg-[#151c17] text-center hover:border-audio-accent/60 transition-colors"
+            className="p-3 rounded-xl border border-dashed border-audio-border/70 bg-audio-surface text-center hover:border-audio-accent/60 transition-colors"
           >
             <p className="text-[10px] font-mono text-audio-muted">
               Drop squig.link / REW measurement CSV here
@@ -500,7 +500,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                   <select
                     value={labState.auditionAId || ''}
                     onChange={(e) => labStore.setAuditionPair(e.target.value, labState.auditionBId)}
-                    className="w-full bg-[#161d18] border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
+                    className="w-full bg-audio-surface border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
                   >
                     <option value="">Select Curve A</option>
                     {labState.curves.map((c) => (
@@ -516,7 +516,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                   <select
                     value={labState.auditionBId || ''}
                     onChange={(e) => labStore.setAuditionPair(labState.auditionAId, e.target.value)}
-                    className="w-full bg-[#161d18] border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
+                    className="w-full bg-audio-surface border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
                   >
                     <option value="">Target / Baseline</option>
                     {labState.curves.map((c) => (
@@ -537,7 +537,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
               </button>
 
               {auditionResult && (
-                <div className="px-2 py-1 bg-[#151c17] rounded border border-audio-signal/40 text-[9px] font-mono text-audio-signal flex items-center justify-between">
+                <div className="px-2 py-1 bg-audio-surface rounded border border-audio-signal/40 text-[9px] font-mono text-audio-signal flex items-center justify-between">
                   <span>RMS: {auditionResult.rmsResidual} dB</span>
                   <span>{auditionResult.filterCount} FILTERS ACTIVE</span>
                 </div>
@@ -602,9 +602,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
         </aside>
 
         {/* CENTER & BOTTOM: SVG Canvas & Per-Curve Rows */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[#101512] p-3 md:p-5 gap-3">
+        <main className="flex-1 flex flex-col overflow-hidden bg-audio-surface p-3 md:p-5 gap-3">
           {/* 3. MEASUREMENT-GRADE SVG CANVAS */}
-          <div className="relative flex-1 min-h-[300px] w-full bg-[#151c17] rounded-2xl border border-audio-border/90 shadow-panel overflow-hidden flex flex-col justify-center">
+          <div className="relative flex-1 min-h-[300px] w-full bg-audio-surface rounded-2xl border border-audio-border/90 shadow-panel overflow-hidden flex flex-col justify-center">
             <svg
               ref={svgRef}
               viewBox={`0 0 ${viewport.width} ${viewport.height}`}

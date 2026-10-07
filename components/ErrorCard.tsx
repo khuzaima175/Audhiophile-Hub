@@ -29,7 +29,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
 
   return (
     <div className="w-full my-3 animate-in fade-in duration-200">
-      <div className="panel border-l-4 border-l-[#eb9689] border-audio-border bg-[#160E0B] p-4 md:p-5 rounded-xl shadow-panel">
+      <div className="panel border-l-4 border-l-[#eb9689] border-audio-border bg-audio-surface p-4 md:p-5 rounded-xl shadow-panel">
         {/* Header with Red LED */}
         <div className="flex items-center justify-between mb-3 border-b border-audio-border/60 pb-2.5">
           <div className="flex items-center gap-2">
@@ -38,7 +38,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
               {isApiKeyIssue ? 'Check your AI connection' : 'Something went wrong'}
             </Engraved>
           </div>
-          <span className="font-mono text-[9px] text-[#eb9689]/80 uppercase bg-[#eb9689]/10 px-2 py-0.5 rounded border border-[#eb9689]/30 font-bold">
+          <span className="font-mono text-[9px] text-[#eb9689]/80 uppercase bg-audio-surface/10 px-2 py-0.5 rounded border border-audio-border/30 font-bold">
             REQUEST FAILED
           </span>
         </div>
