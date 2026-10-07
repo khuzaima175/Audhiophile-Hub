@@ -12,6 +12,9 @@ export interface Message {
   image?: string; // Base64 Data URL
   audio?: string; // Base64 Audio URL
   groundingSources?: GroundingSource[];
+  requestedModel?: string;
+  answeringModel?: string;
+  contextSupplied?: { id: string; title: string; kind: string; revision: string; characters: number }[];
   isThinking?: boolean;
 }
 
@@ -21,11 +24,16 @@ export interface ChatSession {
   messages: Message[];
   createdAt: number;
   updatedAt: number;
+  retrievalEnabled?: boolean;
   isSummarized?: boolean; // Track if this has been added to knowledge base
   isStarred?: boolean; // Pin important sessions to top
 }
 
 export interface KnowledgeEntry {
+  enabled?: boolean;
+  pinned?: boolean;
+  provenance?: 'generated-summary' | 'user-note';
+  sourceRevision?: string;
   id: string;
   sourceSessionId: string;
   topic: string;

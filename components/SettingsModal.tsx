@@ -1,3 +1,6 @@
+import { getRetrievalSettings, sourceRevision } from '../utils/localRetrieval';
+import { ChatSession } from '../types';
+import { audioWorkspace, freshDraft } from '../store/audioWorkspace';
 import { resolveApiKey, testAiConnection } from '../services/aiConfig';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AudioProfile, KnowledgeEntry, EQPreset, GearItem, DEFAULT_PROFILE } from '../types';
@@ -40,6 +43,9 @@ interface SettingsModalProps {
   onClose: () => void;
   profile: AudioProfile;
   knowledgeBase: KnowledgeEntry[];
+  onKnowledgeChange?: (notes: KnowledgeEntry[]) => void;
+  sessions?: ChatSession[];
+  onSessionsChange?: (sessions: ChatSession[]) => void;
   onSave: (profile: AudioProfile) => void;
   onRestore?: (data: {
     profile?: AudioProfile;
@@ -104,6 +110,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   knowledgeBase = [],
   onSave,
   onRestore,
+  onKnowledgeChange,
+  sessions = [],
+  onSessionsChange,
   onSummarizeHistory,
   isSummarizing,
   initialTab = 'profile',
@@ -121,6 +130,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [apoTestStatus, setApoTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
   // Fader state for sound signature synthesis
+  const [retrievalSettings, setRetrievalSettings] = useState(getRetrievalSettings);
   const [bassGain, setBassGain] = useState(profile?.faderState?.bassGain ?? 0);
   const [sibilanceGain, setSibilanceGain] = useState(profile?.faderState?.sibilanceGain ?? -2);
   const [airGain, setAirGain] = useState(profile?.faderState?.airGain ?? 1);
@@ -325,10 +335,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             .map((c) => c.trim()),
         );
         nodes.push(
-          <div key={key} className="my-3 overflow-x-auto rounded-xl border border-audio-border bg-[#0E0B09]">
+          <div key={key} className="my-3 overflow-x-auto rounded-xl border border-audio-border bg-audio-surface">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-audio-border bg-[#222b25]">
+                <tr className="border-b border-audio-border bg-audio-surface">
                   {headers.map((h, i) => (
                     <th
                       key={i}
@@ -544,7 +554,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const inputClass =
-    'w-full bg-[#191f1b] border border-audio-border rounded-xl px-4 py-3 text-audio-text focus:outline-none focus:border-audio-accent/70 focus:ring-1 focus:ring-audio-accent/30 transition-all placeholder-audio-muted/60 text-xs md:text-sm font-sans';
+    'w-full bg-audio-surface border border-audio-border rounded-xl px-4 py-3 text-audio-text focus:outline-none focus:border-audio-accent/70 focus:ring-1 focus:ring-audio-accent/30 transition-all placeholder-audio-muted/60 text-xs md:text-sm font-sans';
   const labelClass = 'text-[10px] font-bold text-audio-accent uppercase tracking-widest font-mono pl-1';
 
   return (
@@ -683,20 +693,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {/* Right Column: Live Fader Controls & System Prompt Greeting */}
                 <div className="md:col-span-5 space-y-4">
-                  <div className="p-3.5 bg-[#171d19] rounded-xl border border-audio-border">
+                  <div className="p-3.5 bg-audio-surface rounded-xl border border-audio-border">
                     <div className="flex items-center justify-between mb-2">
                       <Engraved size="xs" glow>
-                        Fine-tune your preferences
+                        Preference controls
                       </Engraved>
                       <button
                         type="button"
                         onClick={handleApplyFadersToPrefs}
                         className="text-[9px] font-mono text-audio-accent hover:underline"
                       >
-                        Apply to Rules
+                        Save preferences
                       </button>
                     </div>
 
+                    <p className="text-xs text-audio-muted mb-3">These sliders describe your preferences. Create an EQ draft to change audio.</p>
+                    <button className="secondary-button" onClick={() => { if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return; audioWorkspace.replace({ ...freshDraft(), presetName: 'Preference EQ', eqMode: 'peq', dirty: true, workbenchState: 'ADDING', peqFilters: [{ id: 'pref-bass', type: 'LS', freq: 100, gain: bassGain, q: .71, enabled: true }, { id: 'pref-treble', type: 'PK', freq: 8000, gain: sibilanceGain, q: 2, enabled: true }, { id: 'pref-air', type: 'HS', freq: 10000, gain: airGain, q: .71, enabled: true }] }); setActiveTab('eq'); }}>Create EQ draft</button>
                     <div className="space-y-3">
                       <Fader
                         label="Sub-Bass Shelf (100Hz)"
@@ -729,7 +741,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   {/* System Prompt Preview Card */}
-                  <div className="p-3.5 bg-[#171d19] rounded-xl border border-audio-border text-left">
+                  <div className="p-3.5 bg-audio-surface rounded-xl border border-audio-border text-left">
                     <Engraved size="xs" className="mb-1.5 block">
                       Your preference preview
                     </Engraved>
@@ -808,7 +820,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-5 max-w-4xl mx-auto">
               {/* STATE A: EMPTY STATE (gearCount === 0 && !isAddingGear) */}
               {gearCount === 0 && !isAddingGear && (
-                <div className="text-center py-16 px-4 border border-dashed border-audio-border rounded-2xl bg-[#171d19] flex flex-col items-center justify-center">
+                <div className="text-center py-16 px-4 border border-dashed border-audio-border rounded-2xl bg-audio-surface flex flex-col items-center justify-center">
                   <div className="w-12 h-12 rounded-2xl bg-audio-surface border border-audio-border flex items-center justify-center text-audio-accent mb-3 shadow-panel">
                     <HeadphonesIcon />
                   </div>
@@ -887,7 +899,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* BATTLING STATE COACH BANNER */}
               {battleMode && (
-                <div className="p-3 rounded-xl bg-[#21150F] border border-audio-warn/50 flex flex-wrap items-center justify-between gap-2 animate-in fade-in">
+                <div className="p-3 rounded-xl bg-audio-surface border border-audio-warn/50 flex flex-wrap items-center justify-between gap-2 animate-in fade-in">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-audio-warn animate-pulse" />
                     <span className="text-xs font-mono text-audio-warn font-semibold">
@@ -913,7 +925,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* STATE C: ADDING FORM DRAWER (Replaces native dropdowns with interactive chips & has single form-level commit) */}
               {isAddingGear && (
-                <div className="p-4 md:p-5 bg-[#171d19] rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3">
+                <div className="p-4 md:p-5 bg-audio-surface rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3">
                   <div className="flex items-center justify-between mb-4">
                     <Engraved size="xs" glow>
                       Add gear to your collection
@@ -1089,8 +1101,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             battleMode ? 'cursor-pointer' : ''
                           } ${
                             isSelected
-                              ? 'border-audio-accent bg-[#1E1712] shadow-glow-brass'
-                              : 'border-audio-border bg-[#1a211c] hover:border-audio-accent/50'
+                              ? 'border-audio-accent bg-audio-surface shadow-glow-brass'
+                              : 'border-audio-border bg-audio-surface hover:border-audio-accent/50'
                           }`}
                         >
                           {/* Battle mode contender ring */}
@@ -1162,7 +1174,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Battle Shootout Modal Result */}
               {showComparison && (
-                <div className="mt-4 p-4 rounded-xl border border-audio-accent/50 bg-[#171d19] animate-in fade-in">
+                <div className="mt-4 p-4 rounded-xl border border-audio-accent/50 bg-audio-surface animate-in fade-in">
                   <div className="flex justify-between items-center mb-3">
                     <Engraved size="xs" glow>
                       AI BATTLE SHOOTOUT TELEMETRY
@@ -1208,7 +1220,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span className="text-[10px] font-mono text-audio-signal">GEMINI API</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-audio-border bg-[#171d19] space-y-3">
+                <div className="p-3.5 rounded-xl border border-audio-border bg-audio-surface space-y-3">
                   <div>
                     <label className={labelClass} htmlFor="gemini-key">
                       Gemini API key
@@ -1272,7 +1284,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-audio-border bg-[#171d19] space-y-3">
+                <div className="p-3.5 rounded-xl border border-audio-border bg-audio-surface space-y-3">
                   <div>
                     <label className={labelClass}>Equalizer APO config.txt Path (Windows)</label>
                     <div className="flex gap-2 mt-1">
@@ -1346,7 +1358,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }}
                         className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
                           apoBridgeEnabled
-                            ? 'bg-[#203c2b] border-audio-signal text-audio-signal shadow-glow-teal'
+                            ? 'bg-audio-surface border-audio-signal text-audio-signal shadow-glow-teal'
                             : 'bg-audio-surface border-audio-border text-audio-muted hover:text-audio-text'
                         }`}
                       >
@@ -1375,7 +1387,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={handleExportData}
-                    className="p-2.5 rounded-xl border border-audio-border bg-[#191f1b] text-xs font-mono text-audio-muted hover:text-audio-text hover:border-audio-accent/50 flex items-center justify-center gap-2"
+                    className="p-2.5 rounded-xl border border-audio-border bg-audio-surface text-xs font-mono text-audio-muted hover:text-audio-text hover:border-audio-accent/50 flex items-center justify-center gap-2"
                   >
                     <SaveIcon />
                     <span>Export JSON Backup</span>
@@ -1383,7 +1395,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => importFileRef.current?.click()}
-                    className="p-2.5 rounded-xl border border-audio-border bg-[#191f1b] text-xs font-mono text-audio-muted hover:text-audio-accent hover:border-audio-accent/50 flex items-center justify-center gap-2"
+                    className="p-2.5 rounded-xl border border-audio-border bg-audio-surface text-xs font-mono text-audio-muted hover:text-audio-accent hover:border-audio-accent/50 flex items-center justify-center gap-2"
                   >
                     <LinkIcon />
                     <span>Import JSON Backup</span>
@@ -1398,7 +1410,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowClearConfirm(true)}
-                    className="p-2.5 rounded-xl border border-audio-warn/30 bg-[#21120D] text-xs font-mono text-audio-warn hover:bg-audio-warn/20 flex items-center justify-center gap-2"
+                    className="p-2.5 rounded-xl border border-audio-warn/30 bg-audio-surface text-xs font-mono text-audio-warn hover:bg-audio-warn/20 flex items-center justify-center gap-2"
                   >
                     <TrashIcon />
                     <span>Clear All Data</span>
@@ -1418,7 +1430,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
 
                 {showClearConfirm && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-[#25120D] border border-audio-warn/50">
+                  <div className="mt-3 p-3.5 rounded-xl bg-audio-surface border border-audio-warn/50">
                     <p className="text-xs text-audio-warn mb-2.5">
                       Are you sure? This will delete all chats, gear, and profiles permanently.
                     </p>
@@ -1475,7 +1487,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {formData.savedMemories?.map((memory, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 rounded-xl border border-audio-border bg-[#191f1b] group hover:border-audio-accent/50 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-xl border border-audio-border bg-audio-surface group hover:border-audio-accent/50 transition-colors"
                     >
                       <div className="flex items-center gap-2.5">
                         <span className="text-[9px] font-mono text-audio-accent font-bold">#{index + 1}</span>
@@ -1492,7 +1504,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   ))}
                 </div>
               </section>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 rounded-xl border border-audio-border bg-[#171d19]">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 rounded-xl border border-audio-border bg-audio-surface">
                 <div>
                   <h4 className="font-display font-semibold text-xs text-audio-text">Research summaries</h4>
                   <p className="text-[11px] text-audio-muted mt-0.5">
@@ -1528,6 +1540,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className={inputClass}
               />
 
+              <div className="audio-policy-controls">
+                <label><input type="checkbox" checked={retrievalSettings.olderConversations} onChange={e => { const next = { ...retrievalSettings, olderConversations: e.target.checked }; try { localStorage.setItem('audiosage_retrieval_v1', JSON.stringify(next)); setRetrievalSettings(next); } catch { setImportMessage({ type: 'error', text: 'Retrieval settings could not be saved.' }); } }} />Include older conversations</label>
+                <label>Context budget (characters)<input type="number" min="0" max="20000" value={retrievalSettings.budgetCharacters} onChange={e => { const next = { ...retrievalSettings, budgetCharacters: Math.max(0,Math.min(20000,Number(e.target.value)||0)) }; try { localStorage.setItem('audiosage_retrieval_v1', JSON.stringify(next)); setRetrievalSettings(next); } catch { setImportMessage({ type: 'error', text: 'Retrieval settings could not be saved.' }); } }} /></label>
+                <p>Generated summaries are source data, not verified technical claims. Stale summaries are excluded until regenerated. Current conversation history is supplied separately.</p>
+                <button className="secondary-button" onClick={() => onKnowledgeChange?.([...knowledgeBase, { id: uuidv4(), sourceSessionId: '', topic: 'User note', summary: 'Edit this note', keyFacts: [], timestamp: Date.now(), provenance: 'user-note', enabled: true }])}>Add note</button>
+              </div>
+              <details className="section-disclosure"><summary>Conversation retrieval sources</summary>{sessions.map(s => <label className="flex gap-2 p-2" key={s.id}><input type="checkbox" checked={s.retrievalEnabled !== false} onChange={e => onSessionsChange?.(sessions.map(c => c.id === s.id ? { ...c, retrievalEnabled: e.target.checked } : c))} />{s.title}</label>)}</details>
               {/* Knowledge Entry List */}
               <div className="space-y-3">
                 {knowledgeBase && knowledgeBase.length > 0 ? (
@@ -1539,7 +1558,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         entry.summary.toLowerCase().includes(kbSearch.toLowerCase()),
                     )
                     .map((entry) => (
-                      <div key={entry.id} className="p-4 bg-[#1a211c] rounded-xl border border-audio-border">
+                      <div key={entry.id} className="p-4 bg-audio-surface rounded-xl border border-audio-border">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex items-center gap-2">
                             <Led color="teal" size="sm" />
@@ -1551,7 +1570,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {new Date(entry.timestamp).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="text-xs text-audio-muted leading-relaxed mb-2">{entry.summary}</p>
+                        <p className="text-xs text-audio-muted">{entry.provenance === 'user-note' ? 'User note' : 'AI-generated summary'} · {entry.provenance === 'user-note' || entry.sourceRevision === sourceRevision(sessions.find(s => s.id === entry.sourceSessionId) || { messages: [] } as ChatSession) ? 'Current' : 'Stale / unknown coverage; excluded'}</p>
+                        <textarea aria-label={`Edit ${entry.topic}`} className={inputClass} value={entry.summary} onChange={e => onKnowledgeChange?.(knowledgeBase.map(n => n.id === entry.id ? { ...n, summary: e.target.value, timestamp: Date.now() } : n))} />
+                        <div className="audio-view-tabs">
+                          <label><input type="checkbox" checked={entry.enabled !== false} onChange={e => onKnowledgeChange?.(knowledgeBase.map(n => n.id === entry.id ? { ...n, enabled: e.target.checked } : n))} />Enabled</label>
+                          <button className="secondary-button" onClick={() => onKnowledgeChange?.(knowledgeBase.map(n => n.id === entry.id ? { ...n, pinned: !n.pinned } : n))}>{entry.pinned ? 'Unpin' : 'Pin'}</button>
+                          <button className="secondary-button" onClick={() => onKnowledgeChange?.(knowledgeBase.filter(n => n.id !== entry.id))}>Delete note</button>
+                        </div>
                         {entry.keyFacts && entry.keyFacts.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-audio-border/50">
                             {entry.keyFacts.map((fact, fIdx) => (
@@ -1559,7 +1584,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 key={fIdx}
                                 className="text-[9px] font-mono px-2 py-0.5 rounded bg-audio-surface border border-audio-border text-audio-signal"
                               >
-                                ✓ {fact}
+                                {fact}
                               </span>
                             ))}
                           </div>
@@ -1567,7 +1592,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     ))
                 ) : (
-                  <div className="text-center py-10 border border-dashed border-audio-border rounded-xl bg-[#171d19]">
+                  <div className="text-center py-10 border border-dashed border-audio-border rounded-xl bg-audio-surface">
                     <div className="flex justify-center mb-2">
                       <BrainIcon />
                     </div>
@@ -1599,7 +1624,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }}
               className="px-3.5 py-1.5 rounded-lg border border-audio-border text-xs font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface transition-colors"
             >
-              Close
+              {embedded ? 'Back to overview' : 'Close'}
             </button>
             {hasUnsavedChanges && (
               <button

@@ -12,7 +12,8 @@
     "test:dsp": "node tests/dsp-browser.cjs",
     "test:apo": "node tests/apo.cjs",
     "test:mobile": "node tests/mobile.cjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:retrieval": "node tests/retrieval.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",

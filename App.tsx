@@ -1,3 +1,4 @@
+import { sourceRevision } from './utils/localRetrieval';
 import { resolveApiKey, MODEL_IDS } from './services/aiConfig';
 import { useDismissSurface } from './hooks/useDismissSurface';
 import React, { useState, useEffect, useRef } from 'react';
@@ -226,7 +227,7 @@ const App: React.FC = () => {
 
     for (let i = 0; i < updatedSessions.length; i++) {
       const session = updatedSessions[i];
-      if (session.messages.length >= 2 && !session.isSummarized) {
+      if (session.messages.length >= 2 && !knowledgeBase.some(n => n.sourceSessionId === session.id && n.sourceRevision === sourceRevision(session))) {
         try {
           const entry = await generateSessionSummary(session);
           newEntries.push(entry);
@@ -238,7 +239,7 @@ const App: React.FC = () => {
     }
 
     if (newEntries.length > 0) {
-      setKnowledgeBase((prev) => [...newEntries, ...prev]);
+      setKnowledgeBase((prev) => [...newEntries, ...prev.filter(n => !newEntries.some(f => f.sourceSessionId === n.sourceSessionId))]);
       setSessions(updatedSessions);
     }
     setIsSummarizing(false);
@@ -472,6 +473,7 @@ const App: React.FC = () => {
       text: '',
       timestamp: Date.now(),
       isThinking: true,
+      requestedModel: activeModel,
     };
 
     setSessions((prev) =>
@@ -530,9 +532,10 @@ const App: React.FC = () => {
           collectedSources.push(...sources);
         },
         (model) => {
-          setActiveModel(model);
+          setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(m => m.id === botMessageId ? { ...m, answeringModel: model } : m) } : s));
         },
         activeModel,
+        metadata => setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(m => m.id === botMessageId ? { ...m, contextSupplied: metadata } : m) } : s)),
       );
 
       if (collectedSources.length > 0) {
@@ -695,6 +698,9 @@ const App: React.FC = () => {
                 profile={profile}
                 knowledgeBase={knowledgeBase}
                 onSave={setProfile}
+                onKnowledgeChange={setKnowledgeBase}
+                sessions={sessions}
+                onSessionsChange={setSessions}
                 onRestore={restoreBackup}
                 onSummarizeHistory={handleSummarizeHistory}
                 isSummarizing={isSummarizing}

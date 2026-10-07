@@ -212,7 +212,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           <span className="flex-1 h-px bg-audio-border" />
         </div>
         <div
-          className="w-full overflow-x-auto rounded-xl border border-audio-border shadow-panel bg-[#1a211c] scrollbar-thin"
+          className="w-full overflow-x-auto rounded-xl border border-audio-border shadow-panel bg-audio-surface scrollbar-thin"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}
         >
           <table
@@ -233,7 +233,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {headers.map((h, i) => (
                   <th
                     key={i}
-                    className="bg-[#222b25] text-audio-accent font-semibold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3.5 py-2.5 text-[11px] font-mono"
+                    className="bg-audio-surface text-audio-accent font-semibold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3.5 py-2.5 text-[11px] font-mono"
                     style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                   >
                     {h || `Product ${i + 1}`}
@@ -248,7 +248,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <tr>
                       <td
                         colSpan={colCount}
-                        className="px-3.5 pt-2.5 pb-0.5 text-[9.5px] font-bold uppercase tracking-widest text-audio-accent/90 border-t border-audio-border/60 font-mono bg-[#151a17]"
+                        className="px-3.5 pt-2.5 pb-0.5 text-[9.5px] font-bold uppercase tracking-widest text-audio-accent/90 border-t border-audio-border/60 font-mono bg-audio-surface"
                         style={{ letterSpacing: '0.12em' }}
                       >
                         {rowLabels[rI]}
@@ -302,7 +302,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         return (
           <pre
             key={blockIdx}
-            className="bg-[#0B0907] p-3.5 rounded-xl overflow-x-auto text-xs font-mono my-2.5 border border-audio-border text-audio-text/90 shadow-inner"
+            className="bg-audio-surface p-3.5 rounded-xl overflow-x-auto text-xs font-mono my-2.5 border border-audio-border text-audio-text/90 shadow-inner"
           >
             {block.replace(/```\w*\n?|```$/g, '')}
           </pre>
@@ -357,7 +357,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   if (isUser) {
     return (
       <div className="flex w-full max-w-full mb-4 justify-end">
-        <div className="w-full max-w-[90%] sm:max-w-[80%] ml-auto rounded-2xl rounded-br-sm p-4 bg-[#1F1813] border border-audio-border text-audio-text shadow-md">
+        <div className="w-full max-w-[90%] sm:max-w-[80%] ml-auto rounded-2xl rounded-br-sm p-4 bg-audio-surface border border-audio-border text-audio-text shadow-md">
           {message.image && (
             <div className="mb-3 rounded-xl overflow-hidden border border-audio-accent/50 shadow-lg max-w-sm bg-black">
               <img src={message.image} alt="User upload" className="w-full h-auto object-cover max-h-56" />
@@ -398,7 +398,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <WaveformIcon />
             </div>
             <div className="flex items-center gap-2 text-[10px] font-mono text-audio-muted">
-              <span className="text-audio-accent font-bold tracking-wider uppercase">{activeModel}</span>
+              <span className="text-audio-accent font-bold tracking-wider uppercase">{message.answeringModel || (message.isThinking ? message.requestedModel : 'Model not recorded')}</span>
               <span className="text-audio-muted">· {formatTimestamp(message.timestamp)}</span>
             </div>
           </div>
@@ -407,11 +407,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             {message.isThinking
               ? 'Researching…'
               : message.groundingSources?.length
-                ? 'Sources included'
+                ? 'Sources cited'
                 : 'AI response'}
           </span>
         </div>
 
+        {message.requestedModel && message.answeringModel !== message.requestedModel && <p className="text-xs text-audio-muted">Requested: {message.requestedModel}</p>}
+        {message.contextSupplied && <details className="section-disclosure"><summary>Context supplied ({message.contextSupplied.length})</summary><ul>{message.contextSupplied.map(r => <li key={r.id}>{r.title} · {r.kind} · {r.characters} characters · revision {r.revision}</li>)}</ul><p className="text-xs text-audio-muted">Supplied context may be unused. Sources cited lists only grounded citations returned with support metadata.</p></details>}
         {/* BODY CONTENT */}
         <div className="leading-relaxed text-[14px] md:text-[15px] font-normal text-audio-text/95 tracking-wide break-words w-full min-w-0">
           {message.isThinking ? (
