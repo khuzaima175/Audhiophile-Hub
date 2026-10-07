@@ -792,6 +792,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'eq' && (
             <EQWorkbench
               presets={formData.eqLibrary || []}
+              gear={formData.gearLibrary || []}
               onSavePresets={(updated) => {
                 const next = { ...formData, eqLibrary: updated };
                 setFormData(next);

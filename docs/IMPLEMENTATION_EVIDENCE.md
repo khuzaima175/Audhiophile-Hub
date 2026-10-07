@@ -29,3 +29,9 @@ Passed core regressions: 280–281 Hz empty overlap fails; non-finite inputs fai
 Automatic headroom and manual requested preamp share an effective response-based attenuation policy. Manual requests are preserved separately from protective attenuation; the UI explains adjustments. Current post-EQ graph includes absolute attenuation; correction view is response shape. Presets and APO exports retain rate assumptions; playback uses the actual AudioContext rate. A playback lease stops the previous owner on source changes and ends its live capture. File decoding has cancellation epochs. Raw bypass is distinguished from optional first-10-second all-channel RMS matching (dry attenuation limited to 24 dB; invalid/unavailable metrics revert visibly to raw). Matching invalidates when source or filters change. DSP coefficients remain unchanged.
 
 Core regression passes for policy and APO preamp round trips at 44.1/48/96 kHz. Wavelet exports are explicitly approximate sampled responses (existing 127-point grid); deep notches/narrow features require external comparison and are not claimed lossless. Physical listening and real Windows APO remain unrun.
+
+## Milestone 4
+
+Numbered graph handles synchronize with numeric edits and selected-band controls. Parametric frequency drag is logarithmic; gain applies only to bell/shelf types. Pass/notch controls avoid ignored gain. Graphic bands drag vertically at fixed frequencies. Pointer capture locks ownership and graph range for the whole gesture; cancel/Escape restores its start. Each drag is one capped Undo entry. Updates coalesce per animation frame and gesture persistence occurs on completion. Handles have 44 CSS-pixel hit areas, keyboard frequency/gain editing, and mobile selected-band controls. Measurements/targets remain protected. Add, Reset, Bypass, Undo, Redo are visible.
+
+TypeScript passes; browser interaction journeys are recorded with milestone 7.

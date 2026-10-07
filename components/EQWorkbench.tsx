@@ -1,3 +1,5 @@
+import { FilterHandles, gainApplies } from './FilterHandles';
+import { GearItem } from '../types';
 import { effectivePreamp } from '../utils/audioPolicy';
 import { audioWorkspace, useAudioWorkspace, useDraftField, draftFromPreset, getMeasurementRecords, storeMeasurement, freshDraft } from '../store/audioWorkspace';
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
@@ -50,11 +52,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface EQWorkbenchProps {
   presets: EQPreset[];
+  gear?: GearItem[];
   onSavePresets: (presets: EQPreset[]) => void;
   className?: string;
 }
 
-export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePresets, className = '' }) => {
+export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [], onSavePresets, className = '' }) => {
   const { draft, error: draftError, undoCount, redoCount } = useAudioWorkspace();
   const [workbenchState, setWorkbenchState] = useDraftField('workbenchState');
   const [editingPresetId, setEditingPresetId] = useDraftField('editingPresetId');
@@ -249,8 +252,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     return compositeCurvePoints;
   }, [eqViewMode, estimatedIemPoints, compensatedResponsePoints, compositeCurvePoints]);
 
+  const [frozenRange, setFrozenRange] = useState<{ minY: number; maxY: number; yTicks: number[] } | null>(null);
   // AUTO-RANGE Y-AXIS (Accommodates Harman, measured deep bass, and corrected curves)
   const { minY, maxY, yTicks } = useMemo(() => {
+    if (frozenRange) return frozenRange;
     const targetPoints = selectedTargetId !== 'none' && currentTarget ? currentTarget.points : [];
     const curveList = [activeEqPoints, targetPoints];
     if (resampledMeasuredPoints.length > 0) {
@@ -258,7 +263,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     }
     if (compensatedResponsePoints.length) curveList.push(compensatedResponsePoints);
     return calculateAutoRangedYBounds(curveList, selectedTargetId !== 'none');
-  }, [activeEqPoints, currentTarget, selectedTargetId, resampledMeasuredPoints, compensatedResponsePoints]);
+  }, [activeEqPoints, currentTarget, selectedTargetId, resampledMeasuredPoints, compensatedResponsePoints, frozenRange]);
 
   const workbenchViewport: ViewportDimensions = useMemo(
     () => ({
@@ -981,7 +986,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
               />
             </div>
             <div>
-              <label className={labelClass}>Assigned Hardware (IEM / Headphone)</label>
+              <label className={labelClass}>Assigned gear</label>
+              <select aria-label="Assigned gear" value={draft.gearId || ''} onChange={e => { const g = gear.find(g => g.id === e.target.value); audioWorkspace.update({ gearId: g?.id || null, hardwareAssigned: g?.name || hardwareAssigned }); }} className={inputClass}><option value="">Unlinked / custom hardware</option>{gear.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+              <label className={labelClass}>Hardware name</label>
               <input
                 type="text"
                 placeholder="e.g. Simgot EW300, CCA Phoenix..."
@@ -996,7 +1003,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
             Equalizer type
             <select
               value={eqMode}
-              onChange={(e) => setEqMode(e.target.value as '10-band' | '15-band' | '31-band' | 'peq')}
+              onChange={(e) => { if (draft.dirty && !window.confirm('Switch EQ mode? Existing mode settings are kept, but only the selected mode plays.')) return; setEqMode(e.target.value as '10-band' | '15-band' | '31-band' | 'peq'); }}
             >
               <option value="10-band">10-band · Simple tuning</option>
               <option value="15-band">15-band · More detail</option>
@@ -1048,6 +1055,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
                           max={12}
                           step={0.5}
                           value={gain}
+                          onPointerDown={() => audioWorkspace.beginGesture()}
+                          onPointerUp={() => audioWorkspace.endGesture()}
+                          onPointerCancel={() => audioWorkspace.endGesture(true)}
                           onChange={(e) => handleSliderChange(i, parseFloat(e.target.value))}
                           className="h-24 w-4 cursor-ns-resize appearance-none bg-transparent"
                           style={{
@@ -1125,6 +1135,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
                       min={20}
                       max={20000}
                       step={10}
+                      aria-label={`Frequency for filter ${fIdx+1}`}
                       value={filter.freq}
                       onChange={(e) =>
                         handleUpdatePeqFilter(filter.id, {
@@ -1143,6 +1154,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
                       min={-18}
                       max={18}
                       step={0.5}
+                      aria-label={`Gain for filter ${fIdx+1}`}
+                      disabled={!gainApplies(filter.type)}
                       value={filter.gain}
                       onChange={(e) =>
                         handleUpdatePeqFilter(filter.id, {
@@ -1161,6 +1174,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
                       min={0.1}
                       max={10}
                       step={0.1}
+                      aria-label={`Q for filter ${fIdx+1}`}
                       value={filter.q}
                       onChange={(e) =>
                         handleUpdatePeqFilter(filter.id, {
@@ -1234,6 +1248,20 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
         </div>
       )}
 
+      <div className="audio-view-tabs">
+        <button className="secondary-button" onClick={() => { setEqMode('peq'); handleAddPeqFilter(); }}>Add band</button>
+        <button className="secondary-button" onClick={() => { audioWorkspace.update({ gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0), peqFilters: peqFilters.map(f => ({ ...f, gain: 0 })) }); }}>Reset gains</button>
+        <button className="secondary-button" onClick={() => setIsBypassed(!isBypassed)}>{isBypassed ? 'Enable EQ' : 'Raw bypass'}</button>
+      </div>
+      <details className="selected-band-sheet" open={!!draft.selectedBand}>
+        <summary>Selected band</summary>
+        {eqMode === 'peq' ? (() => { const f = peqFilters.find(f => f.id === draft.selectedBand); return f ? <div className="audio-policy-controls">
+          <label>Frequency (Hz)<input aria-label="Selected frequency" type="number" min="20" max="20000" value={f.freq} onChange={e => handleUpdatePeqFilter(f.id, { freq: Math.max(20,Math.min(20000,Number(e.target.value) || 20)) })} /></label>
+          {gainApplies(f.type) && <label>Gain (dB)<input aria-label="Selected gain" type="number" min="-18" max="18" step="0.5" value={f.gain} onChange={e => handleUpdatePeqFilter(f.id, { gain: Math.max(-18,Math.min(18,Number(e.target.value) || 0)) })} /></label>}
+          <label>Q<input aria-label="Selected Q" type="number" min="0.1" max="20" step="0.1" value={f.q} onChange={e => handleUpdatePeqFilter(f.id, { q: Math.max(.1,Math.min(20,Number(e.target.value) || 1)) })} /></label>
+          <label><input type="checkbox" checked={f.enabled !== false} onChange={e => handleUpdatePeqFilter(f.id, { enabled: e.target.checked })} />Enabled</label>
+        </div> : <p>Select a numbered graph handle.</p>; })() : <p>Graphic bands have fixed frequencies. Drag vertically or use Up/Down keys.</p>}
+      </details>
       {/* 4. LIVE SVG CURVE VISUALIZER (Measured Cream, Target Dashed, Corrected Phosphor Teal) */}
       <details className="section-disclosure space-y-3" open={workbenchState !== 'IDLE' || !!measurement}>
         <summary>Frequency response preview</summary>
@@ -1327,7 +1355,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
           <svg
             ref={svgRef}
             viewBox={`0 0 ${workbenchViewport.width} ${workbenchViewport.height}`}
-            className="w-full h-auto block cursor-crosshair"
+            className="w-full h-auto block cursor-crosshair eq-edit-graph"
             onPointerMove={handleSvgMouseMove}
             onPointerDown={handleSvgMouseMove}
             onPointerLeave={(e) => {
@@ -1488,6 +1516,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
               />
             )}
 
+            <FilterHandles viewport={workbenchViewport} bands={currentIsoBands} gains={currentIsoGains} onGain={handleSliderChange} onFilter={handleUpdatePeqFilter} onDragging={active => setFrozenRange(active ? { minY, maxY, yTicks } : null)} />
             {/* Dual-Curve Crosshair & Dynamic Readout */}
             {hoveredPoint && (
               <g>

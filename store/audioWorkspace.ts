@@ -42,7 +42,7 @@ const undo: AudioDraft[] = [], redo: AudioDraft[] = [];
 let gesture: AudioDraft | null = null;
 const clone = (d: AudioDraft) => structuredClone(d);
 function publish() {
-  if (!blocked) {
+  if (!blocked && !gesture) {
     try { localStorage.setItem(KEY, JSON.stringify(draft)); error = ''; }
     catch { error = 'Audio storage write failed. Work remains in memory. Export a backup before refreshing or retry saving.'; }
   }

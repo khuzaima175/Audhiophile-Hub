@@ -1992,3 +1992,12 @@ summary::-webkit-details-marker {
 .portal-popover { position: fixed !important; z-index: 200; width: min(260px, calc(100vw - 16px)); overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px; box-shadow: 0 8px 32px #0009; }
 .portal-popover button, .portal-popover label { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px; }
 .notification-area { position: fixed; top: 78px; right: 16px; z-index: 210; max-width: min(360px, calc(100vw - 32px)); pointer-events: none; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; box-shadow: 0 6px 20px #0007; }
+.audio-view-tabs, .audio-policy-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.audio-policy-controls { padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font-size: 12px; }
+.audio-policy-controls label { display: flex; flex-direction: column; gap: 6px; }
+.audio-policy-controls input, .audio-policy-controls select { background: var(--base); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.audio-policy-controls p { flex-basis: 100%; color: var(--muted); }
+.eq-handle { cursor: grab; touch-action: none; outline: none; }
+.eq-handle:focus-visible > circle:nth-child(2) { stroke: #fff; stroke-width: 4; }
+.selected-band-sheet { border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+@media (max-width: 767px) { .audio-view-tabs button { min-height: 44px; } .selected-band-sheet[open] { position: sticky; bottom: 0; z-index: 2; background: var(--surface); } }
