@@ -54,9 +54,25 @@ const assert = require('node:assert/strict');
           }
         }
     }
-    return { maxError, cases };
+    let renderMaxError = 0, renderedCases = 0;
+    for (const rate of [44100,48000,96000]) {
+      const filters = [{id:'bell',type:'PK',freq:1000,gain:6,q:1.4},{id:'shelf',type:'LS',freq:200,gain:-3,q:1.4},{id:'disabled',type:'HS',freq:4000,gain:12,q:.71,enabled:false}];
+      for (const frequency of [1000,8000]) {
+        const ctx = new OfflineAudioContext(1,rate,rate), osc=ctx.createOscillator(), preamp=ctx.createGain();
+        osc.frequency.value=frequency; let tail=osc;
+        filters.filter(f=>f.enabled!==false).forEach(f=>{const node=dsp.createDSPNode(ctx,f);tail.connect(node);tail=node;});
+        const attenuation=dsp.safePreamp(filters,rate);preamp.gain.value=10**(attenuation/20);tail.connect(preamp);preamp.connect(ctx.destination);osc.start();
+        const rendered=await ctx.startRendering(), data=rendered.getChannelData(0);let energy=0;
+        for(let i=rate/2;i<rate;i++)energy+=data[i]**2;
+        const measured=20*Math.log10(Math.sqrt(energy/(rate/2))*Math.SQRT2);
+        const expected=filters.filter(f=>f.enabled!==false).reduce((sum,f)=>sum+curve.calculateFilterGainAtFreq(frequency,f.type,f.freq,f.gain,f.q,rate),attenuation);
+        renderMaxError=Math.max(renderMaxError,Math.abs(measured-expected));renderedCases++;
+      }
+    }
+    return { maxError, cases, renderMaxError, renderedCases };
   });
   assert.ok(result.maxError < 0.005, JSON.stringify(result));
+  assert.ok(result.renderMaxError < .01, JSON.stringify(result));
   console.log('PASS independent browser DSP response:', result);
   await browser.close();
 })().catch((e) => {

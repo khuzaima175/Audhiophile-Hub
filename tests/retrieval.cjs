@@ -10,7 +10,7 @@ const Module = require('node:module');
   const sessions = [session('hd','Sennheiser HD600',['HD600 FR mids need a small EQ cut at 3 kHz.','Weekend weather forecast.','My garden plants are green.','Breakfast recipes.','Movie schedules.']),session('ba','Hybrid drivers',['DD and BA are driver technologies. BA tuning can vary.']),session('disabled','Private notes',['ZX900 has an impressive FR measurement.'])];
   sessions[2].retrievalEnabled = false;
   const notes = [{ id:'stale',topic:'Stale claim',summary:'HD600 has a stale EQ setting.',keyFacts:[],sourceSessionId:'hd',sourceRevision:'old',timestamp:0 },{id:'fresh',topic:'Driver summary',summary:sessions[1].messages[0].text,keyFacts:[],sourceSessionId:'ba',sourceRevision:sourceRevision(sessions[1]),timestamp:1},{id:'off',topic:'Disabled',summary:'ZX800 EQ settings',keyFacts:[],sourceSessionId:'',provenance:'user-note',enabled:false,timestamp:1}];
-  const settings = { version:1, olderConversations:true, budgetCharacters:2000,minScore:.5 };
+  const settings = { version:1, olderConversations:true, budgetCharacters:2000,minScore:.1 };
   const records = indexLocalSources(sessions,notes,profile);
   const queries = [ ['HD600 FR EQ','chat:hd:hd-0:0'],['DD BA','chat:ba:ba-0:0'],['ZX900',null],['ZX800',null],['pancakes',null],['HD600 stale', 'chat:hd:hd-0:0'] ];
   let improved = 0, baselineHits = 0;

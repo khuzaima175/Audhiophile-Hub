@@ -1,3 +1,4 @@
+import { createWorkspaceBackup, validateBackup, missingBackupReferences, recoverMissingReferences, restoreWorkspaceBackup, previousWorkspaceBackup } from '../utils/workspaceBackup';
 import { getRetrievalSettings, sourceRevision } from '../utils/localRetrieval';
 import { ChatSession } from '../types';
 import { audioWorkspace, freshDraft } from '../store/audioWorkspace';
@@ -441,98 +442,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return nodes;
   };
 
-  const handleExportData = () => {
-    const chats = localStorage.getItem('audiosage_chats_v1');
-    const profileData = localStorage.getItem('audiosage_profile_v1');
-    const kb = localStorage.getItem('audiosage_knowledge_v1');
-    const unreadableOriginals: Record<string, string> = {};
-    const safeParse = (raw: string | null, fallback: unknown, key: string) => {
-      try {
-        return raw ? JSON.parse(raw) : fallback;
-      } catch {
-        unreadableOriginals[key] = raw || '';
-        return fallback;
-      }
-    };
-    const data = {
-      timestamp: new Date().toISOString(),
-      profile: safeParse(profileData, formData, 'profile'),
-      chats: safeParse(chats, [], 'chats'),
-      knowledgeBase: safeParse(kb, [], 'knowledgeBase'),
-      unreadableOriginals,
-    };
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audiosage_full_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleExportData = async () => {
+    try {
+      const data = await createWorkspaceBackup(formData, sessions, knowledgeBase);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = `audiosage_full_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
+      setImportMessage({ type: 'success', text: 'Complete backup exported, including Audio draft, measurements, comparison and retrieval settings.' });
+    } catch (e) { setImportMessage({ type: 'error', text: `Backup export failed: ${(e as Error).message}. Try again before closing this browser.` }); }
   };
 
-  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (
-          (data.profile && !validateProfile(data.profile)) ||
-          (data.chats && !validateChats(data.chats)) ||
-          (data.knowledgeBase && !validateKnowledge(data.knowledgeBase))
-        )
-          throw new Error('Invalid backup data structure');
-        if (!data || typeof data !== 'object' || (!data.profile && !data.chats && !data.knowledgeBase))
-          throw new Error('Not an AudioSage backup');
-        if (
-          data.profile &&
-          (typeof data.profile !== 'object' ||
-            typeof data.profile.name !== 'string' ||
-            ['gearLibrary', 'eqLibrary', 'savedMemories'].some(
-              (key) => data.profile[key] !== undefined && !Array.isArray(data.profile[key]),
-            ))
-        )
-          throw new Error('Invalid profile');
-        if (
-          data.chats &&
-          (!Array.isArray(data.chats) ||
-            !data.chats.every(
-              (chat: any) =>
-                typeof chat.id === 'string' && typeof chat.title === 'string' && Array.isArray(chat.messages),
-            ))
-        )
-          throw new Error('Invalid conversations');
-        if (data.knowledgeBase && !Array.isArray(data.knowledgeBase))
-          throw new Error('Invalid research notes');
-        if (data.profile) data.profile = { ...DEFAULT_PROFILE, ...data.profile };
-        if (onRestore) {
-          onRestore(data);
-          setImportMessage({ type: 'success', text: 'Backup restored. Your workspace is up to date.' });
-          return;
-        }
-        if (data.profile) {
-          localStorage.setItem('audiosage_profile_v1', JSON.stringify(data.profile));
-          setFormData(data.profile);
-          onSave(data.profile);
-        }
-        if (data.chats) localStorage.setItem('audiosage_chats_v1', JSON.stringify(data.chats));
-        if (data.knowledgeBase)
-          localStorage.setItem('audiosage_knowledge_v1', JSON.stringify(data.knowledgeBase));
-
-        setImportMessage({ type: 'success', text: `Backup restored! Refresh to update all views.` });
-        setTimeout(() => setImportMessage(null), 5000);
-      } catch (err) {
-        setImportMessage({ type: 'error', text: 'Failed to parse backup file.' });
-        setTimeout(() => setImportMessage(null), 5000);
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
+    try {
+      const backup = validateBackup(JSON.parse(await file.text()));
+      const missing = missingBackupReferences(backup);
+      if (missing.length) {
+        if (!window.confirm(`This backup has ${missing.length} missing measurement/gear/target links. Restore as manual EQ with unlinked gear and unavailable targets cleared? Cancel preserves your workspace so you can locate a complete backup.`)) return;
+        recoverMissingReferences(backup);
       }
-    };
-    reader.readAsText(file);
-    if (importFileRef.current) importFileRef.current.value = '';
+      if (!window.confirm('Replace this workspace with the validated backup? Existing data will be preserved in restore recovery data.')) return;
+      await restoreWorkspaceBackup(backup);
+      setFormData(backup.profile);
+      if (onRestore) onRestore(backup); else { onSave(backup.profile); onKnowledgeChange?.(backup.knowledgeBase); onSessionsChange?.(backup.chats); }
+      setRetrievalSettings(backup.audio.retrievalSettings);
+      setImportMessage({ type: 'success', text: 'Complete backup restored. Source links and draft are ready.' });
+    } catch (e) { setImportMessage({ type: 'error', text: (e as Error).message }); }
+  };
+
+  const handleRecoverPrevious = async () => {
+    try {
+      const previous = await previousWorkspaceBackup();
+      if (!window.confirm('Recover the preserved previous workspace? Current data will be staged for recovery first.')) return;
+      await restoreWorkspaceBackup(previous);
+      setFormData(previous.profile); onRestore?.(previous);
+      setImportMessage({ type: 'success', text: 'Previous workspace recovered.' });
+    } catch (e) { setImportMessage({ type: 'error', text: `Recovery failed: ${(e as Error).message}. Export the complete backup to preserve original recovery data.` }); }
   };
 
   const handleClearAllData = () => {
@@ -807,6 +752,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               gear={formData.gearLibrary || []}
               onSavePresets={(updated) => {
                 const next = { ...formData, eqLibrary: updated };
+                localStorage.setItem('audiosage_profile_v1', JSON.stringify(next));
                 setFormData(next);
                 onSave(next);
               }}
@@ -1400,6 +1346,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <LinkIcon />
                     <span>Import JSON Backup</span>
                   </button>
+                  <button className="secondary-button" onClick={handleRecoverPrevious}>Recover previous workspace</button>
                   <input
                     type="file"
                     ref={importFileRef}

@@ -4,7 +4,7 @@ export interface RetrievalRecord {
   timestamp: number; provenance: string; enabled: boolean; revision: string; pinned: boolean;
 }
 export interface RetrievalSettings { version: 1; olderConversations: boolean; budgetCharacters: number; minScore: number; }
-export const DEFAULT_RETRIEVAL_SETTINGS: RetrievalSettings = { version: 1, olderConversations: false, budgetCharacters: 6000, minScore: .5 };
+export const DEFAULT_RETRIEVAL_SETTINGS: RetrievalSettings = { version: 1, olderConversations: false, budgetCharacters: 6000, minScore: .1 };
 const STOP = new Set('a an the and or to of in on for is are was be with me my it this that how can do does i you your please'.split(' '));
 export function tokenize(text: string): string[] { return (text.toLowerCase().match(/[\p{L}\p{N}]+(?:[.+-][\p{L}\p{N}]+)*/gu) || []).filter(t => !STOP.has(t)); }
 export function sourceRevision(session: ChatSession): string {

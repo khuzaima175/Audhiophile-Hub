@@ -4,7 +4,7 @@ const Module = require('node:module');
 (async () => {
   const result = await esbuild.build({
     stdin: {
-      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';`,
+      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';export * from './utils/conversionAudit';`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -49,6 +49,10 @@ const Module = require('node:module');
     near(round.preamp, -30);
     assert.equal(round.peqFilters.length, overlapping.length);
   }
+  const sampled = dsp.auditWavelet([{ id: 'smooth', type: 'PK', freq: 1000, gain: 4, q: 1.4, enabled: true }], [], [], -6, 48000);
+  assert.ok(sampled.error.withinTolerance);
+  assert.ok(sampled.error.rms < .1);
+  assert.throws(() => dsp.compareResponses([], []), /missing/);
   const graphic = [100, 1000, 10000],
     gains = [6, -3, 4];
   const nodes = dsp.graphicFilters(graphic, gains);

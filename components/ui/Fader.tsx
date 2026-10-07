@@ -64,7 +64,7 @@ export const Fader: React.FC<FaderProps> = ({
 
           {/* Tactile Hardware Thumb Knob */}
           <div
-            className="absolute left-1/2 -translate-x-1/2 w-6 h-4 rounded-[3px] border border-audio-border bg-gradient-to-b from-[#2E251E] via-[#211A15] to-[#17120E] shadow-[0_2px_8px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(237,230,218,0.2)] pointer-events-none z-10 flex items-center justify-center transition-transform duration-75"
+            className="absolute left-1/2 -translate-x-1/2 w-6 h-4 rounded-[3px] border border-audio-border bg-gradient-to-b from-audio-highlight via-audio-surface to-audio-base shadow-[0_2px_8px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(237,230,218,0.2)] pointer-events-none z-10 flex items-center justify-center transition-transform duration-75"
             style={{
               bottom: `calc(${percentage}% - 8px)`,
             }}
@@ -120,7 +120,7 @@ export const Fader: React.FC<FaderProps> = ({
 
         {/* Hardware Knob */}
         <div
-          className="absolute w-4 h-6 rounded-[3px] border border-audio-border bg-gradient-to-b from-[#2E251E] via-[#211A15] to-[#17120E] shadow-[0_2px_8px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(237,230,218,0.2)] pointer-events-none z-10 -translate-x-1/2 flex items-center justify-center"
+          className="absolute w-4 h-6 rounded-[3px] border border-audio-border bg-gradient-to-b from-audio-highlight via-audio-surface to-audio-base shadow-[0_2px_8px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(237,230,218,0.2)] pointer-events-none z-10 -translate-x-1/2 flex items-center justify-center"
           style={{ left: `${percentage}%` }}
         >
           <div className="h-3 w-[1.5px] bg-audio-accent rounded-full shadow-[0_0_4px_rgba(198,147,79,0.8)]" />

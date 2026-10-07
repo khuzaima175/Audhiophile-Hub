@@ -81,6 +81,7 @@ export function LabToolbar({ onExportCsv, onToast }: LabToolbarProps) {
         <label className="control-field">
           Smoothing
           <select
+            aria-label="Smoothing"
             value={state.smoothing}
             onChange={(e) => labStore.setSmoothing(e.target.value as SmoothingType)}
           >

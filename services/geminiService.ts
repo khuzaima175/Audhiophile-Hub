@@ -123,7 +123,7 @@ export const generateSessionSummary = async (session: ChatSession): Promise<Know
         timestamp: Date.now(),
       };
     } catch (error: any) {
-      console.error(`Model ${currentModel} failed for session summary:`, error);
+      console.warn(`Summary failed: ${classifyAiError(error)}`);
       lastError = error;
 
       const errorMessage = error.message || String(error);
@@ -139,7 +139,7 @@ export const generateSessionSummary = async (session: ChatSession): Promise<Know
       }
 
       // If not a quota error or no more fallbacks, try next model anyway
-      if (modelIndex < MODELS.length - 1) {
+      if (classifyAiError(error) === 'model' && modelIndex < MODELS.length - 1) {
         console.log(`Error with ${currentModel}, trying fallback: ${MODELS[modelIndex + 1]}`);
         continue;
       }
@@ -443,7 +443,7 @@ export const generateStreamResponse = async (
 
       return fullText;
     } catch (error: any) {
-      console.warn(`Model ${currentModel} failed:`, error);
+      console.warn(`Research failed: ${classifyAiError(error)}`);
       lastError = error;
       if (emitted) throw new Error('The response was interrupted. Please retry.');
 
@@ -606,8 +606,9 @@ Based on the user's profile:
       }
       return fullText;
     } catch (error: any) {
-      console.warn(`Battle comparison failed with ${model}, trying fallback:`, error);
+      console.warn(`Comparison failed: ${classifyAiError(error)}`);
       lastError = error;
+      if (classifyAiError(error) !== 'model') break;
     }
   }
   throw new Error(`Battle comparison failed: ${lastError?.message || 'Unknown error'}`);

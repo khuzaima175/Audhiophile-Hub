@@ -13,7 +13,9 @@
     "test:apo": "node tests/apo.cjs",
     "test:mobile": "node tests/mobile.cjs",
     "preview": "vite preview",
-    "test:retrieval": "node tests/retrieval.cjs"
+    "test:retrieval": "node tests/retrieval.cjs",
+    "test:workspace": "node tests/workspace-browser.cjs",
+    "test:production": "node tests/production.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",

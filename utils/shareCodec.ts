@@ -12,6 +12,7 @@ interface EncodedCurve {
   deltaCompensate?: boolean;
   visible?: boolean;
   solo?: boolean;
+  absolute?: boolean;
 }
 
 interface EncodedLabPayload {
@@ -23,6 +24,8 @@ interface EncodedLabPayload {
   curves: EncodedCurve[];
   view?: LabState['viewMode'];
   smoothing?: LabState['smoothing'];
+  fitSmoothing?: LabState['fitSmoothing'];
+  fitNormalize?: boolean;
 }
 
 /**
@@ -74,6 +77,7 @@ export const encodeLabStateToUrl = (state: LabState): string => {
       deltaCompensate: c.deltaCompensate,
       visible: c.visible,
       solo: c.solo,
+      absolute: c.preserveAbsolute,
       pts,
     };
   });
@@ -87,6 +91,8 @@ export const encodeLabStateToUrl = (state: LabState): string => {
     curves: encodedCurves,
     view: state.viewMode,
     smoothing: state.smoothing,
+    fitSmoothing: state.fitSmoothing,
+    fitNormalize: state.fitNormalize,
   };
 
   const jsonStr = JSON.stringify(payload);
@@ -136,6 +142,7 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
       sourceTargetId: ec.sourceTarget,
       isInverted: !!ec.inverted,
       deltaCompensate: !!ec.deltaCompensate,
+      preserveAbsolute: !!ec.absolute,
     }));
 
     return {
@@ -146,6 +153,8 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
       deltaMode: !!payload.delta,
       viewMode: payload.view,
       smoothing: payload.smoothing || 'RAW',
+      fitSmoothing: payload.fitSmoothing || 'RAW',
+      fitNormalize: payload.fitNormalize ?? true,
       curves: restoredCurves,
       isOpen: true,
     };

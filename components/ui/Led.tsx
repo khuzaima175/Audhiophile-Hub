@@ -21,27 +21,27 @@ export const Led: React.FC<LedProps> = ({
 }) => {
   const colorStyles: Record<LedColor, { text: string; shadow: string }> = {
     green: {
-      text: 'text-[#a1d8b1]',
-      shadow: 'shadow-[0_0_10px_rgba(127,216,180,0.8),0_0_2px_#a1d8b1]',
+      text: 'text-audio-signal',
+      shadow: 'shadow-none',
     },
     teal: {
-      text: 'text-[#83bfa5]',
-      shadow: 'shadow-[0_0_10px_rgba(111,201,166,0.8),0_0_2px_#83bfa5]',
+      text: 'text-audio-signal',
+      shadow: 'shadow-none',
     },
     red: {
       text: 'text-[#eb9689]',
-      shadow: 'shadow-[0_0_10px_rgba(224,106,63,0.8),0_0_2px_#eb9689]',
+      shadow: 'shadow-none',
     },
     amber: {
       text: 'text-[#e6a18b]',
-      shadow: 'shadow-[0_0_10px_rgba(217,119,72,0.8),0_0_2px_#e6a18b]',
+      shadow: 'shadow-none',
     },
     brass: {
-      text: 'text-[#b4e4bd]',
-      shadow: 'shadow-[0_0_10px_rgba(198,147,79,0.8),0_0_2px_#b4e4bd]',
+      text: 'text-audio-accent',
+      shadow: 'shadow-none',
     },
     muted: {
-      text: 'text-[#4A3E33]',
+      text: 'text-audio-muted',
       shadow: 'shadow-none',
     },
   };

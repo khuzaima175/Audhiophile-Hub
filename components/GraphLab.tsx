@@ -102,7 +102,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
     return labState.curves.map((curve) => {
       if (!curve.points.length) return { ...curve, displayPoints: [] };
       const normSupported = curve.points[0].freq <= labState.normHz && curve.points.at(-1)!.freq >= labState.normHz;
-      if (!normSupported && !curve.isFilterCurve) return { ...curve, displayPoints: [] };
+      if (!normSupported && !curve.preserveAbsolute && (!curve.isFilterCurve || labState.viewMode !== 'rawFilter' || labState.deltaMode || curve.deltaCompensate)) return { ...curve, displayPoints: [] };
       const smoothed = curve.isTarget
         ? curve.points
         : smoothLogCurve(
@@ -136,7 +136,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
         const rawGain = getInterpolatedTargetGain(f, smoothed);
         let dispGain = rawGain;
 
-        if (isTargetCurve) {
+        if (curve.preserveAbsolute && !isTargetCurve) {
+          const targetGain = activeTarget ? getInterpolatedTargetGain(f, activeTarget.points) - activeTargetNormGain + labState.normDb : 0;
+          dispGain = (curve.isInverted ? -rawGain : rawGain) + curve.offset - ((labState.deltaMode || curve.deltaCompensate) ? targetGain : 0);
+        } else if (isTargetCurve) {
           // Target Curve: normalize to normDb at normHz (1000 Hz)
           // T_plot(f) = T(f) - T(normHz) + normDb
           const targetNorm = rawGain - activeTargetNormGain + labState.normDb;
@@ -228,7 +231,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
 
   const activeVisiblePointSets = useMemo(() => {
     return displayCurves
-      .filter((c) => c.visible && (!anySolo || c.solo || c.isTarget))
+      .filter((c) => anySolo ? c.solo || (c.isTarget && c.visible) : c.visible)
       .map((c) => c.displayPoints);
   }, [displayCurves, anySolo]);
 
@@ -288,8 +291,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
       const values = displayCurves
         .filter(
           (c) =>
-            c.visible &&
-            (!anySolo || c.solo || c.isTarget) &&
+            (anySolo ? c.solo || (c.isTarget && c.visible) : c.visible) &&
+            c.displayPoints.length > 0 &&
             freq >= c.points[0].freq &&
             freq <= c.points.at(-1)!.freq,
         )
@@ -324,6 +327,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
     }
 
     if (curveA.isFilterCurve || curveA.isTarget || curveA.provenance !== 'measured') { showToast('Choose a measured source for comparison EQ.'); return; }
+    if (curveB.isFilterCurve || (!curveB.isTarget && curveB.provenance !== 'measured')) { showToast('Choose a measured destination or reference target.'); return; }
     try {
     // Fit original source arrays; display changes never affect analysis.
     const peqResult = synthesizeAutoPeq(smoothLogCurve(curveA.points.map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW'), curveB.points, {
@@ -418,16 +422,17 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
       aria-modal="true"
       aria-label="Graph lab"
     >
+      {labStore.getPersistenceError() && <p role="alert">{labStore.getPersistenceError()}</p>}
       {/* 1. TOP TOOLBAR */}
       <LabToolbar
         onToast={showToast}
         onExportCsv={() => {
-          const rows = [`# Displayed data: mode=${labState.viewMode}; normalization=${labState.normDb}dB@${labState.normHz}Hz; smoothing=${labState.smoothing}; delta=${labState.deltaMode}. Per-curve offset/inversion/difference below.`, 'curve,frequency_hz,gain_db,offset_db,inverted,difference,provenance'];
+          const rows = [`# Displayed data: mode=${labState.viewMode}; normalization=${labState.normDb}dB@${labState.normHz}Hz; smoothing=${labState.smoothing}; delta=${labState.deltaMode}. Per-curve offset/inversion/difference below.`, 'curve,frequency_hz,gain_db,offset_db,inverted,difference,provenance,preserve_absolute'];
           displayCurves
-            .filter((c) => c.visible)
+            .filter((c) => anySolo ? c.solo || (c.isTarget && c.visible) : c.visible)
             .forEach((c) =>
               c.displayPoints.forEach((p) =>
-                rows.push(`"${c.name.replaceAll('"', '""')}",${p.freq},${p.gain},${c.offset},${!!c.isInverted},${!!c.deltaCompensate},${c.provenance}`),
+                rows.push(`"${c.name.replaceAll('"', '""')}",${p.freq},${p.gain},${c.offset},${!!c.isInverted},${!!c.deltaCompensate},${c.provenance},${!!c.preserveAbsolute}`),
               ),
             );
           const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
@@ -480,6 +485,20 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
             </p>
           </div>
 
+          <details className="section-disclosure lab-curves-panel" open={screenWidth >= 768}><summary>Curves</summary>
+          <div className="space-y-2 pr-1">
+            {labState.curves.map((curve) => (
+              <PerCurveRow
+                key={curve.id}
+                curve={curve}
+                isPrimary={curve.id === labState.primaryCurveId}
+                onSendAutoPeq={handleSendAutoPeq}
+                onManualEq={() => { if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return; audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING', selectedTargetId: labState.targetCurveId }); labStore.closeLab(); onOpenEditor?.(); }}
+                onToast={showToast}
+              />
+            ))}
+          </div>
+          </details>
           {/* AUDITION DELTA PANEL (The Kill Shot) */}
           <details className="section-disclosure space-y-2.5">
             <summary>Listen to the difference</summary>
@@ -684,7 +703,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
 
               {/* Render Curves */}
               {renderedPaths
-                .filter((c) => c.visible && (!anySolo || c.solo || c.isTarget))
+                .filter((c) => anySolo ? c.solo || (c.isTarget && c.visible) : c.visible)
                 .map((c) => {
                   const isPrimary = c.id === labState.primaryCurveId;
                   return (
@@ -719,7 +738,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                   const pillY = Math.max(viewport.padding.top + 4, 32);
 
                   return (
-                    <g data-testid="graph-crosshair">
+                    <g data-testid="graph-crosshair" pointerEvents="none">
                       <line
                         x1={hoveredPoint.x}
                         y1={viewport.padding.top}
@@ -773,19 +792,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
             </svg>
           </div>
 
-          {/* 4. BOTTOM PER-CURVE ROWS */}
-          <div className="max-h-48 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-            {labState.curves.map((curve) => (
-              <PerCurveRow
-                key={curve.id}
-                curve={curve}
-                isPrimary={curve.id === labState.primaryCurveId}
-                onSendAutoPeq={handleSendAutoPeq}
-                onManualEq={() => { if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return; audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING', selectedTargetId: labState.targetCurveId }); labStore.closeLab(); onOpenEditor?.(); }}
-                onToast={showToast}
-              />
-            ))}
-          </div>
+
         </main>
       </div>
 

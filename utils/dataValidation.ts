@@ -32,6 +32,14 @@ export function validateProfile(x: unknown): boolean {
           typeof p.name === 'string' &&
           typeof p.hardware === 'string' &&
           typeof p.bands === 'string' &&
+          (p.mode === undefined || ['10-band','15-band','31-band','peq'].includes(p.mode)) &&
+          (p.preampMode === undefined || ['automatic','manual'].includes(p.preampMode)) &&
+          (p.preamp === undefined || (Number.isFinite(p.preamp) && Math.abs(p.preamp) <= 36)) &&
+          (p.requestedPreamp === undefined || (Number.isFinite(p.requestedPreamp) && Math.abs(p.requestedPreamp) <= 36)) &&
+          (p.sampleRate === undefined || [44100,48000,96000].includes(p.sampleRate)) &&
+          (p.gearId === undefined || typeof p.gearId === 'string') &&
+          (p.measurementRef === undefined || typeof p.measurementRef === 'string') &&
+          (p.analysis === undefined || (record(p.analysis) && ['RAW','1/6 OCT','1/3 OCT'].includes(p.analysis.smoothing) && typeof p.analysis.normalize === 'boolean')) &&
           (p.graphicGains === undefined ||
             (Array.isArray(p.graphicGains) &&
               [10, 15, 31].includes(p.graphicGains.length) &&
@@ -42,6 +50,7 @@ export function validateProfile(x: unknown): boolean {
                 (f: any) =>
                   record(f) &&
                   typeof f.id === 'string' &&
+                  (f.enabled === undefined || typeof f.enabled === 'boolean') &&
                   ['PK', 'LS', 'HS', 'HP', 'LP', 'NOTCH'].includes(f.type) &&
                   Number.isFinite(f.freq) &&
                   f.freq >= 20 &&
@@ -86,7 +95,7 @@ export function validateKnowledge(x: unknown): boolean {
   return (
     Array.isArray(x) &&
     x.every(
-      (n) => record(n) && typeof n.topic === 'string' && typeof n.summary === 'string' && strings(n.keyFacts),
+      (n) => record(n) && typeof n.id === 'string' && (n.enabled === undefined || typeof n.enabled === 'boolean') && (n.pinned === undefined || typeof n.pinned === 'boolean') && typeof n.topic === 'string' && typeof n.summary === 'string' && strings(n.keyFacts),
     )
   );
 }

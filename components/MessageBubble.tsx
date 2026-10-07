@@ -513,7 +513,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className="mt-4 pt-3 border-t border-audio-border/50">
             <div className="flex items-center gap-2 mb-2">
               <Led color="green" pulse size="sm" />
-              <Engraved size="xs">SEARCH GROUNDED SOURCES</Engraved>
+              <Engraved size="xs">Sources cited</Engraved>
             </div>
             <div className="flex flex-wrap gap-2">
               {message.groundingSources.map((source, idx) => (

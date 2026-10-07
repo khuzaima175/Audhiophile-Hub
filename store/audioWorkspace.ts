@@ -7,6 +7,7 @@ export interface AudioDraft {
   dirty: boolean; eqMode: EqMode; selectedTargetId: string; measurementRef: string | null;
   gains10: number[]; gains15: number[]; gains31: number[]; peqFilters: PEQFilter[]; selectedBand: string | null;
   requestedPreamp: number; preampMode: 'automatic' | 'manual'; sampleRate: number;
+  graphView: 'iem' | 'filter' | 'compensated'; responseLevel: 'absolute' | 'shape';
   smoothing: SmoothingType; normalize: boolean; maxAutoFilters: number;
   workbenchState: 'IDLE' | 'ADDING' | 'IMPORTING' | 'MEASUREMENT'; originalFit: AutoPeqFitResult | null;
 }
@@ -15,13 +16,17 @@ export const freshDraft = (): AudioDraft => ({
   eqMode: '10-band', selectedTargetId: 'crinacle-ief-2025', measurementRef: null,
   gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0),
   peqFilters: [], selectedBand: null, requestedPreamp: 0, preampMode: 'automatic', sampleRate: 48000,
+  graphView: 'filter', responseLevel: 'absolute',
   smoothing: '1/3 OCT', normalize: true, maxAutoFilters: 10, workbenchState: 'IDLE', originalFit: null,
 });
 const KEY = 'audiosage_audio_draft_v2';
 const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
 export function validateDraft(d: any): d is AudioDraft {
-  return d?.version === 2 && ['10-band','15-band','31-band','peq'].includes(d.eqMode) &&
+  return d?.version === 2 && Object.keys(d).every(k => k in freshDraft()) &&
+    typeof d.dirty === 'boolean' && (d.gearId === null || typeof d.gearId === 'string') && (d.editingPresetId === null || typeof d.editingPresetId === 'string') && (d.selectedBand === null || typeof d.selectedBand === 'string') &&
+    (d.originalFit === null || validateFit(d.originalFit)) && ['10-band','15-band','31-band','peq'].includes(d.eqMode) &&
     ['IDLE','ADDING','IMPORTING','MEASUREMENT'].includes(d.workbenchState) &&
+    ['filter','iem','compensated'].includes(d.graphView) && ['absolute','shape'].includes(d.responseLevel) &&
     ['RAW','1/6 OCT','1/3 OCT'].includes(d.smoothing) && typeof d.normalize === 'boolean' &&
     typeof d.presetName === 'string' && typeof d.hardwareAssigned === 'string' && typeof d.selectedTargetId === 'string' &&
     (d.measurementRef === null || typeof d.measurementRef === 'string') &&
@@ -31,10 +36,15 @@ export function validateDraft(d: any): d is AudioDraft {
     Array.isArray(d.peqFilters) && new Set(d.peqFilters.map((f: any) => f.id)).size === d.peqFilters.length &&
     d.peqFilters.every((f: any) => typeof f.id === 'string' && ['PK','LS','HS','HP','LP','NOTCH'].includes(f.type) && finite(f.freq) && f.freq >= 20 && f.freq <= 20000 && finite(f.gain) && Math.abs(f.gain) <= 36 && finite(f.q) && f.q > 0 && f.q <= 20 && (f.enabled === undefined || typeof f.enabled === 'boolean'));
 }
+function validateFit(r: any): boolean {
+  return !!r && [r.preamp,r.initialRms,r.finalRms,r.matchPercentage].every(finite) && r.matchPercentage >= 0 && r.matchPercentage <= 100 &&
+    Array.isArray(r.filters) && validateDraft({ ...freshDraft(), peqFilters: r.filters, originalFit: null }) &&
+    [r.correctedPoints,r.residualPoints].every(points => Array.isArray(points) && points.length > 0 && points.every((p: any) => finite(p.freq) && p.freq > 0 && finite(p.gain)));
+}
 let draft = freshDraft(), error = '', blocked = false;
 try {
   const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-  if (raw) { const parsed = JSON.parse(raw); if (!validateDraft(parsed)) throw new Error('Unsupported or damaged Audio draft'); draft = parsed; }
+  if (raw) { const parsed = JSON.parse(raw); if (parsed.version === 2) { parsed.graphView ??= 'filter'; parsed.responseLevel ??= 'absolute'; } if (!validateDraft(parsed)) throw new Error('Unsupported or damaged Audio draft'); draft = parsed; }
 } catch { error = 'Saved Audio draft could not be opened. Original data is preserved. Export a backup, then recover the draft or start fresh.'; blocked = true; }
 let snapshot = { draft, error, undoCount: 0, redoCount: 0 };
 const listeners = new Set<() => void>();
@@ -54,7 +64,9 @@ export const audioWorkspace = {
   subscribe: (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; },
   update(patch: Partial<AudioDraft>, history = true) {
     if (history && !gesture) { undo.push(clone(draft)); if (undo.length > 60) undo.shift(); redo.length = 0; }
-    const contentChanged = Object.keys(patch).some(k => !['workbenchState','selectedBand','editingPresetId','dirty'].includes(k));
+    const fitInputs = ['measurementRef','selectedTargetId','smoothing','normalize','maxAutoFilters','sampleRate'] as const;
+    if (patch.originalFit === undefined && fitInputs.some(k => patch[k] !== undefined && patch[k] !== draft[k])) patch = { ...patch, originalFit: null };
+    const contentChanged = Object.keys(patch).some(k => !['workbenchState','selectedBand','editingPresetId','dirty','graphView','responseLevel'].includes(k));
     draft = { ...draft, ...patch, dirty: patch.dirty ?? (contentChanged ? true : draft.dirty) };
     publish();
   },
@@ -68,6 +80,7 @@ export const audioWorkspace = {
   undo() { const previous = undo.pop(); if (previous) { redo.push(clone(draft)); draft = previous; publish(); } },
   redo() { const next = redo.pop(); if (next) { undo.push(clone(draft)); draft = next; publish(); } },
   replace(next: AudioDraft) { if (!validateDraft(next)) throw new Error('Invalid Audio draft'); undo.length = 0; redo.length = 0; draft = clone(next); publish(); },
+  restoreValidatedDraft(next: AudioDraft) { if (!validateDraft(next)) throw new Error('Invalid recovery draft'); blocked = false; error = ''; this.replace(next); },
   retry() { publish(); },
   recoverFresh() { if (blocked) { const raw = localStorage.getItem(KEY); if (raw) localStorage.setItem(KEY + '_recovery', raw); } blocked = false; error = ''; this.replace(freshDraft()); },
   original() { return localStorage.getItem(KEY); },
@@ -78,17 +91,17 @@ export function useDraftField<K extends keyof AudioDraft>(key: K): [AudioDraft[K
   return [draft[key], value => audioWorkspace.update({ [key]: typeof value === 'function' ? (value as (v: AudioDraft[K]) => AudioDraft[K])(audioWorkspace.getSnapshot().draft[key]) : value })];
 }
 let database: Promise<IDBDatabase> | undefined;
-function db() {
+export function workspaceDatabase() {
   return database ||= new Promise((resolve, reject) => {
-    const req = indexedDB.open('audiosage_audio_v2', 1);
-    req.onupgradeneeded = () => req.result.createObjectStore('records', { keyPath: 'id' });
+    const req = indexedDB.open('audiosage_audio_v2', 2);
+    req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains('records')) req.result.createObjectStore('records', { keyPath: 'id' }); if (!req.result.objectStoreNames.contains('comparison')) req.result.createObjectStore('comparison'); };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => { database = undefined; reject(new Error('Measurement storage unavailable')); };
   });
 }
 export interface MeasurementRecord { id: string; kind: 'measurement'; value: MeasurementData; }
 export async function getMeasurementRecords(): Promise<MeasurementRecord[]> {
-  const database = await db();
+  const database = await workspaceDatabase();
   return new Promise((resolve, reject) => { const r = database.transaction('records').objectStore('records').getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
 }
 export function validateMeasurementRecord(r: any): r is MeasurementRecord {
@@ -99,7 +112,7 @@ export function validateMeasurementRecord(r: any): r is MeasurementRecord {
 }
 export async function writeMeasurementRecords(records: MeasurementRecord[]) {
   if (!records.every(validateMeasurementRecord) || new Set(records.map(r => r.id)).size !== records.length) throw new Error('Invalid or duplicate measurement records');
-  const database = await db();
+  const database = await workspaceDatabase();
   return new Promise<void>((resolve, reject) => { const tx = database.transaction('records','readwrite'); records.forEach(r => tx.objectStore('records').put(r)); tx.oncomplete = () => resolve(); tx.onerror = () => reject(new Error('Measurement storage write failed; existing records preserved')); tx.onabort = () => reject(new Error('Measurement write interrupted')); });
 }
 export async function storeMeasurement(value: MeasurementData) {

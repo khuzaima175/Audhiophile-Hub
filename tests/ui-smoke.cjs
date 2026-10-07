@@ -9,6 +9,7 @@ const path = require('node:path');
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || '/usr/bin/chromium', headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(10000);
+  page.on('dialog', dialog => dialog.accept());
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   // Exercise the real Web Audio graph through a silent output gain.
@@ -124,9 +125,10 @@ const path = require('node:path');
   await page.getByRole('button', { name: /Parse into Bands/ }).click();
   await page.getByLabel('Preset name', { exact: false }).fill('QA Parametric');
   assert.equal(await page.getByLabel('Equalizer type').inputValue(), 'peq');
-  await page.getByRole('button', { name: /Save EQ Profile/ }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(250);
   assert.ok((await page.locator('body').innerText()).includes('QA Parametric'));
+  await page.getByRole('button', { name: 'Presets', exact: true }).click();
   await page.getByRole('button', { name: 'New preset', exact: true }).click();
   await page.getByLabel('Equalizer type').selectOption('peq');
   assert.equal(
@@ -138,7 +140,7 @@ const path = require('node:path');
     'New presets must not reuse previous filters',
   );
   await page
-    .getByRole('button', { name: /Cancel/ })
+    .getByRole('button', { name: 'Keep draft', exact: true })
     .first()
     .click();
   await screenshot('equalizer-desktop');
@@ -154,7 +156,7 @@ const path = require('node:path');
     0,
     'Bass zoom must change the graph axis',
   );
-  await lab.getByLabel('Smoothing').selectOption('1/6 OCT');
+  await lab.getByLabel('Smoothing', { exact: true }).selectOption('1/6 OCT');
   await lab.locator('input[type=file]').setInputFiles({
     name: 'qa-measurement.csv',
     mimeType: 'text/csv',
@@ -162,7 +164,7 @@ const path = require('node:path');
       'Frequency,SPL\n20,86\n30,85\n50,84\n100,83\n200,80\n500,79\n1000,80\n2000,86\n4000,83\n6000,86\n8000,83\n10000,78\n16000,73\n20000,71',
     ),
   });
-  await lab.locator('main').getByText('qa measurement', { exact: true }).first().waitFor();
+  await lab.getByText('qa measurement', { exact: true }).first().waitFor();
   await lab.getByLabel('Reference target').selectOption('crinacle-ief-2025');
   await lab.getByText('Listen to the difference', { exact: true }).click();
   const comparisonSelects = lab.locator('.lab-sidebar select');

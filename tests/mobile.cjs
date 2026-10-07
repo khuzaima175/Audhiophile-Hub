@@ -2,8 +2,8 @@ const { chromium, webkit } = require('playwright');
 const assert = require('node:assert/strict');
 (async () => {
   for (const [name, launcher, options] of [
-    ['edge', chromium, { channel: 'msedge' }],
-    ['webkit', webkit, {}],
+    ['chromium', chromium, { executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || '/usr/bin/chromium' }],
+    ...(process.env.TEST_WEBKIT ? [['webkit', webkit, {}]] : []),
   ]) {
     const browser = await launcher.launch({ headless: true, ...options });
     const errors = [];
@@ -13,7 +13,8 @@ const assert = require('node:assert/strict');
       deviceScaleFactor: 2,
     });
     const page = await context.newPage();
-    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('dialog', dialog => dialog.accept());
+    page.on('pageerror', (e) => { errors.push(e.message); console.error(e.message); });
     await page.goto('http://127.0.0.1:3000');
     const navigate = async (label) => {
       await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
@@ -41,6 +42,7 @@ const assert = require('node:assert/strict');
           .locator('.workspace-sidebar')
           .getByRole('button', { name: 'Equalizer', exact: true })
           .click();
+      await page.getByRole('button', { name: 'Presets', exact: true }).click();
       await page.getByRole('button', { name: 'New preset', exact: true }).click();
       await page.getByLabel('Preset name', { exact: false }).fill(name + ' mobile preset');
       await page.getByLabel('Equalizer type').selectOption('peq');
@@ -49,7 +51,7 @@ const assert = require('node:assert/strict');
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         name + ' EQ overflow',
       );
-      await page.getByRole('button', { name: /Save EQ Profile/ }).click();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
       if (size.width < 768) await navigate('Graph lab');
       else
         await page

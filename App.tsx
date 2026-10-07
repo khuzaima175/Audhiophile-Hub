@@ -1,3 +1,4 @@
+import { readComparison } from './store/labStore';
 import { sourceRevision } from './utils/localRetrieval';
 import { resolveApiKey, MODEL_IDS } from './services/aiConfig';
 import { useDismissSurface } from './hooks/useDismissSurface';
@@ -104,6 +105,8 @@ const App: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const userScrolledUpRef = useRef(false);
 
+  useEffect(() => { readComparison().then(saved => { if (saved && !labStore.getSnapshot().isOpen) labStore.loadState({ ...saved, isOpen: false }); labStore.enablePersistence(); }).catch(e => { setStorageError((e as Error).message); labStore.reportRecoveryError((e as Error).message); }); }, []);
+  useEffect(() => { try { if (JSON.parse(localStorage.getItem('audiosage_restore_recovery_v3') || 'null')?.state === 'pending') setStorageError('A restore did not finish. Previous workspace data is preserved. Use Recover previous workspace in Settings & data or export a complete backup.'); } catch {} }, []);
   // Load data on mount
   useEffect(() => {
     try {
