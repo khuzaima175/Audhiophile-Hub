@@ -71,3 +71,11 @@ All repository Markdown entry points now describe the current shared draft, link
 ## Preferred model correction
 
 Restored the user's configured Gemini priority to 3.8 Flash → 3.7 Flash → 3.5 Flash-Lite through the shared catalog used by defaults, dropdowns, connection testing and AI services. README/UI guidance now matches this order. Typecheck, build and the extended production browser regression passed, including both mocked fallback steps and requested/answering model provenance. Existing conversation metadata is preserved; live account availability is still unrun.
+
+## Graph Lab usability follow-up
+
+User screenshot reproduced the layout defect: a stale last-child CSS selector capped the graph at 230 pixels after curve management moved into the sidebar. Removed the cap and measured actual canvas dimensions. Larger graph labels, bounded compact Options triggers and mobile header/panel layout address the visible issues.
+
+Graph Lab now embeds the existing shared EQ editor and preset library. New EQ preset starts an editable parametric band; manual/measurement creation remains in the tab. Plot and identity/save/export controls precede long parameter lists. Level/rate controls are expandable. Presets load/edit/save/copy directly; Compare opens current draft curves. Only one settings/editor instance is mounted, and view/source changes release playback.
+
+Dedicated Lab and existing UI/workspace/mobile/production regressions passed, alongside typecheck/build/core/retrieval. See the verification report for dimensions and limits. No DSP or preferred model catalog change was made.

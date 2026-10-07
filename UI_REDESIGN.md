@@ -12,7 +12,7 @@ Overview offers three entry points: Research, Manual EQ, and Measurement-based E
 | Research assistant | Multiline composition, attachments, voice questions, streaming answers, technical analysis, glossary and graph tools. Each new answer records requested/answering models and supplied context separately from cited web sources. |
 | My gear | Stable gear identities, owned/wishlist/tested status, category, ratings, price, notes, search, filters and comparison. EQ presets can link to a gear record. |
 | Equalizer | One persistent draft shared by Editor, Compare and Presets. Graphic and parametric EQ, linked measurements, source-based fitting, numbered graph handles, selected-band controls, Undo/Redo, preamp/rate policy, preview, Save and Save as copy. |
-| Graph lab | Expanded comparison graph with a desktop curve sidebar and a collapsible mobile curve panel. Independent display and fitting settings, curve Options menus, original/displayed CSV exports, shared graphs and correction creation into the same draft. |
+| Graph lab | Full-size comparison plot with a desktop curve sidebar and a collapsible mobile curve panel. Compare curves, Edit EQ and Presets views; New EQ preset, drag/numeric editing, gear assignment, Save/copy/export and measurement-based correction stay in the tab. Independent display/fitting settings and original/displayed CSV exports remain available. |
 | Listening profile | Preferences save as edited. Create EQ draft explicitly turns tuning preferences into manual EQ parameters. |
 | Research notes | Edit, pin, disable and delete notes; generate conversation summaries. Older-conversation retrieval is opt-in; summaries with stale or unknown source coverage are excluded until regenerated. |
 | Settings & data | Personal Gemini connection and capability test, retrieval settings, local APO integration, complete version-3 backups, validated restore and preserved-workspace recovery. |
@@ -21,7 +21,7 @@ Overview offers three entry points: Research, Manual EQ, and Measurement-based E
 
 The chassis uses semantic near-black, graphite, gray and soft-white tokens. Blue focus indicators and separate graph-series colors identify interaction and plotted data. The explicit Tailwind configuration remains loaded. Fader ticks and zero marks use the actual numeric ranges, including asymmetric ranges.
 
-On desktop, selected-band controls sit beside the EQ graph and the comparison curve list sits beside the Lab graph. Smaller screens stack controls and expose expandable panels. Primary mobile controls and graph handle hit areas target at least 44 CSS pixels. Reduced-motion preferences are respected.
+The comparison SVG measures its actual container rather than relying on a capped chart height or a fixed aspect ratio. Axis/cursor labels are larger and the curve Options trigger uses a compact visible label with a specific accessible name. On desktop, selected-band controls sit beside the EQ graph and the comparison curve list sits beside the Lab graph. Smaller screens stack controls and expose expandable panels. Primary mobile controls and graph handle hit areas target at least 44 CSS pixels. Reduced-motion preferences are respected.
 
 ## Graph editing and comparison
 
@@ -51,3 +51,9 @@ Audio controls distinguish requested preamp from effective protective attenuatio
 Automated Chromium checks cover desktop/mobile layouts, draft persistence, handle gestures, focus/Escape, source fitting, graph exports, backup/recovery and mocked production research. DSP checks compare browser responses and rendered tones at 44.1/48/96 kHz. Edge/WebKit, physical listening, live capture permissions, real Gemini authorization and Windows APO remain unrun here.
 
 Use [the manual testing guide](docs/MANUAL_TESTING.md) after pulling the project. See [README](README.md) for setup and [the verification report](VERIFICATION_REPORT.md) for commands and evidence. Screenshots are generated under ignored `artifacts/`; dependencies, credentials and build outputs are excluded from Git.
+
+## Graph Lab editor follow-up
+
+The tab now exposes New EQ preset, Edit EQ and Presets alongside Compare curves. Creation starts with an editable parametric band. Name/gear/save/export controls and the graph appear before long numeric filter lists; level/rate/playback policy is expandable. Existing presets load into the shared draft for editing, saving or copying. Generate correction and Start manual EQ stay in Graph Lab instead of navigating away. Comparing an edited draft opens its current curves. The background settings/EQ page unmounts while Lab is open to avoid duplicate editors/audio engines.
+
+A dedicated `npm run test:lab` journey checks desktop plot dimensions, Options bounds, pointer/keyboard editing, Undo/Redo, save/copy/reload/export, measurement links and mobile creation. Existing UI, workspace, mobile and mocked production suites were rerun successfully. Physical/device limitations remain those in the verification report.

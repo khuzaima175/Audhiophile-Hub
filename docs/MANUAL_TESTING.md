@@ -32,6 +32,14 @@ Use Node 20+ and open http://127.0.0.1:3000. No Gemini key is needed for manual 
 4. Save as copy and confirm an independent preset appears. Try replacing a dirty draft with another preset/import: a choice should appear before replacement. Changing only graph view or selected band should not make saved parameters dirty.
 5. Export APO text and reimport it. Check preamp, filter enablement and supported frequency/gain/Q semantics. Inspect the rate comment. Wavelet and GraphicEQ conversions are approximations: review the conversion error/tolerance indicator rather than assuming identical parameters.
 
+## Create and edit directly in Graph Lab
+
+Open Graph Lab. The comparison plot should fill the remaining desktop canvas, with readable axes and bounded Options buttons. On a phone, the graph appears before the expandable curve list.
+
+Choose New EQ preset. A parametric band is ready to drag; set the preset name and assigned gear, edit by pointer/keyboard or selected-band inputs, then Save. Use Presets to Load & Edit, Save as copy or export APO text. Refresh, choose Edit EQ, and confirm the same filters remain. Edit EQ also resumes the draft created in Equalizer; both locations share a single draft and library. Compare these curves opens the current correction in comparison view. Start manual EQ on a target and Generate correction on an imported measurement should keep you inside Graph Lab.
+
+Run `npm run test:lab` against the development server for the automated version of this journey. To check a local production preview instead, set `AUDIOSAGE_TEST_URL=http://127.0.0.1:3001` for that command.
+
 ## Measurement correction and comparison
 
 Create a UTF-8 file named `manual-measurement.csv` with this numeric test data. It is a synthetic fixture, not a measured product response:

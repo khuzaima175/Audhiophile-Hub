@@ -1,4 +1,6 @@
-import { audioWorkspace, freshDraft, storeMeasurement } from '../store/audioWorkspace';
+import { audioWorkspace, freshDraft, storeMeasurement, useAudioWorkspace } from '../store/audioWorkspace';
+import { EQWorkbench } from './EQWorkbench';
+import { useElementSize } from '../hooks/useElementSize';
 import { useDismissSurface } from '../hooks/useDismissSurface';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useLabStore, labStore } from '../store/labStore';
@@ -24,18 +26,34 @@ import { synthesizeAutoPeq } from '../utils/autoPeqGenerator';
 import { parseMeasurementFile, smoothLogCurve } from '../utils/measurementParser';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useLiveTabCapture } from '../hooks/useLiveTabCapture';
-import { LabCurve, EQPreset } from '../types';
+import { LabCurve, EQPreset, GearItem } from '../types';
 import Led from './ui/Led';
 import Engraved from './ui/Engraved';
 import { WaveformIcon } from './Icon';
 
 interface GraphLabProps {
-  onSavePreset?: (preset: EQPreset) => void;
-  onOpenEditor?: () => void;
+  presets: EQPreset[];
+  gear: GearItem[];
+  onSavePresets: (presets: EQPreset[]) => void;
 }
 
-export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }) => {
+export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets }) => {
   const labState = useLabStore();
+  const { draft } = useAudioWorkspace();
+  const [panel, setPanel] = useState<'compare' | 'eq'>('compare');
+  const plot = useElementSize();
+  const openEditor = () => {
+    audioWorkspace.update({ workbenchState: 'ADDING', graphView: 'filter' }, false);
+    setPanel('eq');
+  };
+  const startManualEq = () => {
+    if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return;
+    const id = crypto.randomUUID();
+    audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING', eqMode: 'peq',
+      selectedTargetId: labState.targetCurveId, selectedBand: id,
+      peqFilters: [{ id, type: 'PK', freq: 1000, gain: 0, q: 1.4, enabled: true }] });
+    setPanel('eq');
+  };
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
   useEffect(() => {
@@ -81,6 +99,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
       showToast('Capture ended');
     },
   });
+
+  useEffect(() => {
+    if (panel === 'eq') { audioEngine.stopAudio(); if (isCapturing) stopTabCapture(); }
+  }, [panel, audioEngine.stopAudio, isCapturing, stopTabCapture]);
 
   useDismissSurface(showFeedbackGuard, dismissFeedbackGuard, 50);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -245,15 +267,15 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
       labState.zoomRange
     ] || [20, 20000];
     return {
-      width: Math.min(960, Math.max(300, screenWidth - (screenWidth > 980 ? 340 : 40))),
-      height: screenWidth < 768 ? 320 : 380,
-      padding: { top: 28, right: screenWidth < 768 ? 14 : 28, bottom: 42, left: screenWidth < 768 ? 38 : 54 },
+      width: Math.max(260, plot.size.width || 960),
+      height: Math.max(280, plot.size.height || 440),
+      padding: { top: 28, right: screenWidth < 768 ? 14 : 28, bottom: 56, left: screenWidth < 768 ? 38 : 54 },
       minFreq: range[0],
       maxFreq: range[1],
       minY,
       maxY,
     };
-  }, [minY, maxY, labState.zoomRange, screenWidth]);
+  }, [minY, maxY, labState.zoomRange, screenWidth, plot.size.width, plot.size.height]);
 
   // Paths
   const renderedPaths = useMemo(() => {
@@ -364,7 +386,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
       });
       const ref = await storeMeasurement({ name: curve.name, rawPoints: curve.points.map(p => ({ ...p, rawSpl: p.gain })), smoothedPoints: [], normOffset: 0, sampleCount: curve.points.length, smoothing: 'RAW' });
       audioWorkspace.replace({ ...freshDraft(), dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
-      labStore.closeLab(); onOpenEditor?.();
+      setPanel('eq');
     } catch (e) { showToast((e as Error).message); }
   };
 
@@ -426,6 +448,13 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
       {/* 1. TOP TOOLBAR */}
       <LabToolbar
         onToast={showToast}
+        showComparisonControls={panel === 'compare'}
+        onNewPreset={startManualEq}
+        workspaceNavigation={<nav className="lab-view-tabs" aria-label="Graph Lab workspace views">
+          <button className="secondary-button" aria-pressed={panel === 'compare'} onClick={() => setPanel('compare')}>Compare curves</button>
+          <button className="secondary-button" aria-pressed={panel === 'eq' && draft.workbenchState !== 'IDLE'} onClick={openEditor}>Edit EQ {draft.dirty ? '•' : ''}</button>
+          <button className="secondary-button" aria-pressed={panel === 'eq' && draft.workbenchState === 'IDLE'} onClick={() => { audioWorkspace.update({ workbenchState: 'IDLE' }, false); setPanel('eq'); }}>Presets ({presets.length})</button>
+        </nav>}
         onExportCsv={() => {
           const rows = [`# Displayed data: mode=${labState.viewMode}; normalization=${labState.normDb}dB@${labState.normHz}Hz; smoothing=${labState.smoothing}; delta=${labState.deltaMode}. Per-curve offset/inversion/difference below.`, 'curve,frequency_hz,gain_db,offset_db,inverted,difference,provenance,preserve_absolute'];
           displayCurves
@@ -445,7 +474,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
       />
 
       {/* 2. MAIN WORKSPACE */}
-      <div className="lab-workspace">
+      {panel === 'eq' ? <main className="lab-eq-main">
+        <EQWorkbench embeddedInLab presets={presets} gear={gear} onSavePresets={onSavePresets} onCompare={() => setPanel('compare')} />
+      </main> : <div className="lab-workspace">
         {/* LEFT RAIL: Curve Manager & Audition Delta Engine */}
         <aside className="lab-sidebar flex flex-col gap-3">
           <div className="flex items-center justify-between pb-2 border-b border-audio-border/60">
@@ -493,7 +524,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                 curve={curve}
                 isPrimary={curve.id === labState.primaryCurveId}
                 onSendAutoPeq={handleSendAutoPeq}
-                onManualEq={() => { if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return; audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING', selectedTargetId: labState.targetCurveId }); labStore.closeLab(); onOpenEditor?.(); }}
+                onManualEq={startManualEq}
                 onToast={showToast}
               />
             ))}
@@ -623,11 +654,13 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
         {/* CENTER & BOTTOM: SVG Canvas & Per-Curve Rows */}
         <main className="flex-1 flex flex-col overflow-hidden bg-audio-surface p-3 md:p-5 gap-3">
           {/* 3. MEASUREMENT-GRADE SVG CANVAS */}
-          <div className="relative flex-1 min-h-[300px] w-full bg-audio-surface rounded-2xl border border-audio-border/90 shadow-panel overflow-hidden flex flex-col justify-center">
+          <div ref={plot.ref} className="lab-plot relative flex-1 w-full bg-audio-surface rounded-2xl border border-audio-border/90 shadow-panel overflow-hidden">
             <svg
               ref={svgRef}
               viewBox={`0 0 ${viewport.width} ${viewport.height}`}
-              className="w-full h-full block cursor-crosshair"
+              className="w-full h-full block cursor-crosshair lab-compare-graph"
+              aria-label="Comparison frequency response"
+              role="img"
               onPointerMove={handleMouseMove}
               onPointerDown={handleMouseMove}
               onPointerLeave={(e) => {
@@ -649,15 +682,15 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                       y1={viewport.padding.top}
                       x2={x}
                       y2={viewport.height - viewport.padding.bottom}
-                      stroke={major ? '#2A221B' : '#202a23'}
+                      stroke={major ? '#343a40' : '#272d33'}
                       strokeWidth={major ? 1.0 : 0.6}
                       strokeDasharray={major ? undefined : '2 2'}
                     />
                     <text
                       x={x}
                       y={viewport.height - 22}
-                      fill={major ? '#edf0ec' : '#6A5F52'}
-                      fontSize={major ? 8.5 : 7.5}
+                      fill={major ? '#edf0ec' : '#9ba3ad'}
+                      fontSize={major ? 12 : 11}
                       fontWeight={major ? 'bold' : 'normal'}
                       fontFamily="monospace"
                       textAnchor="middle"
@@ -679,15 +712,15 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                       y1={y}
                       x2={viewport.width - viewport.padding.right}
                       y2={y}
-                      stroke={isZero ? '#4A3E33' : '#222b25'}
+                      stroke={isZero ? '#565e68' : '#272d33'}
                       strokeWidth={isZero ? 1.2 : 0.6}
                       strokeDasharray={isZero ? undefined : '2 2'}
                     />
                     <text
                       x={viewport.padding.left - 6}
                       y={y + 3}
-                      fill={isZero ? '#b4e4bd' : '#6A5F52'}
-                      fontSize="8"
+                      fill={isZero ? '#edf0ec' : '#9ba3ad'}
+                      fontSize="12"
                       fontFamily="monospace"
                       textAnchor="end"
                       fontWeight={isZero ? 'bold' : 'normal'}
@@ -765,7 +798,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                         x={pillX + 9}
                         y={pillY + 13}
                         fill="#edf0ec"
-                        fontSize="8.5"
+                        fontSize="12"
                         fontFamily="monospace"
                         fontWeight="bold"
                       >
@@ -778,7 +811,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
                           x={pillX + 9}
                           y={pillY + 14 + (i + 1) * 14}
                           fill={v.color}
-                          fontSize="8.5"
+                          fontSize="12"
                           fontFamily="monospace"
                           fontWeight={v.isPrimary ? 'bold' : '600'}
                         >
@@ -794,7 +827,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
 
 
         </main>
-      </div>
+      </div>}
 
       {/* Toast */}
       {captureError && (
@@ -826,7 +859,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }
           </div>
         </div>
       )}
-      {toastMessage && (
+      {toastMessage && panel === 'compare' && (
         <div className="notification-area" role="status" aria-live="polite">
           {toastMessage}
         </div>

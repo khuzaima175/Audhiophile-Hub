@@ -694,7 +694,7 @@ const App: React.FC = () => {
             <React.Suspense
               fallback={<div className="workspace-page text-audio-muted">Opening workspace…</div>}
             >
-              <SettingsModal
+              {!graphState.isOpen && <SettingsModal
                 embedded
                 isOpen={true}
                 onClose={() => navigate('home')}
@@ -708,7 +708,7 @@ const App: React.FC = () => {
                 onSummarizeHistory={handleSummarizeHistory}
                 isSummarizing={isSummarizing}
                 initialTab={settingsTab}
-              />
+              />}
             </React.Suspense>
           ) : activePage === 'home' ? (
             /* Home Console Hardware Rack (replaces empty void) */
@@ -829,10 +829,12 @@ const App: React.FC = () => {
           }
         >
           <GraphLab
-            onOpenEditor={() => navigate('eq')}
-            onSavePreset={(newPreset) => {
-              const updatedEqLib = [...(profile.eqLibrary || []), newPreset];
-              setProfile((prev) => ({ ...prev, eqLibrary: updatedEqLib }));
+            presets={profile.eqLibrary || []}
+            gear={profile.gearLibrary || []}
+            onSavePresets={(updated) => {
+              const next = { ...profile, eqLibrary: updated };
+              localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(next));
+              setProfile(next);
             }}
           />
         </React.Suspense>

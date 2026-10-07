@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useRef, useState, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissSurface } from '../../hooks/useDismissSurface';
-export function Popover({ label, children }: { label: string; children: React.ReactNode }) {
+export function Popover({ label, triggerText, children }: { label: string; triggerText?: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ left: 8, top: 8, maxHeight: 300 });
   const trigger = useRef<HTMLButtonElement>(null);
@@ -28,7 +28,7 @@ export function Popover({ label, children }: { label: string; children: React.Re
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); document.removeEventListener('pointerdown', outside); };
   }, [open]);
   return <>
-    <button ref={trigger} className="secondary-button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>{label} ⌄</button>
+    <button ref={trigger} className="secondary-button" aria-label={label} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>{triggerText || label} ⌄</button>
     {open && createPortal(<div id={id} ref={panel} className="dropdown-menu portal-popover" style={position} role="group" aria-label={label}
       onKeyDown={e => {
         const controls = Array.from(panel.current?.querySelectorAll<HTMLElement>('button,input') || []);

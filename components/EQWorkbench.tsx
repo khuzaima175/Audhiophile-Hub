@@ -1,3 +1,5 @@
+import { useDismissSurface } from '../hooks/useDismissSurface';
+import { useElementSize } from '../hooks/useElementSize';
 import { auditWavelet, compareResponses } from '../utils/conversionAudit';
 import { FilterHandles, gainApplies } from './FilterHandles';
 import { GearItem } from '../types';
@@ -56,9 +58,11 @@ interface EQWorkbenchProps {
   gear?: GearItem[];
   onSavePresets: (presets: EQPreset[]) => void;
   className?: string;
+  embeddedInLab?: boolean;
+  onCompare?: () => void;
 }
 
-export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [], onSavePresets, className = '' }) => {
+export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [], onSavePresets, className = '', embeddedInLab = false, onCompare }) => {
   const { draft, error: draftError, undoCount, redoCount } = useAudioWorkspace();
   const [workbenchState, setWorkbenchState] = useDraftField('workbenchState');
   const [editingPresetId, setEditingPresetId] = useDraftField('editingPresetId');
@@ -105,6 +109,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   } | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
+  const plot = useElementSize();
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const measurementFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -183,6 +188,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       showToast('Capture ended. Clean disconnect.');
     },
   });
+
+  useDismissSurface(showFeedbackGuard, dismissFeedbackGuard, 50);
 
   // Selected Target Curve
   const currentTarget = useMemo(() => {
@@ -272,12 +279,13 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   const workbenchViewport: ViewportDimensions = useMemo(
     () => ({
       ...DEFAULT_VIEWPORT,
-      height: 290,
+      width: embeddedInLab ? Math.max(260, plot.size.width || 960) : DEFAULT_VIEWPORT.width,
+      height: embeddedInLab ? Math.max(280, plot.size.height || 440) : 290,
       padding: { top: 25, right: 25, bottom: 35, left: 52 },
       minY,
       maxY,
     }),
-    [minY, maxY],
+    [minY, maxY, embeddedInLab, plot.size.width, plot.size.height],
   );
 
   // Generate SVG path for active curve
@@ -673,16 +681,92 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     labStore.setTargetCurveId(selectedTargetId);
     labStore.setViewMode('rawFilter');
     labStore.openLab(curves, selectedTargetId);
+    onCompare?.();
   };
 
   const inputClass =
     'w-full bg-audio-surface border border-audio-border rounded-xl px-4 py-2.5 text-audio-text focus:outline-none focus:border-audio-accent/70 text-xs font-sans';
   const labelClass = 'text-[10px] font-bold text-audio-accent uppercase tracking-widest font-mono pl-1';
 
-  return (
-    <div className={`eq-workspace space-y-5 max-w-5xl mx-auto select-none ${className}`}>
-      {draftError && <div role="alert" className="panel p-3">{draftError}<button onClick={() => audioWorkspace.retry()}>Retry write</button><button onClick={() => { if (window.confirm('Preserve damaged draft as recovery data and start fresh?')) { try { audioWorkspace.recoverFresh(); } catch { setImportError('Recovery write failed. Original draft is preserved. Export a backup before refreshing.'); } } }}>Start fresh</button></div>}
-      {importError && <div role="alert" className="panel p-3">{importError}<button onClick={() => { audioWorkspace.update({ measurementRef: null }); setImportError(null); }}>Continue manual EQ</button></div>}
+  const presetIdentity = (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass} htmlFor="preset-name">
+                Preset name *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Simgot EW300 Holographic Chill"
+                id="preset-name"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                className={inputClass}
+                autoFocus={!embeddedInLab}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Assigned gear</label>
+              <select aria-label="Assigned gear" value={draft.gearId || ''} onChange={e => { const g = gear.find(g => g.id === e.target.value); audioWorkspace.update({ gearId: g?.id || null, hardwareAssigned: g?.name || hardwareAssigned }); }} className={inputClass}><option value="">Unlinked / custom hardware</option>{gear.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+              <label className={labelClass}>Hardware name</label>
+              <input
+                type="text"
+                placeholder="e.g. Simgot EW300, CCA Phoenix..."
+                value={hardwareAssigned}
+                onChange={(e) => setHardwareAssigned(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+  );
+  const presetActions = (
+          <div className="eq-save-actions flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-audio-border/60">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleCopyAPO()}
+                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
+              >
+                {copiedKey === 'apo-curr' ? '✓ Copied APO' : 'Copy APO'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCopyWavelet()}
+                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
+              >
+                {copiedKey === 'wav-curr' ? '✓ Copied Wavelet' : 'Copy Wavelet'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownloadTxt()}
+                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
+              >
+                Download .txt
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button className="secondary-button" disabled={!presetName.trim()} onClick={() => void handleSaveProfile(true)}>Save as copy</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkbenchState('IDLE');
+                }}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
+              >
+                Keep draft
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveProfile()}
+                disabled={!presetName.trim()}
+                className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass disabled:opacity-40"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+  );
+  const policyControls = (
       <div className="audio-policy-controls">
         <label><input type="checkbox" checked={draft.normalize} onChange={e => audioWorkspace.update({ normalize: e.target.checked })} />Normalize source and target at 1 kHz for fitting / shape display</label>
         <label>Post-EQ response level<select value={draft.responseLevel} onChange={e => audioWorkspace.update({ responseLevel: e.target.value as 'absolute' | 'shape' })}><option value="absolute">Includes effective attenuation</option><option value="shape">Response shape (excludes preamp)</option></select></label>
@@ -694,13 +778,507 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         {levelMatched && <p>{matchDb === null ? 'Matching unavailable or recalculating. Bypass currently uses raw audio.' : `Bypass matching attenuation: ${matchDb.toFixed(2)} dB. ${matchDb === -24 ? 'Attenuation limit reached; the bypass may remain louder.' : ''}`}</p>}
         <p>APO parameter exports preserve supported filters and effective preamp. Wavelet response sampling and Wavelet-to-PEQ fitting are approximations; deep notches and narrow filters may lose detail.</p>
       </div>
+  );
+  const graphEditor = (<>
+      <div className="audio-view-tabs">
+        <button className="secondary-button" onClick={() => { if (eqMode !== 'peq' && draft.dirty && !window.confirm('Add a parametric band and switch from graphic mode? Graphic settings will be kept.')) return; setEqMode('peq'); handleAddPeqFilter(); }}>Add band</button>
+        <button className="secondary-button" onClick={() => { audioWorkspace.update({ gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0), peqFilters: peqFilters.map(f => ({ ...f, gain: 0 })) }); }}>Reset gains</button>
+        <button className="secondary-button" onClick={() => setIsBypassed(!isBypassed)}>{isBypassed ? 'Enable EQ' : 'Raw bypass'}</button>
+      </div>
+      <div className="eq-graph-layout">
+      <details className="selected-band-sheet" open={!!draft.selectedBand}>
+        <summary>Selected band</summary>
+        {eqMode === 'peq' ? (() => { const f = peqFilters.find(f => f.id === draft.selectedBand); return f ? <div className="audio-policy-controls">
+          <label>Frequency (Hz)<input aria-label="Selected frequency" type="number" min="20" max="20000" value={f.freq} onChange={e => handleUpdatePeqFilter(f.id, { freq: Math.max(20,Math.min(20000,Number(e.target.value) || 20)) })} /></label>
+          {gainApplies(f.type) && <label>Gain (dB)<input aria-label="Selected gain" type="number" min="-18" max="18" step="0.5" value={f.gain} onChange={e => handleUpdatePeqFilter(f.id, { gain: Math.max(-18,Math.min(18,Number(e.target.value) || 0)) })} /></label>}
+          <label>Q<input aria-label="Selected Q" type="number" min="0.1" max="20" step="0.1" value={f.q} onChange={e => handleUpdatePeqFilter(f.id, { q: Math.max(.1,Math.min(20,Number(e.target.value) || 1)) })} /></label>
+          <label><input type="checkbox" checked={f.enabled !== false} onChange={e => handleUpdatePeqFilter(f.id, { enabled: e.target.checked })} />Enabled</label>
+        </div> : <p>Select a numbered graph handle.</p>; })() : <p>Graphic bands have fixed frequencies. Drag vertically or use Up/Down keys.</p>}
+      </details>
+      {/* 4. LIVE SVG CURVE VISUALIZER (Measured Cream, Target Dashed, Corrected Phosphor Teal) */}
+      <details className="section-disclosure space-y-3" open={workbenchState !== 'IDLE' || !!measurement}>
+        <summary>Frequency response preview</summary>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Engraved size="xs" glow>
+              Frequency response preview
+            </Engraved>
+            {currentPreamp < 0 && (
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-audio-surface border border-audio-signal/30 text-audio-signal">
+                HEADROOM: {currentPreamp} dB
+              </span>
+            )}
+          </div>
+
+          {/* View Mode Toggle & Target Reference Chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="eq-controls">
+              <label className="control-field">
+                Graph view
+                <select
+                  value={eqViewMode}
+                  onChange={(e) => setEqViewMode(e.target.value as 'iem' | 'filter' | 'compensated')}
+                >
+                  <option value="iem" disabled={selectedTargetId === 'none'}>Inferred from target & EQ</option>
+                  <option value="filter">EQ correction</option>
+                  <option value="compensated" disabled={!measurement}>
+                    Measured response + EQ
+                  </option>
+                </select>
+              </label>
+              <label className="control-field">
+                Reference target
+                <select value={selectedTargetId} onChange={(e) => setSelectedTargetId(e.target.value)}>
+                  {TARGET_CURVES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.shortName}
+                    </option>
+                  ))}
+                  <option value="none">No target</option>
+                </select>
+              </label>
+            </div>
+            {/* Open in Lab Button */}
+            <button
+              type="button"
+              onClick={openCompare}
+              className="px-2.5 py-1 rounded-lg bg-audio-accent text-black font-mono font-bold text-[10px] hover:bg-audio-accent-bright shadow-glow-brass transition-all flex items-center gap-1"
+              title="Compare the current EQ and reference curves"
+            >
+              <span>{embeddedInLab ? 'Compare these curves' : '⤢ Open in Lab'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* SVG Curve Canvas with CrinGraph Axis Craft & Auto-Ranging */}
+        <div ref={plot.ref} className={`relative w-full overflow-hidden bg-audio-surface rounded-xl border border-audio-border/80 ${embeddedInLab ? 'lab-editor-plot' : ''}`}>
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${workbenchViewport.width} ${workbenchViewport.height}`}
+            className={`w-full block cursor-crosshair eq-edit-graph ${embeddedInLab ? 'h-full' : 'h-auto'}`}
+            onPointerMove={handleSvgMouseMove}
+            onPointerDown={handleSvgMouseMove}
+            onPointerLeave={(e) => {
+              if (e.pointerType === 'mouse') setHoveredPoint(null);
+            }}
+          >
+            <defs>
+              <linearGradient id="eq-brass-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#b4e4bd" />
+                <stop offset="50%" stopColor="#c9f3d0" />
+                <stop offset="100%" stopColor="#b4e4bd" />
+              </linearGradient>
+              <linearGradient id="eq-teal-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#4FB38B" />
+                <stop offset="50%" stopColor="#83bfa5" />
+                <stop offset="100%" stopColor="#4FB38B" />
+              </linearGradient>
+              <filter id="eq-curve-glow" x1="-10%" y1="-10%" width="120%" height="120%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#b4e4bd" floodOpacity="0.45" />
+              </filter>
+              <filter id="teal-curve-glow" x1="-10%" y1="-10%" width="120%" height="120%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#83bfa5" floodOpacity="0.55" />
+              </filter>
+            </defs>
+
+            {/* Sibilance corridor 6kHz - 9kHz */}
+            <rect
+              x={freqToX(6000, workbenchViewport)}
+              y={workbenchViewport.padding.top}
+              width={freqToX(9000, workbenchViewport) - freqToX(6000, workbenchViewport)}
+              height={
+                workbenchViewport.height - workbenchViewport.padding.top - workbenchViewport.padding.bottom
+              }
+              fill="#eb9689"
+              fillOpacity="0.07"
+            />
+            <text
+              x={(freqToX(6000, workbenchViewport) + freqToX(9000, workbenchViewport)) / 2}
+              y={workbenchViewport.padding.top + 13}
+              fill="#eb9689"
+              fontSize="7.5"
+              fontFamily="monospace"
+              fontWeight="bold"
+              textAnchor="middle"
+              opacity="0.85"
+            >
+              SIBILANCE RISK (6-9kHz)
+            </text>
+
+            {/* CrinGraph Decade Grid Lines & Axis Ticks (1/1.5/2/3/4/6/8 per decade) */}
+            {CRINGRAPH_FREQ_TICKS.map(({ freq, label, major }) => {
+              const x = freqToX(freq, workbenchViewport);
+              return (
+                <g key={freq}>
+                  <line
+                    x1={x}
+                    y1={workbenchViewport.padding.top}
+                    x2={x}
+                    y2={workbenchViewport.height - workbenchViewport.padding.bottom}
+                    stroke={major ? '#382D24' : '#222b25'}
+                    strokeWidth={major ? '1.0' : '0.6'}
+                    strokeDasharray={major ? undefined : '2 2'}
+                  />
+                  <text
+                    x={x}
+                    y={workbenchViewport.height - 12}
+                    fill={major ? '#edf0ec' : '#8A7E6E'}
+                    fontSize={embeddedInLab ? (major ? '12' : '11') : (major ? '8.5' : '7.5')}
+                    fontWeight={major ? 'bold' : 'normal'}
+                    fontFamily="monospace"
+                    textAnchor="middle"
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Horizontal dB Ticks (every 6 dB, auto-ranged) */}
+            {yTicks.map((db) => {
+              const y = dbToY(db, workbenchViewport, minY, maxY);
+              const isZero = db === 0;
+              return (
+                <g key={db}>
+                  <line
+                    x1={workbenchViewport.padding.left}
+                    y1={y}
+                    x2={workbenchViewport.width - workbenchViewport.padding.right}
+                    y2={y}
+                    stroke={isZero ? '#4A3E33' : '#1E1813'}
+                    strokeWidth={isZero ? '1.2' : '0.7'}
+                    strokeDasharray={isZero ? undefined : '2 2'}
+                  />
+                  <text
+                    x={workbenchViewport.padding.left - 6}
+                    y={y + 3}
+                    fill={isZero ? '#b4e4bd' : '#8A7E6E'}
+                    fontSize={embeddedInLab ? '12' : '8'}
+                    fontFamily="monospace"
+                    textAnchor="end"
+                    fontWeight={isZero ? 'bold' : 'normal'}
+                  >
+                    {db > 0 ? `+${db}` : db}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Selected Reference Target Curve (Dashed) */}
+            {eqViewMode !== 'filter' && targetSvgPath && (
+              <path
+                d={targetSvgPath}
+                fill="none"
+                stroke={currentTarget?.color || '#83bfa5'}
+                strokeWidth="1.8"
+                strokeDasharray="4 3"
+                strokeLinecap="round"
+                opacity="0.85"
+              />
+            )}
+
+            {/* Ingested Measurement Curve (Solid Cream) */}
+            {eqViewMode === 'compensated' && measuredSvgPath && (
+              <path
+                d={measuredSvgPath}
+                fill="none"
+                stroke="#edf0ec"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.9"
+              />
+            )}
+
+            {/* Corrected Response Curve (Phosphor Teal) */}
+            {eqViewMode === 'compensated' && correctedSvgPath && (
+              <path
+                d={correctedSvgPath}
+                fill="none"
+                stroke="url(#eq-teal-grad)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#teal-curve-glow)"
+              />
+            )}
+
+            {/* Active Live Manual EQ Curve (Brushed Brass) - when no measurement active */}
+            {eqViewMode !== 'compensated' && compositeSvgPath && (
+              <path
+                d={compositeSvgPath}
+                fill="none"
+                stroke="url(#eq-brass-grad)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#eq-curve-glow)"
+              />
+            )}
+
+            {eqViewMode === 'filter' && <FilterHandles viewport={workbenchViewport} bands={currentIsoBands} gains={currentIsoGains} onGain={handleSliderChange} onFilter={handleUpdatePeqFilter} onDragging={active => setFrozenRange(active ? { minY, maxY, yTicks } : null)} />}
+            {/* Dual-Curve Crosshair & Dynamic Readout */}
+            {hoveredPoint && (
+              <g pointerEvents="none">
+                <line
+                  x1={hoveredPoint.x}
+                  y1={workbenchViewport.padding.top}
+                  x2={hoveredPoint.x}
+                  y2={workbenchViewport.height - workbenchViewport.padding.bottom}
+                  stroke="#edf0ec"
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                  opacity="0.5"
+                />
+                <circle
+                  cx={hoveredPoint.x}
+                  cy={hoveredPoint.y}
+                  r="4.5"
+                  fill="#b4e4bd"
+                  stroke="#edf0ec"
+                  strokeWidth="1.5"
+                />
+                <rect
+                  x={Math.min(
+                    hoveredPoint.x + 8,
+                    workbenchViewport.width - workbenchViewport.padding.right - 120,
+                  )}
+                  y={Math.max(hoveredPoint.y - 28, workbenchViewport.padding.top + 4)}
+                  width="115"
+                  height="24"
+                  rx="4"
+                  fill="#222b25"
+                  stroke="#b4e4bd"
+                  strokeWidth="1"
+                  filter="drop-shadow(0 4px 10px rgba(0,0,0,0.6))"
+                />
+                <text
+                  x={Math.min(
+                    hoveredPoint.x + 65,
+                    workbenchViewport.width - workbenchViewport.padding.right - 62,
+                  )}
+                  y={Math.max(hoveredPoint.y - 12, workbenchViewport.padding.top + 20)}
+                  fill="#edf0ec"
+                  fontSize={embeddedInLab ? '12' : '8'}
+                  fontFamily="monospace"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                >
+                  {hoveredPoint.freq >= 1000
+                    ? `${(hoveredPoint.freq / 1000).toFixed(1)}k`
+                    : `${hoveredPoint.freq}`}
+                  Hz • {hoveredPoint.db > 0 ? `+${hoveredPoint.db}` : hoveredPoint.db}dB
+                  {hoveredPoint.correctedDb !== undefined &&
+                    ` (Corr: ${hoveredPoint.correctedDb > 0 ? `+${hoveredPoint.correctedDb}` : hoveredPoint.correctedDb})`}
+                </text>
+              </g>
+            )}
+          </svg>
+        </div>
+
+        {/* Legend & Provenance Trust Caption */}
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[9px] font-mono text-audio-muted/70">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-1.5 text-audio-accent font-semibold">
+              <span className="w-2.5 h-[2px] bg-audio-accent" />
+              {eqViewMode === 'iem'
+                ? 'Estimated response'
+                : eqViewMode === 'compensated'
+                  ? 'Post-EQ Net Response (Solid Brass)'
+                  : 'EQ correction shape'}
+            </span>
+            {selectedTargetId !== 'none' && (
+              <span className="flex items-center gap-1.5 text-audio-signal font-semibold">
+                <span className="w-2.5 h-[2px] border-b border-dashed border-audio-signal" /> Reference target
+              </span>
+            )}
+            {measurement && (
+              <span className="flex items-center gap-1.5 text-[#edf0ec]">
+                <span className="w-2.5 h-[2px] bg-audio-surface" /> Measured Raw IEM (Solid Cream)
+              </span>
+            )}
+            {autoPeqResult && (
+              <span className="flex items-center gap-1.5 text-audio-signal">
+                <span className="w-2.5 h-[2px] bg-audio-signal shadow-glow-teal" /> Current post-EQ response
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-audio-signal">
+              {currentTarget?.shortName}: {currentTarget?.points.length || 0} pts
+            </span>
+            <span>•</span>
+            <span className="text-audio-accent">EQ: Biquad Synthesis (exact)</span>
+          </div>
+        </div>
+
+        <details className="section-disclosure">
+          <summary>Listen & compare your EQ</summary>
+          <p className="text-xs text-audio-muted mb-3">
+            Play a local track or test sound, then switch EQ on and off to hear the difference.
+          </p>
+          <label className="control-field mb-3">
+            Playback volume · {Math.round(volume * 100)}%
+            <input
+              aria-label="EQ playback volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+            />
+          </label>
+          {/* 5. WEB AUDIO PREVIEW AUDITION & Capture browser audio TOOLBAR */}
+          <div className="p-3 bg-audio-surface rounded-xl border border-audio-border flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Engraved size="xs" glow className="mr-1">
+                Audio source
+              </Engraved>
+
+              {/* LIVE TAB CAPTURE LATCH BUTTON */}
+              <button
+                type="button"
+                onClick={() => (isCapturing ? stopTabCapture() : startTabCapture())}
+                disabled={!tabSupported}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
+                  isCapturing
+                    ? 'bg-audio-surface border-audio-warn text-audio-warn shadow-panel animate-pulse'
+                    : !tabSupported
+                      ? 'bg-audio-surface border-audio-border text-audio-muted/40 cursor-not-allowed'
+                      : 'bg-audio-surface border-audio-border text-audio-muted hover:text-audio-text hover:border-audio-accent/60'
+                }`}
+                title={
+                  !tabSupported
+                    ? 'Chrome / Edge tab capture only'
+                    : isCapturing
+                      ? 'Click to stop live browser tab capture'
+                      : 'Capture and EQ a live YouTube or Spotify Web tab in real-time'
+                }
+              >
+                <Led color={isCapturing ? 'red' : 'amber'} pulse={isCapturing} size="sm" />
+                <span>{isCapturing ? 'LIVE TAB ACTIVE' : 'LIVE TAB CAPTURE'}</span>
+              </button>
+
+              {/* Telemetry Readout for Live Tab */}
+              {isCapturing && (
+                <span className="px-2 py-1 rounded bg-audio-surface border border-audio-warn/40 text-[9px] font-mono text-audio-warn font-bold">
+                  LIVE • LATENCY {tabTelemetry.latencyMs}ms
+                </span>
+              )}
+
+              {/* Pink Noise Generator */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isCapturing) stopTabCapture();
+                  void playPinkNoise();
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 ${
+                  isPlaying && activeSource === 'pink-noise'
+                    ? 'bg-audio-signal text-black font-bold shadow-glow-teal'
+                    : 'bg-audio-surface border border-audio-border text-audio-muted hover:text-audio-text'
+                }`}
+              >
+                <WaveformIcon />
+                <span>{isPlaying && activeSource === 'pink-noise' ? '⏹ Stop Noise' : '▶ Pink Noise'}</span>
+              </button>
+
+              {/* Sine Sweep Generator */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isCapturing) stopTabCapture();
+                  void playSineSweep();
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 ${
+                  isPlaying && activeSource === 'sweep'
+                    ? 'bg-audio-warn text-black font-bold shadow-panel'
+                    : 'bg-audio-surface border border-audio-border text-audio-muted hover:text-audio-text'
+                }`}
+              >
+                <span>{isPlaying && activeSource === 'sweep' ? '⏹ Stop Sweep' : '▶ 20Hz—20kHz Sweep'}</span>
+              </button>
+
+              {/* Upload Music File for Audition */}
+              <button
+                type="button"
+                onClick={() => audioFileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-lg border border-audio-border bg-audio-surface text-xs font-mono text-audio-muted hover:text-audio-text hover:border-audio-accent/50 transition-all flex items-center gap-1.5"
+              >
+                <span>{fileName ? `🎵 ${fileName.slice(0, 14)}…` : '📁 Audition Track'}</span>
+              </button>
+              <input
+                type="file"
+                ref={audioFileInputRef}
+                accept="audio/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (isCapturing) stopTabCapture();
+                    void handleFileUpload(file);
+                  }
+                }}
+              />
+
+              {fileName && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCapturing) stopTabCapture();
+                    void toggleFilePlayback();
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs"
+                >
+                  {isPlaying && activeSource === 'file' ? 'Pause' : 'Play Track'}
+                </button>
+              )}
+            </div>
+
+            {/* Latching A/B Bypass Button */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsBypassed(!isBypassed)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
+                  isBypassed
+                    ? 'bg-audio-surface border-audio-warn text-audio-warn'
+                    : 'bg-audio-surface border-audio-signal text-audio-signal shadow-glow-teal'
+                }`}
+                title="A/B Bypass Switch: Instantly compare EQ curve against raw bypass audio"
+              >
+                <Led
+                  color={isBypassed ? 'amber' : 'green'}
+                  pulse={!isBypassed && isPlaying && activeSource !== 'liveTab' && activeSource !== 'none'}
+                  size="sm"
+                />
+                <span>{isBypassed ? (levelMatched && matchDb !== null ? (matchDb === -24 ? 'Limited match bypass' : 'Level-matched bypass') : 'Raw bypass') : 'EQ on'}</span>
+              </button>
+            </div>
+          </div>
+        </details>
+      </details>
+      </div>
+  </>);
+
+  return (
+    <div className={`eq-workspace space-y-5 max-w-5xl mx-auto select-none ${embeddedInLab ? 'lab-eq-workbench' : ''} ${className}`}>
+      {draftError && <div role="alert" className="panel p-3">{draftError}<button onClick={() => audioWorkspace.retry()}>Retry write</button><button onClick={() => { if (window.confirm('Preserve damaged draft as recovery data and start fresh?')) { try { audioWorkspace.recoverFresh(); } catch { setImportError('Recovery write failed. Original draft is preserved. Export a backup before refreshing.'); } } }}>Start fresh</button></div>}
+      {importError && <div role="alert" className="panel p-3">{importError}<button onClick={() => { audioWorkspace.update({ measurementRef: null }); setImportError(null); }}>Continue manual EQ</button></div>}
+      {!embeddedInLab && policyControls}
       <nav className="audio-view-tabs" aria-label="Audio workspace views">
-        <button className="secondary-button" onClick={() => setWorkbenchState('ADDING')}>Editor {draft.dirty ? '• Unsaved' : ''}</button>
+        {!embeddedInLab && <><button className="secondary-button" onClick={() => setWorkbenchState('ADDING')}>Editor {draft.dirty ? '• Unsaved' : ''}</button>
         <button className="secondary-button" onClick={openCompare}>Compare</button>
-        <button className="secondary-button" onClick={() => setWorkbenchState('IDLE')}>Presets</button>
+        <button className="secondary-button" onClick={() => setWorkbenchState('IDLE')}>Presets</button></>}
         <button className="secondary-button" disabled={!undoCount} onClick={() => audioWorkspace.undo()}>Undo</button>
         <button className="secondary-button" disabled={!redoCount} onClick={() => audioWorkspace.redo()}>Redo</button>
       </nav>
+      {embeddedInLab && workbenchState === 'ADDING' && <section className="lab-draft-bar panel p-4">
+        <div className="flex justify-between items-center gap-3 mb-3"><h2>{editingPresetId ? 'Edit EQ preset' : 'Create an EQ preset'}</h2><span className="text-xs text-audio-muted">{draft.dirty ? 'Unsaved changes' : 'Draft saved'}</span></div>
+        {presetIdentity}{presetActions}
+      </section>}
+      {embeddedInLab && workbenchState !== 'IDLE' && graphEditor}
       {/* 1. TOP HEADER & WORKBENCH ACTIONS */}
       <div className="flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-audio-border/60">
         <div>
@@ -792,6 +1370,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       {conversionReport && <p role="status" className="text-xs text-audio-muted">{conversionReport}</p>}
       {fitEvaluation.error && <p role="alert">Fitting failed: {fitEvaluation.error}</p>}
       {draft.originalFit && <p className="text-xs text-audio-muted">Original automatic fit: {draft.originalFit.finalRms} dB RMS · {draft.originalFit.evaluatedPoints} evaluated points. Current response follows your editable filters.</p>}
+      {embeddedInLab && workbenchState !== 'IDLE' && <details className="section-disclosure"><summary>Level, sample rate & playback settings</summary>{policyControls}</details>}
       {/* Hidden Measurement File Input */}
       <input
         type="file"
@@ -988,34 +1567,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass} htmlFor="preset-name">
-                Preset name *
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Simgot EW300 Holographic Chill"
-                id="preset-name"
-                value={presetName}
-                onChange={(e) => setPresetName(e.target.value)}
-                className={inputClass}
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Assigned gear</label>
-              <select aria-label="Assigned gear" value={draft.gearId || ''} onChange={e => { const g = gear.find(g => g.id === e.target.value); audioWorkspace.update({ gearId: g?.id || null, hardwareAssigned: g?.name || hardwareAssigned }); }} className={inputClass}><option value="">Unlinked / custom hardware</option>{gear.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
-              <label className={labelClass}>Hardware name</label>
-              <input
-                type="text"
-                placeholder="e.g. Simgot EW300, CCA Phoenix..."
-                value={hardwareAssigned}
-                onChange={(e) => setHardwareAssigned(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
+          {!embeddedInLab && presetIdentity}
 
           <label className="control-field w-fit">
             Equalizer type
@@ -1217,535 +1769,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
           )}
 
           {/* Explicit draft save actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-audio-border/60">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleCopyAPO()}
-                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-              >
-                {copiedKey === 'apo-curr' ? '✓ Copied APO' : 'Copy APO'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCopyWavelet()}
-                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-              >
-                {copiedKey === 'wav-curr' ? '✓ Copied Wavelet' : 'Copy Wavelet'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDownloadTxt()}
-                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-              >
-                Download .txt
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <button className="secondary-button" disabled={!presetName.trim()} onClick={() => void handleSaveProfile(true)}>Save as copy</button>
-              <button
-                type="button"
-                onClick={() => {
-                  setWorkbenchState('IDLE');
-                }}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
-              >
-                Keep draft
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleSaveProfile()}
-                disabled={!presetName.trim()}
-                className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass disabled:opacity-40"
-              >
-                Save
-              </button>
-            </div>
-          </div>
+          {!embeddedInLab && presetActions}
         </div>
       )}
 
-      <div className="audio-view-tabs">
-        <button className="secondary-button" onClick={() => { if (eqMode !== 'peq' && draft.dirty && !window.confirm('Add a parametric band and switch from graphic mode? Graphic settings will be kept.')) return; setEqMode('peq'); handleAddPeqFilter(); }}>Add band</button>
-        <button className="secondary-button" onClick={() => { audioWorkspace.update({ gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0), peqFilters: peqFilters.map(f => ({ ...f, gain: 0 })) }); }}>Reset gains</button>
-        <button className="secondary-button" onClick={() => setIsBypassed(!isBypassed)}>{isBypassed ? 'Enable EQ' : 'Raw bypass'}</button>
-      </div>
-      <div className="eq-graph-layout">
-      <details className="selected-band-sheet" open={!!draft.selectedBand}>
-        <summary>Selected band</summary>
-        {eqMode === 'peq' ? (() => { const f = peqFilters.find(f => f.id === draft.selectedBand); return f ? <div className="audio-policy-controls">
-          <label>Frequency (Hz)<input aria-label="Selected frequency" type="number" min="20" max="20000" value={f.freq} onChange={e => handleUpdatePeqFilter(f.id, { freq: Math.max(20,Math.min(20000,Number(e.target.value) || 20)) })} /></label>
-          {gainApplies(f.type) && <label>Gain (dB)<input aria-label="Selected gain" type="number" min="-18" max="18" step="0.5" value={f.gain} onChange={e => handleUpdatePeqFilter(f.id, { gain: Math.max(-18,Math.min(18,Number(e.target.value) || 0)) })} /></label>}
-          <label>Q<input aria-label="Selected Q" type="number" min="0.1" max="20" step="0.1" value={f.q} onChange={e => handleUpdatePeqFilter(f.id, { q: Math.max(.1,Math.min(20,Number(e.target.value) || 1)) })} /></label>
-          <label><input type="checkbox" checked={f.enabled !== false} onChange={e => handleUpdatePeqFilter(f.id, { enabled: e.target.checked })} />Enabled</label>
-        </div> : <p>Select a numbered graph handle.</p>; })() : <p>Graphic bands have fixed frequencies. Drag vertically or use Up/Down keys.</p>}
-      </details>
-      {/* 4. LIVE SVG CURVE VISUALIZER (Measured Cream, Target Dashed, Corrected Phosphor Teal) */}
-      <details className="section-disclosure space-y-3" open={workbenchState !== 'IDLE' || !!measurement}>
-        <summary>Frequency response preview</summary>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Engraved size="xs" glow>
-              Frequency response preview
-            </Engraved>
-            {currentPreamp < 0 && (
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-audio-surface border border-audio-signal/30 text-audio-signal">
-                HEADROOM: {currentPreamp} dB
-              </span>
-            )}
-          </div>
-
-          {/* View Mode Toggle & Target Reference Chips */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="eq-controls">
-              <label className="control-field">
-                Graph view
-                <select
-                  value={eqViewMode}
-                  onChange={(e) => setEqViewMode(e.target.value as 'iem' | 'filter' | 'compensated')}
-                >
-                  <option value="iem" disabled={selectedTargetId === 'none'}>Inferred from target & EQ</option>
-                  <option value="filter">EQ correction</option>
-                  <option value="compensated" disabled={!measurement}>
-                    Measured response + EQ
-                  </option>
-                </select>
-              </label>
-              <label className="control-field">
-                Reference target
-                <select value={selectedTargetId} onChange={(e) => setSelectedTargetId(e.target.value)}>
-                  {TARGET_CURVES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.shortName}
-                    </option>
-                  ))}
-                  <option value="none">No target</option>
-                </select>
-              </label>
-            </div>
-            {/* Open in Lab Button */}
-            <button
-              type="button"
-              onClick={openCompare}
-              className="px-2.5 py-1 rounded-lg bg-audio-accent text-black font-mono font-bold text-[10px] hover:bg-audio-accent-bright shadow-glow-brass transition-all flex items-center gap-1"
-              title="Open current EQ & Target curves in full-screen Graph Lab"
-            >
-              <span>⤢ Open in Lab</span>
-            </button>
-          </div>
-        </div>
-
-        {/* SVG Curve Canvas with CrinGraph Axis Craft & Auto-Ranging */}
-        <div className="relative w-full overflow-hidden bg-audio-surface rounded-xl border border-audio-border/80">
-          <svg
-            ref={svgRef}
-            viewBox={`0 0 ${workbenchViewport.width} ${workbenchViewport.height}`}
-            className="w-full h-auto block cursor-crosshair eq-edit-graph"
-            onPointerMove={handleSvgMouseMove}
-            onPointerDown={handleSvgMouseMove}
-            onPointerLeave={(e) => {
-              if (e.pointerType === 'mouse') setHoveredPoint(null);
-            }}
-          >
-            <defs>
-              <linearGradient id="eq-brass-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#b4e4bd" />
-                <stop offset="50%" stopColor="#c9f3d0" />
-                <stop offset="100%" stopColor="#b4e4bd" />
-              </linearGradient>
-              <linearGradient id="eq-teal-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#4FB38B" />
-                <stop offset="50%" stopColor="#83bfa5" />
-                <stop offset="100%" stopColor="#4FB38B" />
-              </linearGradient>
-              <filter id="eq-curve-glow" x1="-10%" y1="-10%" width="120%" height="120%">
-                <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#b4e4bd" floodOpacity="0.45" />
-              </filter>
-              <filter id="teal-curve-glow" x1="-10%" y1="-10%" width="120%" height="120%">
-                <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#83bfa5" floodOpacity="0.55" />
-              </filter>
-            </defs>
-
-            {/* Sibilance corridor 6kHz - 9kHz */}
-            <rect
-              x={freqToX(6000, workbenchViewport)}
-              y={workbenchViewport.padding.top}
-              width={freqToX(9000, workbenchViewport) - freqToX(6000, workbenchViewport)}
-              height={
-                workbenchViewport.height - workbenchViewport.padding.top - workbenchViewport.padding.bottom
-              }
-              fill="#eb9689"
-              fillOpacity="0.07"
-            />
-            <text
-              x={(freqToX(6000, workbenchViewport) + freqToX(9000, workbenchViewport)) / 2}
-              y={workbenchViewport.padding.top + 13}
-              fill="#eb9689"
-              fontSize="7.5"
-              fontFamily="monospace"
-              fontWeight="bold"
-              textAnchor="middle"
-              opacity="0.85"
-            >
-              SIBILANCE RISK (6-9kHz)
-            </text>
-
-            {/* CrinGraph Decade Grid Lines & Axis Ticks (1/1.5/2/3/4/6/8 per decade) */}
-            {CRINGRAPH_FREQ_TICKS.map(({ freq, label, major }) => {
-              const x = freqToX(freq, workbenchViewport);
-              return (
-                <g key={freq}>
-                  <line
-                    x1={x}
-                    y1={workbenchViewport.padding.top}
-                    x2={x}
-                    y2={workbenchViewport.height - workbenchViewport.padding.bottom}
-                    stroke={major ? '#382D24' : '#222b25'}
-                    strokeWidth={major ? '1.0' : '0.6'}
-                    strokeDasharray={major ? undefined : '2 2'}
-                  />
-                  <text
-                    x={x}
-                    y={workbenchViewport.height - 12}
-                    fill={major ? '#edf0ec' : '#8A7E6E'}
-                    fontSize={major ? '8.5' : '7.5'}
-                    fontWeight={major ? 'bold' : 'normal'}
-                    fontFamily="monospace"
-                    textAnchor="middle"
-                  >
-                    {label}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Horizontal dB Ticks (every 6 dB, auto-ranged) */}
-            {yTicks.map((db) => {
-              const y = dbToY(db, workbenchViewport, minY, maxY);
-              const isZero = db === 0;
-              return (
-                <g key={db}>
-                  <line
-                    x1={workbenchViewport.padding.left}
-                    y1={y}
-                    x2={workbenchViewport.width - workbenchViewport.padding.right}
-                    y2={y}
-                    stroke={isZero ? '#4A3E33' : '#1E1813'}
-                    strokeWidth={isZero ? '1.2' : '0.7'}
-                    strokeDasharray={isZero ? undefined : '2 2'}
-                  />
-                  <text
-                    x={workbenchViewport.padding.left - 6}
-                    y={y + 3}
-                    fill={isZero ? '#b4e4bd' : '#8A7E6E'}
-                    fontSize="8"
-                    fontFamily="monospace"
-                    textAnchor="end"
-                    fontWeight={isZero ? 'bold' : 'normal'}
-                  >
-                    {db > 0 ? `+${db}` : db}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Selected Reference Target Curve (Dashed) */}
-            {eqViewMode !== 'filter' && targetSvgPath && (
-              <path
-                d={targetSvgPath}
-                fill="none"
-                stroke={currentTarget?.color || '#83bfa5'}
-                strokeWidth="1.8"
-                strokeDasharray="4 3"
-                strokeLinecap="round"
-                opacity="0.85"
-              />
-            )}
-
-            {/* Ingested Measurement Curve (Solid Cream) */}
-            {eqViewMode === 'compensated' && measuredSvgPath && (
-              <path
-                d={measuredSvgPath}
-                fill="none"
-                stroke="#edf0ec"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.9"
-              />
-            )}
-
-            {/* Corrected Response Curve (Phosphor Teal) */}
-            {eqViewMode === 'compensated' && correctedSvgPath && (
-              <path
-                d={correctedSvgPath}
-                fill="none"
-                stroke="url(#eq-teal-grad)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#teal-curve-glow)"
-              />
-            )}
-
-            {/* Active Live Manual EQ Curve (Brushed Brass) - when no measurement active */}
-            {eqViewMode !== 'compensated' && compositeSvgPath && (
-              <path
-                d={compositeSvgPath}
-                fill="none"
-                stroke="url(#eq-brass-grad)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#eq-curve-glow)"
-              />
-            )}
-
-            {eqViewMode === 'filter' && <FilterHandles viewport={workbenchViewport} bands={currentIsoBands} gains={currentIsoGains} onGain={handleSliderChange} onFilter={handleUpdatePeqFilter} onDragging={active => setFrozenRange(active ? { minY, maxY, yTicks } : null)} />}
-            {/* Dual-Curve Crosshair & Dynamic Readout */}
-            {hoveredPoint && (
-              <g pointerEvents="none">
-                <line
-                  x1={hoveredPoint.x}
-                  y1={workbenchViewport.padding.top}
-                  x2={hoveredPoint.x}
-                  y2={workbenchViewport.height - workbenchViewport.padding.bottom}
-                  stroke="#edf0ec"
-                  strokeWidth="1"
-                  strokeDasharray="3 3"
-                  opacity="0.5"
-                />
-                <circle
-                  cx={hoveredPoint.x}
-                  cy={hoveredPoint.y}
-                  r="4.5"
-                  fill="#b4e4bd"
-                  stroke="#edf0ec"
-                  strokeWidth="1.5"
-                />
-                <rect
-                  x={Math.min(
-                    hoveredPoint.x + 8,
-                    workbenchViewport.width - workbenchViewport.padding.right - 120,
-                  )}
-                  y={Math.max(hoveredPoint.y - 28, workbenchViewport.padding.top + 4)}
-                  width="115"
-                  height="24"
-                  rx="4"
-                  fill="#222b25"
-                  stroke="#b4e4bd"
-                  strokeWidth="1"
-                  filter="drop-shadow(0 4px 10px rgba(0,0,0,0.6))"
-                />
-                <text
-                  x={Math.min(
-                    hoveredPoint.x + 65,
-                    workbenchViewport.width - workbenchViewport.padding.right - 62,
-                  )}
-                  y={Math.max(hoveredPoint.y - 12, workbenchViewport.padding.top + 20)}
-                  fill="#edf0ec"
-                  fontSize="8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  {hoveredPoint.freq >= 1000
-                    ? `${(hoveredPoint.freq / 1000).toFixed(1)}k`
-                    : `${hoveredPoint.freq}`}
-                  Hz • {hoveredPoint.db > 0 ? `+${hoveredPoint.db}` : hoveredPoint.db}dB
-                  {hoveredPoint.correctedDb !== undefined &&
-                    ` (Corr: ${hoveredPoint.correctedDb > 0 ? `+${hoveredPoint.correctedDb}` : hoveredPoint.correctedDb})`}
-                </text>
-              </g>
-            )}
-          </svg>
-        </div>
-
-        {/* Legend & Provenance Trust Caption */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[9px] font-mono text-audio-muted/70">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1.5 text-audio-accent font-semibold">
-              <span className="w-2.5 h-[2px] bg-audio-accent" />
-              {eqViewMode === 'iem'
-                ? 'Estimated response'
-                : eqViewMode === 'compensated'
-                  ? 'Post-EQ Net Response (Solid Brass)'
-                  : 'EQ correction shape'}
-            </span>
-            {selectedTargetId !== 'none' && (
-              <span className="flex items-center gap-1.5 text-audio-signal font-semibold">
-                <span className="w-2.5 h-[2px] border-b border-dashed border-audio-signal" /> Reference target
-              </span>
-            )}
-            {measurement && (
-              <span className="flex items-center gap-1.5 text-[#edf0ec]">
-                <span className="w-2.5 h-[2px] bg-audio-surface" /> Measured Raw IEM (Solid Cream)
-              </span>
-            )}
-            {autoPeqResult && (
-              <span className="flex items-center gap-1.5 text-audio-signal">
-                <span className="w-2.5 h-[2px] bg-audio-signal shadow-glow-teal" /> Current post-EQ response
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-audio-signal">
-              {currentTarget?.shortName}: {currentTarget?.points.length || 0} pts
-            </span>
-            <span>•</span>
-            <span className="text-audio-accent">EQ: Biquad Synthesis (exact)</span>
-          </div>
-        </div>
-
-        <details className="section-disclosure">
-          <summary>Listen & compare your EQ</summary>
-          <p className="text-xs text-audio-muted mb-3">
-            Play a local track or test sound, then switch EQ on and off to hear the difference.
-          </p>
-          <label className="control-field mb-3">
-            Playback volume · {Math.round(volume * 100)}%
-            <input
-              aria-label="EQ playback volume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-            />
-          </label>
-          {/* 5. WEB AUDIO PREVIEW AUDITION & Capture browser audio TOOLBAR */}
-          <div className="p-3 bg-audio-surface rounded-xl border border-audio-border flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Engraved size="xs" glow className="mr-1">
-                Audio source
-              </Engraved>
-
-              {/* LIVE TAB CAPTURE LATCH BUTTON */}
-              <button
-                type="button"
-                onClick={() => (isCapturing ? stopTabCapture() : startTabCapture())}
-                disabled={!tabSupported}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
-                  isCapturing
-                    ? 'bg-audio-surface border-audio-warn text-audio-warn shadow-panel animate-pulse'
-                    : !tabSupported
-                      ? 'bg-audio-surface border-audio-border text-audio-muted/40 cursor-not-allowed'
-                      : 'bg-audio-surface border-audio-border text-audio-muted hover:text-audio-text hover:border-audio-accent/60'
-                }`}
-                title={
-                  !tabSupported
-                    ? 'Chrome / Edge tab capture only'
-                    : isCapturing
-                      ? 'Click to stop live browser tab capture'
-                      : 'Capture and EQ a live YouTube or Spotify Web tab in real-time'
-                }
-              >
-                <Led color={isCapturing ? 'red' : 'amber'} pulse={isCapturing} size="sm" />
-                <span>{isCapturing ? 'LIVE TAB ACTIVE' : 'LIVE TAB CAPTURE'}</span>
-              </button>
-
-              {/* Telemetry Readout for Live Tab */}
-              {isCapturing && (
-                <span className="px-2 py-1 rounded bg-audio-surface border border-audio-warn/40 text-[9px] font-mono text-audio-warn font-bold">
-                  LIVE • LATENCY {tabTelemetry.latencyMs}ms
-                </span>
-              )}
-
-              {/* Pink Noise Generator */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isCapturing) stopTabCapture();
-                  void playPinkNoise();
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 ${
-                  isPlaying && activeSource === 'pink-noise'
-                    ? 'bg-audio-signal text-black font-bold shadow-glow-teal'
-                    : 'bg-audio-surface border border-audio-border text-audio-muted hover:text-audio-text'
-                }`}
-              >
-                <WaveformIcon />
-                <span>{isPlaying && activeSource === 'pink-noise' ? '⏹ Stop Noise' : '▶ Pink Noise'}</span>
-              </button>
-
-              {/* Sine Sweep Generator */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isCapturing) stopTabCapture();
-                  void playSineSweep();
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 ${
-                  isPlaying && activeSource === 'sweep'
-                    ? 'bg-audio-warn text-black font-bold shadow-panel'
-                    : 'bg-audio-surface border border-audio-border text-audio-muted hover:text-audio-text'
-                }`}
-              >
-                <span>{isPlaying && activeSource === 'sweep' ? '⏹ Stop Sweep' : '▶ 20Hz—20kHz Sweep'}</span>
-              </button>
-
-              {/* Upload Music File for Audition */}
-              <button
-                type="button"
-                onClick={() => audioFileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-lg border border-audio-border bg-audio-surface text-xs font-mono text-audio-muted hover:text-audio-text hover:border-audio-accent/50 transition-all flex items-center gap-1.5"
-              >
-                <span>{fileName ? `🎵 ${fileName.slice(0, 14)}…` : '📁 Audition Track'}</span>
-              </button>
-              <input
-                type="file"
-                ref={audioFileInputRef}
-                accept="audio/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    if (isCapturing) stopTabCapture();
-                    void handleFileUpload(file);
-                  }
-                }}
-              />
-
-              {fileName && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isCapturing) stopTabCapture();
-                    void toggleFilePlayback();
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs"
-                >
-                  {isPlaying && activeSource === 'file' ? 'Pause' : 'Play Track'}
-                </button>
-              )}
-            </div>
-
-            {/* Latching A/B Bypass Button */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setIsBypassed(!isBypassed)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 border ${
-                  isBypassed
-                    ? 'bg-audio-surface border-audio-warn text-audio-warn'
-                    : 'bg-audio-surface border-audio-signal text-audio-signal shadow-glow-teal'
-                }`}
-                title="A/B Bypass Switch: Instantly compare EQ curve against raw bypass audio"
-              >
-                <Led
-                  color={isBypassed ? 'amber' : 'green'}
-                  pulse={!isBypassed && isPlaying && activeSource !== 'liveTab' && activeSource !== 'none'}
-                  size="sm"
-                />
-                <span>{isBypassed ? (levelMatched && matchDb !== null ? (matchDb === -24 ? 'Limited match bypass' : 'Level-matched bypass') : 'Raw bypass') : 'EQ on'}</span>
-              </button>
-            </div>
-          </div>
-        </details>
-      </details>
-      </div>
+      {!embeddedInLab && graphEditor}
 
       {audioError && (
         <p className="text-sm text-audio-warn" role="alert">
@@ -1790,7 +1818,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       )}
 
       {/* 7. SAVED PRESETS RACK */}
-      <div className="space-y-3 pt-2">
+      {(!embeddedInLab || workbenchState === 'IDLE') && <div className="space-y-3 pt-2">
         <div className="flex justify-between items-center px-1">
           <Engraved size="xs">Your saved presets ({presets.length})</Engraved>
         </div>
@@ -1910,7 +1938,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Toast Feedback */}
       {toastMessage && (

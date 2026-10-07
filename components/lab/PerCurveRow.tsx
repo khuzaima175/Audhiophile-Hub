@@ -66,7 +66,7 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
         />
         dB
       </label>
-      <Popover label={`Options for ${curve.name}`}>
+      <div className="curve-options"><Popover label={`Options for ${curve.name}`} triggerText="Options">
           {!curve.isTarget && (
             <>
               <label>
@@ -97,8 +97,8 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
               Remove curve
             </button>
           )}
-      </Popover>
-      {curve.isTarget && onManualEq && <button className="secondary-button" onClick={onManualEq}>Start manual EQ</button>}
+      </Popover></div>
+      {curve.isTarget && onManualEq && <button className="secondary-button curve-eq" onClick={onManualEq}>Start manual EQ</button>}
       {curve.provenance === 'measured' && !curve.isFilterCurve && onSendAutoPeq && (
         <button className="secondary-button curve-eq" onClick={() => onSendAutoPeq(curve)}>
           Generate correction ↗

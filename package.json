@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "test:retrieval": "node tests/retrieval.cjs",
     "test:workspace": "node tests/workspace-browser.cjs",
-    "test:production": "node tests/production.cjs"
+    "test:production": "node tests/production.cjs",
+    "test:lab": "node tests/lab-editor.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",

@@ -23,7 +23,7 @@ The centralized catalog uses this default priority: Gemini 3.8 Flash → Gemini 
 
 ## Audio workflow
 
-Choose Manual EQ or Measurement-based EQ on Overview, or open Equalizer. Editor, Compare and Presets work with one persistent version-2 draft. Graph Lab is the expanded comparison view; existing navigation entries remain available.
+Choose Manual EQ or Measurement-based EQ on Overview, or open Equalizer. Editor, Compare and Presets work with one persistent version-2 draft. Graph Lab includes Compare curves, Edit EQ and Presets views. Its New EQ preset action creates an editable parametric band; you can drag/edit, assign gear, save/copy and export without leaving the tab. Correction generation stays in Graph Lab. The comparison plot fills its container, and desktop/mobile editor panels use the same draft and preset library as Equalizer; existing navigation entries remain available.
 
 For measurement correction, import numeric CSV/TSV/REW data, choose a target and fitting smoothing, then edit the generated filters. Bundled acoustic targets are approximations with unverified numerical provenance; choose a target compatible with the measurement rig. A curve inferred from an assumed target minus a correction is an inference, not a measured headphone response. Generate correction requires measured source data. Reference targets can start manual EQ.
 
@@ -71,6 +71,7 @@ npm run test:retrieval
 npm run test:dsp
 npm run test:ui
 npm run test:workspace
+npm run test:lab
 npm run test:mobile
 # with npm run build and npm run preview -- --host 127.0.0.1 --port 3001:
 npm run test:production

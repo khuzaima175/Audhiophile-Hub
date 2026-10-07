@@ -58,19 +58,19 @@ export const BandLabels: React.FC<BandLabelsProps> = ({ viewport }) => {
             />
 
             {/* Engraved band text label */}
-            {width > 34 && (
+            {width > 72 && (
               <text
                 x={centerX}
                 y={yTop + 12}
                 fill={band.color}
-                fontSize={width < 60 ? '7' : '7.5'}
+                fontSize="10"
                 fontFamily="monospace"
                 fontWeight="bold"
                 letterSpacing="0.08em"
                 textAnchor="middle"
                 opacity="0.7"
               >
-                {width < 45 ? band.name.split(' ')[0] : band.name}
+                {width < 100 ? band.name.split(' ')[0] : band.name}
               </text>
             )}
           </g>

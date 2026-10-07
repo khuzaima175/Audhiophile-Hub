@@ -4,10 +4,13 @@ import { TARGET_CURVES } from '../../constants/targetCurves';
 import { LabZoomRange, LabViewMode, SmoothingType } from '../../types';
 import { encodeLabStateToUrl } from '../../utils/shareCodec';
 interface LabToolbarProps {
+  showComparisonControls?: boolean;
+  workspaceNavigation?: React.ReactNode;
+  onNewPreset?: () => void;
   onExportCsv?: () => void;
   onToast?: (message: string) => void;
 }
-export function LabToolbar({ onExportCsv, onToast }: LabToolbarProps) {
+export function LabToolbar({ onExportCsv, onToast, showComparisonControls = true, workspaceNavigation, onNewPreset }: LabToolbarProps) {
   const state = useLabStore();
   const [copied, setCopied] = useState(false);
   const share = async () => {
@@ -26,14 +29,15 @@ export function LabToolbar({ onExportCsv, onToast }: LabToolbarProps) {
         <div>
           <h1>Graph lab</h1>
           <p>
-            Compare measurements. Targets are bundled approximations; inferred response is not a measurement.
+            Compare curves, create EQ, and save presets in one workspace.
           </p>
         </div>
         <div className="lab-toolbar-actions">
-          <button className="secondary-button" onClick={share}>
+          {onNewPreset && <button className="primary-button" onClick={onNewPreset}>New EQ preset</button>}
+          {showComparisonControls && <button className="secondary-button" onClick={share}>
             {copied ? 'Copied ✓' : 'Share graph'}
-          </button>
-          {onExportCsv && (
+          </button>}
+          {showComparisonControls && onExportCsv && (
             <button className="secondary-button" onClick={onExportCsv}>
               Export CSV
             </button>
@@ -43,7 +47,8 @@ export function LabToolbar({ onExportCsv, onToast }: LabToolbarProps) {
           </button>
         </div>
       </div>
-      <div className="lab-toolbar-controls">
+      {workspaceNavigation}
+      {showComparisonControls && <div className="lab-toolbar-controls">
         <label className="control-field">
           Reference target
           <select value={state.targetCurveId} onChange={(e) => labStore.setTargetCurveId(e.target.value)}>
@@ -129,7 +134,7 @@ export function LabToolbar({ onExportCsv, onToast }: LabToolbarProps) {
             </label>
           </div>
         </details>
-      </div>
+      </div>}
     </header>
   );
 }

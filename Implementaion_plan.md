@@ -25,6 +25,10 @@ Manual EQ can start without a measurement. Measurement-based EQ imports numeric 
 
 The current chassis is near-black/graphite rather than the earlier sage design. Desktop curve/band panels sit beside their graphs; mobile panels stack or expand. Portal menus restore focus. Escape cancels an active drag or closes the nearest transient surface before its containing graph. Passive notifications do not intercept clicks.
 
+## Graph Lab follow-up
+
+Graph Lab now includes in-tab Compare curves, Edit EQ and Presets, with New EQ preset, shared handle/numeric editing, gear assignment, Save/copy, load and exports. Manual and measured correction actions remain in the tab. A stale 230-pixel CSS cap was removed; container measurements size the SVG and labels are larger. Compact Options buttons stay within the curve sidebar. The dedicated Lab journey and existing UI/workspace/mobile/production checks passed; see the verification report.
+
 ## Verification and remaining release work
 
 Typecheck, build, core/APO/retrieval fixtures, Chromium UI/workspace/mobile checks, independent browser DSP comparisons and rendered-tone cases passed. Production research checks use mocked responses; they do not verify a real account's authorization. Local production placeholder-key exclusion passed.

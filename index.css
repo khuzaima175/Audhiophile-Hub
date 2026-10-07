@@ -1930,9 +1930,6 @@ summary::-webkit-details-marker {
   padding: 7px 10px;
   font-size: 10px;
 }
-.graph-lab main > div:last-child {
-  max-height: 230px !important;
-}
 .workspace-page .eq-workspace > .section-disclosure {
   background: var(--surface);
 }
@@ -2016,3 +2013,38 @@ summary::-webkit-details-marker {
 .eq-graph-layout > .selected-band-sheet { grid-column: 2; grid-row: 1; }
 .eq-graph-layout > .section-disclosure { grid-column: 1; grid-row: 1; min-width: 0; }
 @media (max-width: 900px) { .eq-graph-layout { display: flex; flex-direction: column-reverse; } .eq-graph-layout > * { width: 100%; } }
+
+/* Graph Lab uses the full available canvas and shares the existing EQ editor. */
+.lab-plot { min-height: 340px; }
+.lab-view-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.lab-view-tabs [aria-pressed="true"] { background: var(--text); color: var(--base); border-color: var(--text); }
+.lab-eq-main { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; }
+.lab-eq-workbench { max-width: none; }
+.lab-editor-plot { height: clamp(340px, 49dvh, 620px); }
+.lab-draft-bar h2 { font-size: 16px; font-weight: 600; }
+.lab-eq-workbench .eq-graph-layout { grid-template-columns: minmax(0, 1fr) 260px; }
+.lab-eq-workbench .eq-save-actions > div { flex-wrap: wrap; }
+@media (max-width: 980px) {
+  .lab-workspace > main { order: -1; min-height: 380px; }
+  .lab-workspace .lab-sidebar { max-height: none; overflow: visible; }
+  .lab-eq-workbench .eq-graph-layout { display: flex; flex-direction: column-reverse; }
+  .lab-eq-main { padding: 16px; }
+}
+@media (max-width: 767px) {
+  .lab-toolbar-top { align-items: flex-start; }
+  .lab-toolbar-actions { flex-wrap: wrap; gap: 6px; }
+  .lab-toolbar-actions button { padding: 8px 10px; }
+  .lab-view-tabs button { flex: 1; padding: 8px; }
+  .lab-view-tabs { gap: 6px; }
+  .lab-editor-plot { height: 340px; }
+  .lab-eq-main { padding: 12px; }
+}
+
+.lab-sidebar .curve-options { grid-column: 1 / -1; }
+.lab-sidebar .curve-options > button { width: 100%; justify-content: center; }
+.graph-lab .notification-area { top: auto; bottom: 16px; }
+@media (max-width: 767px) {
+  .lab-toolbar-top { flex-direction: column; align-items: stretch; }
+  .lab-toolbar-actions { width: 100%; }
+  .lab-toolbar-actions button { flex: 1; }
+}

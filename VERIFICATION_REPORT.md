@@ -42,7 +42,7 @@ Release should wait for applicable live/deployed/physical checks and resolution 
 
 ## Reproduce the checks
 
-Run `npm ci`, then `npm run typecheck`, `npm run build`, `npm run test:core`, `npm run test:apo` and `npm run test:retrieval`. With the development server on port 3000, run `npm run test:dsp`, `npm run test:ui`, `npm run test:workspace` and `npm run test:mobile`. With the production build served using `npm run preview -- --host 127.0.0.1 --port 3001`, run `npm run test:production`.
+Run `npm ci`, then `npm run typecheck`, `npm run build`, `npm run test:core`, `npm run test:apo` and `npm run test:retrieval`. With the development server on port 3000, run `npm run test:dsp`, `npm run test:ui`, `npm run test:workspace`, `npm run test:lab` and `npm run test:mobile`. With the production build served using `npm run preview -- --host 127.0.0.1 --port 3001`, run `npm run test:production`.
 
 Browser suites use `/usr/bin/chromium` by default; set `PLAYWRIGHT_BROWSER_PATH` to an installed Chromium-compatible executable on another machine. `TEST_WEBKIT=1` additionally requests installed WebKit for mobile checks; it was not run here. Production AI requests are mocked and development UI requests are blocked. Browser screenshots are ignored under `artifacts/`.
 
@@ -53,3 +53,11 @@ Manual results should record date, commit, browser/OS/device and the actual oper
 The catalog, default selection and connection test now use `gemini-3.8-flash` first, `gemini-3.7-flash` second and `gemini-3.5-flash-lite` third, as requested. The 2.5 catalog introduced during implementation was removed. Historical answer metadata remains unchanged.
 
 Typecheck and production build passed again. The production browser regression verifies the exact three dropdown values, the default connection-test model, 3.8 → 3.7 after a mocked unavailable-model failure, and 3.8 → 3.7 → 3.5 Flash-Lite when both higher-priority models fail. Requested selection remains 3.8 while answers record 3.7 or 3.5 as appropriate. Retrieval/source exclusion and production save/refresh/export checks also passed in that run. Actual account availability remains unverified; no live credential was used.
+
+## Graph Lab sizing and in-tab preset editing
+
+Removed an obsolete `main > div:last-child` height cap that restricted the plot card to 230 pixels. Comparison/editor plots measure their containers with ResizeObserver, use larger labels and fit the desktop canvas. Curve Options now uses a compact trigger inside the sidebar. Mobile layouts place the plot before curve management, stack the editor controls, wrap the header actions and keep passive notifications away from the header.
+
+Graph Lab now reuses the shared EQ editor and library through Compare curves, Edit EQ, Presets and New EQ preset actions. Manual creation and measurement correction remain in the tab; naming, gear assignment, graph/numeric editing, Save/copy, loading, export and refresh use the existing draft/storage policy. Background settings/EQ is unmounted while Lab is open; playback is stopped/released when switching views.
+
+Passed reruns: typecheck, production build, core, retrieval, UI smoke, workspace/recovery, mobile Chromium and mocked production AI/persistence. The new `npm run test:lab` verifies a desktop comparison canvas larger than 1400×600 at 1920×1080, a large editor plot, sidebar Options bounds, keyboard/drag/Undo/Redo, save/copy/reload/APO export, measured correction remaining in Lab, linked source retention and preset creation at 320/390/768-pixel widths. Screenshots are generated under ignored `artifacts/lab-*.png`. Gemini 3.8 → 3.7 → 3.5 Flash-Lite remains unchanged and passed mocked production regression. The Vercel deployment has not been inspected or manually published by this task; live/device limitations remain unchanged.
