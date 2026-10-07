@@ -1,11 +1,13 @@
+import { createStereoChain, stereoPreamp } from '../utils/stereoEq';
 import { effectivePreamp, claimPlayback, releasePlayback } from '../utils/audioPolicy';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { PEQFilter, PEQFilterType } from '../types';
+import { PEQFilter, PEQFilterType, StereoFilters } from '../types';
 import { createDSPNode, graphicFilters, safePreamp, DSP_SAMPLE_RATE, filterTypeMap } from '../utils/biquad';
 
-export type AuditionSourceType = 'none' | 'pink-noise' | 'sweep' | 'file' | 'liveTab';
+export type AuditionSourceType = 'none' | 'tone' | 'pink-noise' | 'sweep' | 'file' | 'liveTab';
 
 interface UseAudioEngineProps {
+  stereoFilters?: StereoFilters|null;
   isoBands: number[];
   isoGains: number[];
   peqFilters: PEQFilter[];
@@ -16,7 +18,7 @@ interface UseAudioEngineProps {
   levelMatched?: boolean;
 }
 
-export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, requestedPreamp = 0, preampMode = 'automatic', intendedSampleRate = DSP_SAMPLE_RATE, levelMatched = false }: UseAudioEngineProps) => {
+export const useAudioEngine = ({ stereoFilters=null, isoBands, isoGains, peqFilters, isBypassed, requestedPreamp = 0, preampMode = 'automatic', intendedSampleRate = DSP_SAMPLE_RATE, levelMatched = false }: UseAudioEngineProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeSource, setActiveSource] = useState<AuditionSourceType>('none');
   const [fileName, setFileName] = useState<string | null>(null);
@@ -111,6 +113,13 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, req
   // Build filter chain in AudioContext
   const rebuildFilterChain = useCallback(
     (ctx: AudioContext, inputNode: AudioNode) => {
+      if(stereoFilters && !externalFiltersRef.current) {
+        inputNode.disconnect();filterNodesRef.current.forEach(n=>n.disconnect());
+        const chain=createStereoChain(ctx,inputNode,stereoFilters);
+        chain.output.connect(preampGainRef.current!);inputNode.connect(dryGainRef.current!);
+        preampGainRef.current!.gain.setTargetAtTime(10**(stereoPreamp(stereoFilters,preampMode,requestedPreamp,ctx.sampleRate)/20),ctx.currentTime,.015);
+        filterNodesRef.current=chain.nodes;chainInputRef.current=inputNode;return;
+      }
       const nextFilters = [
         ...graphicFilters(isoBands, isoGains),
         ...(externalFiltersRef.current ?? peqFilters),
@@ -183,11 +192,11 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, req
       const headroom = effectivePreamp(allFilters, externalFiltersRef.current ? 'manual' : preampMode, externalFiltersRef.current ? externalPreampRef.current : requestedPreamp, ctx.sampleRate);
       preampGainRef.current?.gain.setTargetAtTime(Math.pow(10, headroom / 20), ctx.currentTime, 0.015);
     },
-    [isoBands, isoGains, peqFilters, requestedPreamp, preampMode],
+    [stereoFilters, isoBands, isoGains, peqFilters, requestedPreamp, preampMode],
   );
 
   // Rebuild when the number, enabled state, or type of filters changes too.
-  const filterSignature = JSON.stringify({ isoBands, isoGains, peqFilters, requestedPreamp, preampMode });
+  const filterSignature = JSON.stringify({ stereoFilters, isoBands, isoGains, peqFilters, requestedPreamp, preampMode });
   useEffect(() => {
     if (audioCtxRef.current && sourceNodeRef.current)
       rebuildFilterChain(audioCtxRef.current, sourceNodeRef.current);
@@ -271,6 +280,22 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, req
     setIsPlaying(true);
     setActiveSource('pink-noise');
   }, [isPlaying, activeSource, getAudioContext, rebuildFilterChain, stopAudio]);
+
+  const setToneFrequency = useCallback((frequency: number) => {
+    const ctx = audioCtxRef.current, oscillator = sweepOscRef.current;
+    if (ctx && oscillator && Number.isFinite(frequency)) oscillator.frequency.setTargetAtTime(Math.max(20,Math.min(20000,ctx.sampleRate/2-1,frequency)),ctx.currentTime,.015);
+  }, []);
+  const playTone = useCallback(async (frequency: number) => {
+    stopAudio(); const requestEpoch = epoch.current;
+    const ctx = await getAudioContext();
+    if (requestEpoch !== epoch.current) return;
+    const oscillator = ctx.createOscillator(), gain = ctx.createGain();
+    oscillator.type = 'sine'; oscillator.frequency.value = Math.max(20,Math.min(20000,ctx.sampleRate/2-1,frequency));
+    gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(.05,ctx.currentTime+.03);
+    oscillator.connect(gain);rebuildFilterChain(ctx,gain);
+    sourceNodeRef.current = gain; sweepOscRef.current = oscillator;
+    oscillator.start(); setActiveSource('tone');setIsPlaying(true);
+  }, [stopAudio,getAudioContext,rebuildFilterChain]);
 
   // Play logarithmic frequency sine sweep (20Hz to 20kHz over 6 seconds)
   const playSineSweep = useCallback(async () => {
@@ -371,6 +396,8 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, req
     [getAudioContext, rebuildFilterChain],
   );
 
+  const clearExternalPeq = useCallback(() => { externalFiltersRef.current=null;externalPreampRef.current=0; }, []);
+
   // File comparison: first ten seconds, RMS over all channels, attenuation-only dry matching.
   useEffect(() => {
     setMatchDb(null);
@@ -380,16 +407,17 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, req
       const buffer = customAudioBufferRef.current!, rate = audioCtxRef.current?.sampleRate || sampleRate;
       const length = Math.min(buffer.length, Math.floor(rate * 10));
       try {
-        const offline = new OfflineAudioContext(buffer.numberOfChannels, length, rate);
+        const offline = new OfflineAudioContext(stereoFilters ? 2 : buffer.numberOfChannels, length, rate);
         const source = offline.createBufferSource(); source.buffer = buffer;
         const filters = [...graphicFilters(isoBands, isoGains), ...(externalFiltersRef.current ?? peqFilters)].filter(f => f.enabled !== false);
         let tail: AudioNode = source;
-        filters.forEach(f => { const node = createDSPNode(offline as unknown as AudioContext, f); tail.connect(node); tail = node; });
-        const preamp = offline.createGain(); preamp.gain.value = 10 ** (effectivePreamp(filters, preampMode, requestedPreamp, rate) / 20); tail.connect(preamp); preamp.connect(offline.destination); source.start();
+        if(stereoFilters && !externalFiltersRef.current)tail=createStereoChain(offline,source,stereoFilters).output;
+        else filters.forEach(f => { const node = createDSPNode(offline as unknown as AudioContext, f); tail.connect(node); tail = node; });
+        const preamp = offline.createGain(); preamp.gain.value = 10 ** ((stereoFilters && !externalFiltersRef.current ? stereoPreamp(stereoFilters,preampMode,requestedPreamp,rate) : effectivePreamp(filters, preampMode, requestedPreamp, rate)) / 20); tail.connect(preamp); preamp.connect(offline.destination); source.start();
         const rendered = await offline.startRendering();
         let dry = 0, wet = 0;
-        for (let c = 0; c < buffer.numberOfChannels; c++) {
-          const a = buffer.getChannelData(c), b = rendered.getChannelData(c);
+        for (let c = 0; c < rendered.numberOfChannels; c++) {
+          const a = buffer.getChannelData(Math.min(c,buffer.numberOfChannels-1)), b = rendered.getChannelData(c);
           for (let i = 0; i < length; i++) { dry += a[i] ** 2; wet += b[i] ** 2; }
         }
         const db = 10 * Math.log10(wet / dry);
@@ -422,10 +450,11 @@ export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed, req
     setVolume,
     playPinkNoise,
     playSineSweep,
+    playTone, setToneFrequency,
     playLiveTab,
     handleFileUpload,
     toggleFilePlayback,
-    loadExternalPeq,
+    loadExternalPeq, clearExternalPeq,
     stopAudio,
     getAudioContext,
     audioContext: audioCtxRef.current,

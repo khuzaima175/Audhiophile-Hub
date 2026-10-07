@@ -31,10 +31,11 @@ export function FilterHandles({ viewport, bands, gains, onGain, onFilter, onDrag
   useDismissSurface(dragging, () => finish(true), 150);
   const filters = draft.eqMode === 'peq' ? draft.peqFilters : bands.map((freq,i) => ({ id: `graphic-${i}`, type: 'PK' as const, freq, gain: gains[i], q: 1, enabled: true }));
   return <g ref={root} aria-label="Editable EQ bands">{filters.map((filter, index) => {
+    if (filter.freq < (viewport.minFreq || 20) || filter.freq > (viewport.maxFreq || 20000)) return null;
     const selected = draft.selectedBand === filter.id;
     const gain = gainApplies(filter.type) ? filter.gain : 0;
     return <g key={filter.id} transform={`translate(${freqToX(filter.freq, viewport)},${dbToY(gain, viewport)})`}
-      className="eq-handle" tabIndex={0} role="button" aria-label={`Band ${index+1}, ${filter.type}, ${Math.round(filter.freq)} Hz, ${gain} dB. Arrow keys edit; Escape cancels drag.`}
+      className="eq-handle" tabIndex={0} role="button" aria-label={`Band ${index+1}, ${filter.type}, ${Math.round(filter.freq)} Hz, ${gain} dB. Arrow keys edit frequency and gain; Page Up/Down edit Q; Delete removes; Escape cancels drag.`}
       onFocus={() => { if (!selected) audioWorkspace.update({ selectedBand: filter.id }, false); }}
       onPointerDown={e => {
         e.preventDefault(); e.stopPropagation(); e.currentTarget.focus();
@@ -56,6 +57,8 @@ export function FilterHandles({ viewport, bands, gains, onGain, onFilter, onDrag
       onPointerCancel={() => finish(true)}
       onLostPointerCapture={() => { if (drag.current) finish(true); }}
       onKeyDown={e => {
+        if (draft.eqMode === 'peq' && ['Delete','Backspace'].includes(e.key)) { e.preventDefault(); audioWorkspace.update({ peqFilters: draft.peqFilters.filter(f => f.id !== filter.id), selectedBand: null }); return; }
+        if (draft.eqMode === 'peq' && ['PageUp','PageDown'].includes(e.key)) { e.preventDefault(); onFilter(filter.id, {q: Math.round(Math.max(.1,Math.min(20,filter.q * (e.key === 'PageUp' ? 1.1 : 1/1.1)))*100)/100}); return; }
         if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
         e.preventDefault();
         const sign = ['ArrowLeft','ArrowDown'].includes(e.key) ? -1 : 1;

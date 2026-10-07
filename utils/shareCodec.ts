@@ -1,6 +1,8 @@
+import { validateLabState, labStore } from '../store/labStore';
 import { LabState, LabCurve, CurvePoint } from '../types';
 
 interface EncodedCurve {
+  id?: string; target?: boolean; pinned?: boolean; rig?: string; sourceUrl?: string; channel?: LabCurve['channel']; channels?: {left:[number,number][];right:[number,number][]};
   n: string; // name
   c: string; // color
   p: string; // provenance
@@ -16,6 +18,7 @@ interface EncodedCurve {
 }
 
 interface EncodedLabPayload {
+  graphSettings?: LabState['graphSettings']; fitLimits?: LabState['fitLimits']; baselineId?: string|null; normalizationMode?: LabState['normalizationMode'];
   v: number;
   norm: [number, number]; // [db, hz]
   zoom: string;
@@ -53,11 +56,11 @@ const fromBase64Url = (b64: string): string => {
  * Encode full Lab State into URL hash string
  */
 export const encodeLabStateToUrl = (state: LabState): string => {
-  const customCurves = state.curves.filter((c) => !c.isTarget);
+  const customCurves = state.curves.filter((c) => !c.isTarget || (!c.id.startsWith('target-') && c.id !== 'crinacle-ief-2025-ref'));
 
   const encodedCurves: EncodedCurve[] = customCurves.map((c) => {
     let pts = c.points.map(
-      (p) => [Math.round(p.freq * 10) / 10, Math.round(p.gain * 10) / 10] as [number, number],
+      (p) => [p.freq, Math.round(p.gain * 1000) / 1000] as [number, number],
     );
 
     // Stride downsample if points exceed 120
@@ -67,6 +70,8 @@ export const encodeLabStateToUrl = (state: LabState): string => {
     }
 
     return {
+      id: c.id, target: c.isTarget, pinned: c.pinned, rig: c.rig, sourceUrl: c.sourceUrl, channel: c.channel,
+      channels: c.channels ? { left: c.channels.left.filter((_,i,a)=>i%Math.ceil(a.length/120)===0||i===a.length-1).map(p=>[p.freq,p.gain]), right: c.channels.right.filter((_,i,a)=>i%Math.ceil(a.length/120)===0||i===a.length-1).map(p=>[p.freq,p.gain]) } : undefined,
       n: c.name.slice(0, 40),
       c: c.color,
       p: c.provenance,
@@ -83,6 +88,7 @@ export const encodeLabStateToUrl = (state: LabState): string => {
   });
 
   const payload: EncodedLabPayload = {
+    graphSettings:state.graphSettings,fitLimits:state.fitLimits,baselineId:state.baselineId,normalizationMode:state.normalizationMode,
     v: 1,
     norm: [state.normDb, state.normHz],
     zoom: state.zoomRange,
@@ -110,6 +116,7 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
     const match = hash.match(/c=([A-Za-z0-9_-]+)/);
     if (!match || !match[1]) return null;
 
+    if(match[1].length > 2000000) return null;
     const jsonStr = fromBase64Url(match[1]);
     const payload: EncodedLabPayload = JSON.parse(jsonStr);
 
@@ -128,7 +135,9 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
       return null;
 
     const restoredCurves: LabCurve[] = (payload.curves || []).map((ec, i) => ({
-      id: `shared-curve-${i}-${Date.now()}`,
+      id: ec.id || `shared-curve-${i}-${Date.now()}`,
+      isTarget: !!ec.target, pinned: !!ec.pinned, rig: ec.rig, sourceUrl: ec.sourceUrl, channel: ec.channel,
+      channels: ec.channels ? {left:ec.channels.left.map(([freq,gain])=>({freq,gain})),right:ec.channels.right.map(([freq,gain])=>({freq,gain}))} : undefined,
       name: ec.n,
       color: ec.c || '#E7B87A',
       points: ec.pts.map(([freq, gain]) => ({ freq, gain })),
@@ -145,7 +154,10 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
       preserveAbsolute: !!ec.absolute,
     }));
 
+    const settings = { graphSettings:payload.graphSettings,fitLimits:payload.fitLimits,baselineId:payload.baselineId,normalizationMode:payload.normalizationMode };
+    if (!validateLabState({ ...labStore.getSnapshot(), ...settings, curves:restoredCurves, normDb:payload.norm?.[0]??0, normHz:payload.norm?.[1]??1000, smoothing:payload.smoothing||'RAW', fitSmoothing:payload.fitSmoothing||'RAW', fitNormalize:payload.fitNormalize??true, viewMode:payload.view||'rawFilter', zoomRange:payload.zoom||'full', targetCurveId:payload.targetId||'crinacle-ief-2025' })) return null;
     return {
+      ...Object.fromEntries(Object.entries(settings).filter(([,v])=>v!==undefined)),
       normDb: payload.norm?.[0] ?? 0.0,
       normHz: payload.norm?.[1] ?? 1000,
       zoomRange: (payload.zoom as any) || 'full',

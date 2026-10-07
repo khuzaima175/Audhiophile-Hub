@@ -1,10 +1,15 @@
+import { ToneControls } from './ToneControls';
 import { audioWorkspace, freshDraft, storeMeasurement, useAudioWorkspace } from '../store/audioWorkspace';
+import { GraphControls, FitControls } from './GraphControls';
+import { DEFAULT_GRAPH_SETTINGS, DEFAULT_FIT_LIMITS, frequencyTicks, channelPoints, meanDatum, curveColor } from '../utils/graphTools';
+import { exportPlot } from '../utils/plotExport';
 import { EQWorkbench } from './EQWorkbench';
 import { useElementSize } from '../hooks/useElementSize';
 import { useDismissSurface } from '../hooks/useDismissSurface';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useLabStore, labStore } from '../store/labStore';
 import { LabToolbar } from './lab/LabToolbar';
+import { MeasurementCatalog } from './lab/MeasurementCatalog';
 import { PerCurveRow } from './lab/PerCurveRow';
 import { BandLabels } from './lab/BandLabels';
 import {
@@ -40,17 +45,21 @@ interface GraphLabProps {
 export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets }) => {
   const labState = useLabStore();
   const { draft } = useAudioWorkspace();
+  const [curveSearch, setCurveSearch] = useState('');
+  const graphSettings = labState.graphSettings || DEFAULT_GRAPH_SETTINGS;
   const [panel, setPanel] = useState<'compare' | 'eq'>('compare');
   const plot = useElementSize();
   const openEditor = () => {
     audioWorkspace.update({ workbenchState: 'ADDING', graphView: 'filter' }, false);
     setPanel('eq');
   };
-  const startManualEq = () => {
+  const startManualEq = async () => {
     if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return;
+    const target = labState.curves.find(c => c.id === labState.targetCurveId && c.isTarget);
+    const targetRef = target ? target.measurementRef || await storeMeasurement({name:target.name,rawPoints:target.points.map(p=>({...p,rawSpl:p.gain})),smoothedPoints:[],smoothing:'RAW',sampleCount:target.points.length,normOffset:0}) : null;
     const id = crypto.randomUUID();
     audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING', eqMode: 'peq',
-      selectedTargetId: labState.targetCurveId, selectedBand: id,
+      selectedTargetId: labState.targetCurveId, targetMeasurementRef: targetRef, selectedBand: id,
       peqFilters: [{ id, type: 'PK', freq: 1000, gain: 0, q: 1.4, enabled: true }] });
     setPanel('eq');
   };
@@ -106,25 +115,31 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
 
   useDismissSurface(showFeedbackGuard, dismissFeedbackGuard, 50);
   const svgRef = useRef<SVGSVGElement>(null);
+  const pendingChannels = useRef(new Map<string, { channel: string; id: string; points: CurvePoint[] }>());
+  const targetInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Active Target Curve
   const activeTarget = useMemo(() => {
     if (labState.targetCurveId === 'none') return null;
-    return TARGET_CURVES.find((t) => t.id === labState.targetCurveId) || TARGET_CURVES[0];
-  }, [labState.targetCurveId]);
+    return labState.curves.find(c => c.id === labState.targetCurveId && c.isTarget) || TARGET_CURVES.find((t) => t.id === labState.targetCurveId) || null;
+  }, [labState.targetCurveId, labState.curves]);
 
   // Transform and normalize points for each curve with squig.link-grade datum alignment
   const displayCurves = useMemo(() => {
+    const datum = (points: CurvePoint[]) => labState.normalizationMode === 'none' ? 0 : labState.normalizationMode === 'mean' ? meanDatum(points) : getInterpolatedTargetGain(labState.normHz, points);
+    const level = labState.normalizationMode === 'none' ? 0 : labState.normDb;
     // 1. Calculate active target's datum gain at normHz (1000 Hz)
     const activeTargetNormGain = activeTarget
-      ? getInterpolatedTargetGain(labState.normHz, activeTarget.points)
+      ? datum(activeTarget.points)
       : 0;
 
-    return labState.curves.map((curve) => {
+    const expanded = labState.curves.flatMap(c => c.channel === 'both' && c.channels ? [{ ...c, id: c.id + '-left', name: c.name + ' L', channel: 'left' as const }, { ...c, id: c.id + '-right', name: c.name + ' R', channel: 'right' as const }] : [c]);
+    const transformed = expanded.map((original) => {
+      const curve = { ...original, points: channelPoints(original) };
       if (!curve.points.length) return { ...curve, displayPoints: [] };
       const normSupported = curve.points[0].freq <= labState.normHz && curve.points.at(-1)!.freq >= labState.normHz;
-      if (!normSupported && !curve.preserveAbsolute && (!curve.isFilterCurve || labState.viewMode !== 'rawFilter' || labState.deltaMode || curve.deltaCompensate)) return { ...curve, displayPoints: [] };
+      if (labState.normalizationMode !== 'none' && labState.normalizationMode !== 'mean' && !normSupported && !curve.preserveAbsolute && (!curve.isFilterCurve || labState.viewMode !== 'rawFilter' || labState.deltaMode || curve.deltaCompensate)) return { ...curve, displayPoints: [] };
       const smoothed = curve.isTarget
         ? curve.points
         : smoothLogCurve(
@@ -137,34 +152,34 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
       // Look up source target for filter curves (default to active target or IEF 2025)
       let sourceTarget = activeTarget;
       if (isFilter && curve.sourceTargetId) {
-        const found = TARGET_CURVES.find((t) => t.id === curve.sourceTargetId);
+        const found = labState.curves.find(c => c.isTarget && c.id === curve.sourceTargetId) || TARGET_CURVES.find((t) => t.id === curve.sourceTargetId);
         if (found) sourceTarget = found;
       }
       if (!sourceTarget) {
-        sourceTarget = TARGET_CURVES[0]; // Crinacle IEF 2025
+        sourceTarget = TARGET_CURVES[0]; // Legacy inferred filter reference
       }
 
       // Pre-compute raw reconstructed IEM curve at all frequencies if it's a filter curve:
       // IEM_raw(f) = SourceTarget(f) - FilterCut(f)
       // Datum at normHz:
-      const filterAtNormHz = getInterpolatedTargetGain(labState.normHz, smoothed);
-      const srcTargetAtNormHz = getInterpolatedTargetGain(labState.normHz, sourceTarget.points);
+      const filterAtNormHz = datum(smoothed);
+      const srcTargetAtNormHz = datum(sourceTarget.points);
       const reconstructedIemAtNormHz = srcTargetAtNormHz - filterAtNormHz;
 
       // Base anchor gain at normalization frequency for normal curves
-      const curveNormGain = getInterpolatedTargetGain(labState.normHz, smoothed);
+      const curveNormGain = datum(curve.channels ? smoothLogCurve(channelPoints({ ...curve, channel: 'average' }).map(p => ({ ...p, rawSpl: p.gain })), labState.smoothing) : smoothed);
 
       const transformedPoints: CurvePoint[] = SYNTHESIS_FREQUENCIES.map((f) => {
         const rawGain = getInterpolatedTargetGain(f, smoothed);
         let dispGain = rawGain;
 
         if (curve.preserveAbsolute && !isTargetCurve) {
-          const targetGain = activeTarget ? getInterpolatedTargetGain(f, activeTarget.points) - activeTargetNormGain + labState.normDb : 0;
+          const targetGain = activeTarget ? getInterpolatedTargetGain(f, activeTarget.points) - activeTargetNormGain + level : 0;
           dispGain = (curve.isInverted ? -rawGain : rawGain) + curve.offset - ((labState.deltaMode || curve.deltaCompensate) ? targetGain : 0);
         } else if (isTargetCurve) {
           // Target Curve: normalize to normDb at normHz (1000 Hz)
           // T_plot(f) = T(f) - T(normHz) + normDb
-          const targetNorm = rawGain - activeTargetNormGain + labState.normDb;
+          const targetNorm = rawGain - datum(smoothed) + level;
           dispGain = labState.deltaMode ? 0 : targetNorm;
         } else if (labState.deltaMode && activeTarget) {
           // Global DELTA Mode: deviation from target
@@ -173,8 +188,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
             // then take delta against the *active* target (may differ from source target)
             const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-            const iemPlot = srcTargetGain - rawGain - reconstructedIemAtNormHz + labState.normDb;
-            const targetPlot = targetGain - activeTargetNormGain + labState.normDb;
+            const iemPlot = srcTargetGain - rawGain - reconstructedIemAtNormHz + level;
+            const targetPlot = targetGain - activeTargetNormGain + level;
             dispGain = iemPlot - targetPlot + curve.offset;
           } else {
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
@@ -187,8 +202,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
           if (isFilter) {
             const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-            const iemPlot = srcTargetGain - rawGain - reconstructedIemAtNormHz + labState.normDb;
-            const targetPlot = targetGain - activeTargetNormGain + labState.normDb;
+            const iemPlot = srcTargetGain - rawGain - reconstructedIemAtNormHz + level;
+            const targetPlot = targetGain - activeTargetNormGain + level;
             dispGain = iemPlot - targetPlot + curve.offset;
           } else {
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
@@ -199,9 +214,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
         } else if (isFilter) {
           // GraphicEQ / AutoEQ Filter Curves:
           const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
-          const netGain = srcTargetGain - srcTargetAtNormHz + labState.normDb;
+          const netGain = srcTargetGain - srcTargetAtNormHz + level;
           const iemRaw = srcTargetGain - rawGain;
-          const iemNormalized = iemRaw - reconstructedIemAtNormHz + labState.normDb;
+          const iemNormalized = iemRaw - reconstructedIemAtNormHz + level;
 
           if (labState.viewMode === 'rawFilter') {
             // "Filter Cuts" mode: shows raw cuts by default, flips to reconstructed if inverted
@@ -209,7 +224,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
           } else if (labState.viewMode === 'netPostEq') {
             // "Post-EQ Net" mode: shows ideal equalized sound; if inverted, shows residual error vs active target
             const activeTargetGain = activeTarget
-              ? getInterpolatedTargetGain(f, activeTarget.points) - activeTargetNormGain + labState.normDb
+              ? getInterpolatedTargetGain(f, activeTarget.points) - activeTargetNormGain + level
               : netGain;
             const residualDelta = netGain - activeTargetGain;
             dispGain = (curve.isInverted ? residualDelta : netGain) + curve.offset;
@@ -220,7 +235,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
         } else {
           // Standard Measured / AI-Estimate Curves:
           // Normalized to normDb at normHz (1000 Hz), inverts polarity if inverted
-          const normalized = rawGain - curveNormGain + labState.normDb;
+          const normalized = rawGain - curveNormGain + level;
           dispGain = (curve.isInverted ? -normalized : normalized) + curve.offset;
         }
 
@@ -234,7 +249,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
         ),
       };
     });
+    const baseline = transformed.find(c => c.id === labState.baselineId);
+    return !baseline ? transformed : transformed.map(c => ({ ...c, displayPoints: c.displayPoints.filter(p => p.freq >= (baseline.displayPoints[0]?.freq ?? Infinity) && p.freq <= (baseline.displayPoints.at(-1)?.freq ?? -Infinity)).map(p => ({ freq: p.freq, gain: p.gain - getInterpolatedTargetGain(p.freq, baseline.displayPoints) })) }));
   }, [
+    labState.baselineId, labState.normalizationMode,
     labState.curves,
     labState.normDb,
     labState.normHz,
@@ -258,8 +276,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
   }, [displayCurves, anySolo]);
 
   const { minY, maxY, yTicks } = useMemo(() => {
+    if (graphSettings.yRange) { const [minY, maxY] = graphSettings.yRange; const step = maxY-minY > 48 ? 12 : 6; return { minY, maxY, yTicks: Array.from({length:Math.floor(maxY/step)-Math.ceil(minY/step)+1},(_,i)=>(Math.ceil(minY/step)+i)*step) }; }
     return calculateAutoRangedYBounds(activeVisiblePointSets, isTargetInVisible);
-  }, [activeVisiblePointSets, isTargetInVisible]);
+  }, [activeVisiblePointSets, isTargetInVisible, graphSettings.yRange]);
 
   // Viewport with responsive zoom range
   const viewport: ViewportDimensions = useMemo(() => {
@@ -270,12 +289,12 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
       width: Math.max(260, plot.size.width || 960),
       height: Math.max(280, plot.size.height || 440),
       padding: { top: 28, right: screenWidth < 768 ? 14 : 28, bottom: 56, left: screenWidth < 768 ? 38 : 54 },
-      minFreq: range[0],
-      maxFreq: range[1],
+      minFreq: graphSettings.minFreq,
+      maxFreq: graphSettings.maxFreq,
       minY,
       maxY,
     };
-  }, [minY, maxY, labState.zoomRange, screenWidth, plot.size.width, plot.size.height]);
+  }, [minY, maxY, graphSettings.minFreq, graphSettings.maxFreq, screenWidth, plot.size.width, plot.size.height]);
 
   // Paths
   const renderedPaths = useMemo(() => {
@@ -301,9 +320,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
     values: { name: string; db: number; color: string; isPrimary: boolean }[];
   } | null>(null);
 
+  const incompatibleRigs = [...new Set(labState.curves.filter(c=>c.visible&&!c.isTarget&&!c.isFilterCurve).map(c=>c.rig).filter(Boolean))];
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg || !graphSettings.inspect) return;
     const rect = svg.getBoundingClientRect();
     const scaleX = viewport.width / rect.width;
     const clientX = (e.clientX - rect.left) * scaleX;
@@ -326,7 +346,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
         }))
         .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
 
-      setHoveredPoint({ x: clientX, freq, values });
+      const pointerY = (e.clientY-rect.top)*viewport.height/rect.height;
+      values.sort((a,b)=>Math.abs(dbToY(a.db,viewport)-pointerY)-Math.abs(dbToY(b.db,viewport)-pointerY));
+      if(e.type === 'pointerdown' && values[0]) { const curve=displayCurves.find(c=>c.name===values[0].name);if(curve)labStore.setPrimaryCurve(curve.id.replace(/-(left|right)$/,'')); }
+      setHoveredPoint({ x: clientX, freq, values: values.slice(0,8) });
     } else {
       setHoveredPoint(null);
     }
@@ -352,8 +375,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
     if (curveB.isFilterCurve || (!curveB.isTarget && curveB.provenance !== 'measured')) { showToast('Choose a measured destination or reference target.'); return; }
     try {
     // Fit original source arrays; display changes never affect analysis.
-    const peqResult = synthesizeAutoPeq(smoothLogCurve(curveA.points.map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW'), curveB.points, {
-      normalize: labState.fitNormalize ?? true,
+    const peqResult = synthesizeAutoPeq(smoothLogCurve(channelPoints(curveA).map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW'), channelPoints(curveB), {
+      ...(labState.fitLimits || DEFAULT_FIT_LIMITS), normalize: labState.fitNormalize ?? true,
       sampleRate: audioEngine.audioContext?.sampleRate || 48000,
       smoothing: labState.fitSmoothing || 'RAW',
       maxFilters: 10,
@@ -361,7 +384,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
     });
 
     if (peqResult) {
-      audioEngine.loadExternalPeq(peqResult.filters, peqResult.preamp);
+      void audioEngine.loadExternalPeq(peqResult.filters, peqResult.preamp).catch(error => showToast(error.message));
       setAuditionResult({
         rmsResidual: parseFloat(peqResult.finalRms.toFixed(2)),
         filterCount: peqResult.filters.length,
@@ -373,67 +396,56 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
     } catch (e) { showToast((e as Error).message); }
   };
 
-  useEffect(() => { setAuditionResult(null); audioEngine.stopAudio(); }, [labState.curves.map(c => c.id + JSON.stringify(c.points)).join('|'), labState.fitNormalize, labState.fitSmoothing]);
+  useEffect(() => { setAuditionResult(null); audioEngine.stopAudio(); audioEngine.clearExternalPeq(); }, [labState.curves.map(c => c.id + JSON.stringify(c.points)).join('|'), labState.fitNormalize, labState.fitSmoothing, JSON.stringify(labState.fitLimits), labState.curves.map(c=>c.channel).join('|')]);
 
   // Auto-PEQ send to Workbench
   const handleSendAutoPeq = async (curve: LabCurve) => {
     if (!activeTarget || curve.provenance !== 'measured' || curve.isFilterCurve) { showToast('Generate correction requires a measured source and reference target.'); return; }
     if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work with this correction?')) return;
     try {
-      const measured = smoothLogCurve(curve.points.map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW');
+      const target = labState.curves.find(c => c.id === labState.targetCurveId && c.isTarget);
+      const targetRef = target ? target.measurementRef || await storeMeasurement({name:target.name,rawPoints:target.points.map(p=>({...p,rawSpl:p.gain})),smoothedPoints:[],smoothing:'RAW',sampleCount:target.points.length,normOffset:0}) : null;
+      const measured = smoothLogCurve(channelPoints(curve).map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW');
       const result = synthesizeAutoPeq(measured, activeTarget.points, {
-        normalize: labState.fitNormalize ?? true, sampleRate: 48000, smoothing: labState.fitSmoothing || 'RAW', maxFilters: 10, targetCurveId: activeTarget.id,
+        ...(labState.fitLimits || DEFAULT_FIT_LIMITS), normalize: labState.fitNormalize ?? true, sampleRate: 48000, smoothing: labState.fitSmoothing || 'RAW', maxFilters: 10, targetCurveId: activeTarget.id,
       });
-      const ref = await storeMeasurement({ name: curve.name, rawPoints: curve.points.map(p => ({ ...p, rawSpl: p.gain })), smoothedPoints: [], normOffset: 0, sampleCount: curve.points.length, smoothing: 'RAW' });
-      audioWorkspace.replace({ ...freshDraft(), dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
+      const ref = await storeMeasurement({ name: curve.name, rawPoints: channelPoints(curve).map(p => ({ ...p, rawSpl: p.gain })), channels: curve.channels ? {left:curve.channels.left.map(p=>({...p,rawSpl:p.gain})),right:curve.channels.right.map(p=>({...p,rawSpl:p.gain}))} : undefined, smoothedPoints: [], normOffset: 0, sampleCount: curve.points.length, smoothing: 'RAW' });
+      audioWorkspace.replace({ ...freshDraft(), dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, targetMeasurementRef: targetRef, fitLimits: labState.fitLimits || structuredClone(DEFAULT_FIT_LIMITS), workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
       setPanel('eq');
     } catch (e) { showToast((e as Error).message); }
   };
 
-  // Ingest Measurement File
-  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleProcessFile(file);
-  };
-
-  const handleProcessFile = async (file: File) => {
-    try {
-      const text = await file.text();
-      const parsed = parseMeasurementFile(text, file.name, labState.smoothing, labState.normHz);
-      if (parsed && parsed.rawPoints.length > 0) {
-        const colors = ['#c9f3d0', '#F06543', '#72B01D', '#3F88C5', '#D1495B', '#9D4EDD'];
-        const color = colors[(labState.curves.length - 1) % colors.length] || '#c9f3d0';
-        const isFilter = !!parsed.isGraphicEQ;
-        const newCurve: LabCurve = {
-          id: `measured-${Date.now()}`,
-          name: parsed.name || file.name.replace(/\.[^/.]+$/, ''),
-          color,
-          points: parsed.rawPoints,
-          provenance: isFilter ? 'eq-compensated' : 'measured',
-          provenanceDetails: isFilter
-            ? `GraphicEQ Filter • ${parsed.sampleCount} pts • raw correction values`
-            : `Imported • ${parsed.sampleCount} pts • norm ${labState.normHz}Hz`,
-          pointsCount: parsed.sampleCount,
-          offset: 0,
-          visible: true,
-          solo: false,
-          isFilterCurve: isFilter,
-          sourceTargetId: isFilter ? labState.targetCurveId : undefined,
-        };
-        labStore.addCurve(newCurve);
-        labStore.setPrimaryCurve(newCurve.id);
-        showToast(
-          `✓ Ingested ${newCurve.name} (${parsed.sampleCount} pts${isFilter ? ' • GraphicEQ filter' : ''})`,
-        );
-      } else {
-        showToast('⚠️ Could not parse points. Supported: GraphicEQ, CSV, TSV, REW format.');
-      }
-    } catch (err) {
-      console.error('File parsing error:', err);
-      showToast('⚠️ Error reading measurement file.');
+  const handleProcessFiles = async (files: File[], isTarget = false, context?: {url:string;rig:string}) => {
+    let imported = 0;
+    for (const file of files) {
+      try {
+        const parsed = parseMeasurementFile(await file.text(), file.name, 'RAW', labState.normHz);
+        if (!parsed || parsed.rawPoints.length < 2 || (isTarget && parsed.isGraphicEQ)) throw new Error(`Could not read ${file.name}. Use frequency/dB measurement text or CSV.`);
+        const raw = (points: typeof parsed.rawPoints) => points.map(p => ({ freq: p.freq, gain: p.rawSpl ?? p.gain }));
+        const measurementRef = await storeMeasurement(parsed);
+        const name = parsed.name || file.name.replace(/\.[^/.]+$/, '');
+        const match = !isTarget && name.match(/^(.*?)\s+([LR])$/i);
+        const pending = match ? pendingChannels.current.get(match[1]) : undefined;
+        const existing = pending && match && pending.channel !== match[2].toUpperCase() && labStore.getSnapshot().curves.find(c => c.id === pending.id);
+        const points = raw(parsed.rawPoints);
+        if (existing && match) {
+          const channels = match[2].toUpperCase() === 'L' ? { left: points, right: pending!.points } : { left: pending!.points, right: points };
+          const average = channelPoints({ ...existing, channels, channel: 'average' });
+          labStore.updateCurve(existing.id, { channels, points: average, channel: 'average', name: match[1], provenanceDetails: 'Imported left/right measurements paired by filename' });
+          pendingChannels.current.delete(match[1]);
+        } else {
+          const channels = parsed.channels ? { left: raw(parsed.channels.left), right: raw(parsed.channels.right) } : undefined;
+          const curve: LabCurve = { id: `custom-${crypto.randomUUID()}`, name, color: curveColor(labStore.getSnapshot().curves.length), sourceUrl: context?.url, rig: context?.rig, points, channels, channel: channels ? 'average' : undefined, measurementRef, provenance: isTarget ? 'target' : parsed.isGraphicEQ ? 'eq-compensated' : 'measured', provenanceDetails: `Imported ${file.name}${context ? ' • '+context.url : ''}${match ? ' • single channel; import the opposite L/R file to pair' : ''}`, pointsCount: points.length, offset: 0, visible: true, solo: false, isTarget, isFilterCurve: !!parsed.isGraphicEQ, sourceTargetId: parsed.isGraphicEQ ? labState.targetCurveId : undefined };
+          labStore.addCurve(curve); labStore.setPrimaryCurve(curve.id);
+          if (match) pendingChannels.current.set(match[1], { id: curve.id, channel: match[2].toUpperCase(), points });
+          if (isTarget) labStore.setTargetCurveId(curve.id);
+        }
+        imported++;
+      } catch (error) { showToast((error as Error).message); }
     }
+    if (imported) showToast(`Imported ${imported} file${imported > 1 ? 's' : ''}`);
   };
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); void handleProcessFiles(Array.from(e.dataTransfer.files)); };
 
   if (!labState.isOpen) return null;
 
@@ -456,7 +468,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
           <button className="secondary-button" aria-pressed={panel === 'eq' && draft.workbenchState === 'IDLE'} onClick={() => { audioWorkspace.update({ workbenchState: 'IDLE' }, false); setPanel('eq'); }}>Presets ({presets.length})</button>
         </nav>}
         onExportCsv={() => {
-          const rows = [`# Displayed data: mode=${labState.viewMode}; normalization=${labState.normDb}dB@${labState.normHz}Hz; smoothing=${labState.smoothing}; delta=${labState.deltaMode}. Per-curve offset/inversion/difference below.`, 'curve,frequency_hz,gain_db,offset_db,inverted,difference,provenance,preserve_absolute'];
+          const rows = [`# Displayed data: mode=${labState.viewMode}; alignment=${labState.normalizationMode || "frequency"}; baseline=${labState.baselineId || "none"}; normalization=${labState.normDb}dB@${labState.normHz}Hz; smoothing=${labState.smoothing}; delta=${labState.deltaMode}. Per-curve offset/inversion/difference below.`, 'curve,frequency_hz,gain_db,offset_db,inverted,difference,provenance,preserve_absolute'];
           displayCurves
             .filter((c) => anySolo ? c.solo || (c.isTarget && c.visible) : c.visible)
             .forEach((c) =>
@@ -492,19 +504,27 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
             </button>
             <input
               ref={fileInputRef}
+              aria-label="Import measurement files"
               type="file"
+              multiple
               accept=".txt,.csv,.tsv"
               className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) {
-                  handleProcessFile(f);
-                  e.target.value = '';
-                }
-              }}
+              onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ''; void handleProcessFiles(files); }}
             />
           </div>
 
+          <label className="control-field">Search your curves<input type="search" value={curveSearch} onChange={e => setCurveSearch(e.target.value)} placeholder="Model, variant or target" /></label>
+          <div className="graph-action-row">
+            <button className="secondary-button" onClick={() => targetInputRef.current?.click()}>Import target</button>
+            <button className="secondary-button" onClick={() => { try { labStore.averageVisible(); showToast('Created amplitude average of visible measurements'); } catch (error) { showToast((error as Error).message); } }}>Average visible</button>
+            <button className="secondary-button" onClick={() => labStore.recolor()}>Recolor</button>
+            <button className="secondary-button" onClick={() => labStore.clearUnpinned()}>Clear unpinned</button>
+          </div>
+          <input ref={targetInputRef} type="file" accept=".txt,.csv,.tsv" className="hidden" onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; void handleProcessFiles(files, true); }} />
+          <MeasurementCatalog onImport={(files, context) => handleProcessFiles(files, false, context)} />
+          <GraphControls value={graphSettings} onChange={value => labStore.setGraphSettings(value)} />
+          <FitControls value={labState.fitLimits || DEFAULT_FIT_LIMITS} onChange={value => labStore.setFitLimits(value)} />
+          <div className="graph-action-row">{(['png','svg'] as const).map(format => <button key={format} className="secondary-button" onClick={() => { if (svgRef.current) void exportPlot(svgRef.current, 'audiosage-graph', format, `AudioSage • ${labState.normalizationMode || 'frequency'} normalization • ${labState.smoothing} • ${labState.normHz} Hz • ${labState.curves.filter(c=>c.visible).map(c=>c.name+' ('+c.provenance+')').join('; ')}`).catch(error => showToast(error.message)); }}>Export {format.toUpperCase()}</button>)}</div>
           {/* Drag & Drop Box */}
           <div
             onDragOver={(e) => e.preventDefault()}
@@ -518,7 +538,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
 
           <details className="section-disclosure lab-curves-panel" open={screenWidth >= 768}><summary>Curves</summary>
           <div className="space-y-2 pr-1">
-            {labState.curves.map((curve) => (
+            {labState.curves.filter(c => c.name.toLowerCase().includes(curveSearch.toLowerCase())).sort((a,b) => Number(!!b.pinned)-Number(!!a.pinned)).map((curve) => (
               <PerCurveRow
                 key={curve.id}
                 curve={curve}
@@ -548,6 +568,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
                 <div>
                   <label className="text-audio-muted/70 block mb-0.5">CURVE A:</label>
                   <select
+                    aria-label="Comparison source"
                     value={labState.auditionAId || ''}
                     onChange={(e) => labStore.setAuditionPair(e.target.value, labState.auditionBId)}
                     className="w-full bg-audio-surface border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
@@ -564,6 +585,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
                 <div>
                   <label className="text-audio-muted/70 block mb-0.5">CURVE B:</label>
                   <select
+                    aria-label="Comparison destination"
                     value={labState.auditionBId || ''}
                     onChange={(e) => labStore.setAuditionPair(labState.auditionAId, e.target.value)}
                     className="w-full bg-audio-surface border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
@@ -593,6 +615,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
                 </div>
               )}
 
+              <ToneControls active={audioEngine.activeSource === 'tone'} play={async frequency=>{if(isCapturing)stopTabCapture();await audioEngine.playTone(frequency);}} stop={audioEngine.stopAudio} onFrequency={audioEngine.setToneFrequency}/>
+              <label className="control-field">Audition track<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file){if(isCapturing)stopTabCapture();void audioEngine.handleFileUpload(file);}}}/></label>
+              <label className="control-field">Listening volume<input aria-label="Comparison volume" type="range" min="0" max="1" step=".01" value={audioEngine.volume} onChange={e=>audioEngine.setVolume(Number(e.target.value))}/></label>
+              <button className="secondary-button" onClick={()=>{audioEngine.stopAudio();if(isCapturing)stopTabCapture();}}>Stop playback</button>
               {/* Audition Playback Buttons */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <button
@@ -653,6 +679,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
 
         {/* CENTER & BOTTOM: SVG Canvas & Per-Curve Rows */}
         <main className="flex-1 flex flex-col overflow-hidden bg-audio-surface p-3 md:p-5 gap-3">
+          {incompatibleRigs.length>1 && <p className="text-xs text-audio-muted">Different measurement rigs: {incompatibleRigs.join(", ")}. Direct differences may reflect the rig.</p>}
           {/* 3. MEASUREMENT-GRADE SVG CANVAS */}
           <div ref={plot.ref} className="lab-plot relative flex-1 w-full bg-audio-surface rounded-2xl border border-audio-border/90 shadow-panel overflow-hidden">
             <svg
@@ -668,12 +695,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
               }}
             >
               {/* Decade Freq Grid */}
-              {CRINGRAPH_FREQ_TICKS.filter(
-                (t) =>
-                  t.freq >= viewport.minFreq! &&
-                  t.freq <= viewport.maxFreq! &&
-                  (screenWidth >= 768 || t.major || labState.zoomRange !== 'full'),
-              ).map(({ freq, label, major }) => {
+              {frequencyTicks(viewport).map(({ freq, label, major }) => {
                 const x = freqToX(freq, viewport);
                 return (
                   <g key={freq}>
@@ -687,6 +709,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
                       strokeDasharray={major ? undefined : '2 2'}
                     />
                     <text
+                      data-axis="frequency"
                       x={x}
                       y={viewport.height - 22}
                       fill={major ? '#edf0ec' : '#9ba3ad'}
@@ -754,8 +777,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
                   );
                 })}
 
+              {graphSettings.showLabels && renderedPaths.filter(c => c.visible && c.displayPoints.length).slice(0, 10).map((c,i) => <text key={c.id} x={viewport.padding.left + 8} y={viewport.padding.top + 15 + i*17} fill={c.color} fontSize="12">{c.name.slice(0,30)}</text>)}
               {/* Multi-Curve Hover Tooltip */}
-              {hoveredPoint &&
+              {graphSettings.inspect && hoveredPoint &&
                 (() => {
                   const freqLabel =
                     hoveredPoint.freq >= 1000

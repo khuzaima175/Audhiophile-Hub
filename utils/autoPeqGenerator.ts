@@ -1,3 +1,4 @@
+import { DEFAULT_FIT_LIMITS, validateFitLimits } from './graphTools';
 import {
   PEQFilter,
   PEQFilterType,
@@ -56,7 +57,10 @@ export const synthesizeAutoPeq = (
   targetPoints: { freq: number; gain: number }[],
   options: AutoPeqFitOptions,
 ): AutoPeqFitResult => {
-  const { minGain = -12, maxGain = 12, sampleRate = DSP_SAMPLE_RATE } = options;
+  const limits = { ...DEFAULT_FIT_LIMITS, ...Object.fromEntries(Object.entries(options).filter(([,v])=>v!==undefined)) };
+  if (!validateFitLimits(limits)) throw new Error('Invalid AutoEQ frequency, gain, Q or filter-type limits');
+  const { minGain, maxGain, minQ, maxQ } = limits;
+  const sampleRate = options.sampleRate || DSP_SAMPLE_RATE;
   if (![minGain, maxGain, sampleRate, options.maxFilters].every(Number.isFinite) || minGain > maxGain || sampleRate < 40000)
     throw new Error('Invalid fitting settings');
   const maxFilters = Math.max(1, Math.min(20, Math.floor(options.maxFilters)));
@@ -69,10 +73,10 @@ export const synthesizeAutoPeq = (
   measuredPoints = prepare(measuredPoints);
   targetPoints = prepare(targetPoints);
   if (measuredPoints.length < 2 || targetPoints.length < 2) throw new Error('At least two distinct measured and target frequencies are required');
-  const lower = Math.max(20, measuredPoints[0].freq, targetPoints[0].freq);
-  const upper = Math.min(20000, sampleRate / 2 - 1, measuredPoints.at(-1)!.freq, targetPoints.at(-1)!.freq);
+  const lower = Math.max(limits.minFreq, measuredPoints[0].freq, targetPoints[0].freq);
+  const upper = Math.min(limits.maxFreq, sampleRate / 2 - 1, measuredPoints.at(-1)!.freq, targetPoints.at(-1)!.freq);
   if (lower >= upper) throw new Error('Measurement and target have no overlapping frequency range');
-  if (options.normalize && (lower > 1000 || upper < 1000)) throw new Error('Normalization at 1 kHz requires both curves to support 1 kHz');
+  if (options.normalize && (measuredPoints[0].freq > 1000 || measuredPoints.at(-1)!.freq < 1000 || targetPoints[0].freq > 1000 || targetPoints.at(-1)!.freq < 1000)) throw new Error('Normalization at 1 kHz requires both curves to support 1 kHz');
   const measurementDatum = options.normalize ? getInterpolatedTargetGain(1000, measuredPoints) : 0;
   const targetDatum = options.normalize ? getInterpolatedTargetGain(1000, targetPoints) : 0;
   const evalFreqs = SYNTHESIS_FREQUENCIES.filter((f) => f >= lower && f <= upper);
@@ -115,21 +119,21 @@ export const synthesizeAutoPeq = (
     const candidateTests: { type: PEQFilterType; freq: number; q: number }[] = [];
 
     // Add Peaking candidates
-    candidateFreqs.forEach((fc) => {
-      CANDIDATE_Q_POOL.forEach((q) => {
+    if(limits.types.includes('PK')) candidateFreqs.forEach((fc) => {
+      [...new Set([minQ,...CANDIDATE_Q_POOL,maxQ])].filter(q=>q>=minQ&&q<=maxQ).forEach((q) => {
         candidateTests.push({ type: 'PK', freq: fc, q });
       });
     });
 
     // Add Shelf candidates (allow low shelf in first 3 filters, high shelf in first 4 filters)
-    if (filterIdx < 3) {
+    if (limits.types.includes('LS') && filterIdx < 3) {
       CANDIDATE_LOW_SHELF_FREQS.forEach((fc) => {
-        candidateTests.push({ type: 'LS', freq: fc, q: 0.71 });
+        candidateTests.push({ type: 'LS', freq: fc, q: Math.max(minQ,Math.min(maxQ,.71)) });
       });
     }
-    if (filterIdx < 4) {
+    if (limits.types.includes('HS') && filterIdx < 4) {
       CANDIDATE_HIGH_SHELF_FREQS.forEach((fc) => {
-        candidateTests.push({ type: 'HS', freq: fc, q: 0.71 });
+        candidateTests.push({ type: 'HS', freq: fc, q: Math.max(minQ,Math.min(maxQ,.71)) });
       });
     }
 
@@ -141,7 +145,7 @@ export const synthesizeAutoPeq = (
 
       // Clamp gain to [-12, +12] and snap to 0.5 dB
       let rawGain = Math.max(minGain, Math.min(maxGain, resAtFc));
-      let snappedGain = Math.round(rawGain * 2) / 2;
+      let snappedGain = Math.max(minGain,Math.min(maxGain,Math.round(rawGain * 2) / 2));
 
       // Skip candidates with trivial or zero gain
       if (Math.abs(snappedGain) < 0.5) continue;

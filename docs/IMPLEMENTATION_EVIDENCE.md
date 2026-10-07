@@ -79,3 +79,11 @@ User screenshot reproduced the layout defect: a stale last-child CSS selector ca
 Graph Lab now embeds the existing shared EQ editor and preset library. New EQ preset starts an editable parametric band; manual/measurement creation remains in the tab. Plot and identity/save/export controls precede long parameter lists. Level/rate controls are expandable. Presets load/edit/save/copy directly; Compare opens current draft curves. Only one settings/editor instance is mounted, and view/source changes release playback.
 
 Dedicated Lab and existing UI/workspace/mobile/production regressions passed, alongside typecheck/build/core/retrieval. See the verification report for dimensions and limits. No DSP or preferred model catalog change was made.
+
+## Squig comparison and mobile/stereo EQ follow-up
+
+The phone screenshot exposed two defects missed by page-overflow checks: every manual-EQ tick was rendered at phone width, and a sticky selected-band panel could cover the axis. Actual-size SVGs now reserve label widths and keep the panel below the graph. Regression assertions compare rendered label bounds and panel/axis bounds, alongside actual touch dragging and tap placement.
+
+The comparison workspace adds custom scaling/inspection/labels, local search and multi-import, channel preservation/pairing, amplitude averages, pin/color/rig controls, baselines, public Squig catalog/variant search, custom targets, graph images and richer sharing. The editor adds numeric graphic gains, filter type/Q editing, band placement, keyboard Q/delete/Undo, sort/enable-all, constrained fitting and independent stereo banks. Save/reload/backup and generated stereo APO round-tripping preserve both banks; shared preamp covers both channels. Mono input is upmixed before independent filtering. Existing Gemini priority is unchanged.
+
+Research sources and exact algorithm/data-access differences are documented in [Graph Lab guide](GRAPH_LAB_GUIDE.md). This is expanded workflow coverage, not claimed numerical parity with every Squig fork. See the verification report for final test results.

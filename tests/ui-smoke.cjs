@@ -150,26 +150,25 @@ const path = require('node:path');
   const lab = page.getByRole('dialog', { name: 'Graph lab', exact: true });
   await lab.waitFor();
   await lab.getByLabel('Reference target').selectOption('none');
-  await lab.getByLabel('Frequency range').selectOption('bass');
+  await lab.getByLabel('Frequency range',{exact:true}).selectOption('bass');
   assert.equal(
     await lab.locator('svg').getByText('20k', { exact: true }).count(),
     0,
     'Bass zoom must change the graph axis',
   );
   await lab.getByLabel('Smoothing', { exact: true }).selectOption('1/6 OCT');
-  await lab.locator('input[type=file]').setInputFiles({
+  await lab.getByLabel('Import measurement files',{exact:true}).setInputFiles({
     name: 'qa-measurement.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from(
       'Frequency,SPL\n20,86\n30,85\n50,84\n100,83\n200,80\n500,79\n1000,80\n2000,86\n4000,83\n6000,86\n8000,83\n10000,78\n16000,73\n20000,71',
     ),
   });
-  await lab.getByText('qa measurement', { exact: true }).first().waitFor();
+  await lab.locator('.curve-title strong').getByText('qa measurement', { exact: true }).waitFor();
   await lab.getByLabel('Reference target').selectOption('crinacle-ief-2025');
   await lab.getByText('Listen to the difference', { exact: true }).click();
-  const comparisonSelects = lab.locator('.lab-sidebar select');
-  await comparisonSelects.nth(0).selectOption({ label: 'qa measurement' });
-  await comparisonSelects.nth(1).selectOption({ label: 'IEF 2025' });
+  await lab.getByLabel('Comparison source',{exact:true}).selectOption({ label: 'qa measurement' });
+  await lab.getByLabel('Comparison destination',{exact:true}).selectOption({ label: 'IEF 2025' });
   await lab.getByRole('button', { name: 'Generate comparison EQ', exact: true }).click();
   await lab.getByText(/FILTERS ACTIVE/).waitFor();
   await lab.getByRole('button', { name: '▶ Pink Noise', exact: true }).click();

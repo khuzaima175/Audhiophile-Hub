@@ -33,6 +33,9 @@ const fs = require('node:fs'),
     assert.equal(fs.readFileSync(config, 'utf8').split(bridge.MANAGED_INCLUDE_LINE).length - 1, 1);
     assert.equal(bridge.toggleApoManagedLine(false, config).success, true);
     assert.equal(fs.readFileSync(config, 'utf8'), original);
+    assert.equal(bridge.syncApoProfile('Preamp: -6.2 dB\nChannel: L\nFilter 1: ON PK Fc 1000 Hz Gain 6 dB Q 1.4\nChannel: R\nFilter 1: ON PK Fc 1000 Hz Gain -6 dB Q 1.4\nChannel: ALL',config).success,true);
+    assert.equal(bridge.syncApoProfile('Channel: C',config).success,false);
+    bridge.toggleApoManagedLine(false,config);
     fs.writeFileSync(config, original + 'Include: audiosage-eq.txt\r\n');
     bridge.toggleApoManagedLine(false, config);
     assert.ok(fs.readFileSync(config, 'utf8').includes('Include: audiosage-eq.txt'));

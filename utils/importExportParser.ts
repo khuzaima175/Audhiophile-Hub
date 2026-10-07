@@ -1,9 +1,11 @@
-import { PEQFilter, PEQFilterType } from '../types';
+import { stereoPreamp } from './stereoEq';
+import { PEQFilter, PEQFilterType, StereoFilters } from '../types';
 import { ISO_10_BANDS, ISO_15_BANDS, ISO_31_BANDS } from '../constants/targetCurves';
 import { evaluateCompositeCurve, SYNTHESIS_FREQUENCIES } from './curveSynthesizer';
 import { graphicFilters, safePreamp } from './biquad';
 
 export interface ParsedEQResult {
+  stereoFilters?: StereoFilters;
   name?: string;
   mode: '10-band' | '15-band' | '31-band' | 'peq';
   graphicGains?: number[];
@@ -40,7 +42,13 @@ export const exportToEqualizerAPO = (
   isoGains: number[] = [],
   customPreamp?: number,
   sampleRate = 48000,
+  stereoFilters?: StereoFilters|null,
 ): string => {
+  if(stereoFilters) {
+    const preamp = stereoPreamp(stereoFilters,'manual',customPreamp??0,sampleRate);
+    const bank = (filters:PEQFilter[]) => exportToEqualizerAPO(filters,[],[],preamp,sampleRate).split('\n').filter(line=>!line.startsWith('#')&&!line.startsWith('Preamp:')).join('\n');
+    return `# AudioSage stereo EQ; intended sample rate ${sampleRate} Hz\nChannel: ALL\nPreamp: ${preamp} dB\nChannel: L\n${bank(stereoFilters.left)}\nChannel: R\n${bank(stereoFilters.right)}\nChannel: ALL`;
+  }
   const hasParametric = peqFilters && peqFilters.length > 0;
   const response = evaluateCompositeCurve(
     SYNTHESIS_FREQUENCIES,
@@ -148,6 +156,27 @@ export const downloadPresetFile = (filename: string, content: string): void => {
 export const parseImportedEQText = (text: string): ParsedEQResult | null => {
   if (!text || !text.trim()) return null;
   const clean = text.trim();
+  if (/^Channel:/im.test(clean)) {
+    const parts=clean.split(/^Channel:\s*([^\r\n]+)\s*$/im);
+    if (/Filter|GraphicEQ:/i.test(parts[0])) return null;
+    const stereoFilters:StereoFilters={left:[],right:[]};
+    const preampMatch=parts[0].match(/Preamp:\s*([+-]?\d+(?:\.\d+)?)/i);
+    let preamp=preampMatch?Number(preampMatch[1]):0;
+    for(let i=1;i<parts.length;i+=2) {
+      const channel=parts[i].trim().toUpperCase(), body=parts[i+1] || '';
+      if(channel==='ALL') {
+        const content=body.replace(/^#.*$/gm,'').trim();if(!content)continue;
+        const globalPreamp=content.match(/^Preamp:\s*([+-]?\d+(?:\.\d+)?)\s*dB$/i);
+        if(i!==1||!globalPreamp)return null;preamp=Number(globalPreamp[1]);continue;
+      }
+      if(!['L','R'].includes(channel)||/Preamp:|GraphicEQ:/i.test(body))return null;
+      const parsed=parseImportedEQText(body);
+      if(!parsed && /Filter/i.test(body))return null;
+      if(parsed)stereoFilters[channel==='L'?'left':'right'].push(...(parsed.peqFilters || []));
+    }
+    return {mode:'peq',peqFilters:stereoFilters.left,stereoFilters,preamp,rawText:clean};
+  }
+
 
   // 1. Check for Wavelet GraphicEQ format
   if (/GraphicEQ:/i.test(clean)) {

@@ -1,8 +1,12 @@
+import { validateStereoFilters } from '../utils/stereoEq';
+import { DEFAULT_GRAPH_SETTINGS, DEFAULT_FIT_LIMITS, validateGraphSettings, validateFitLimits } from '../utils/graphTools';
 import { useSyncExternalStore, Dispatch, SetStateAction } from 'react';
-import { EQPreset, PEQFilter, MeasurementData, SmoothingType, AutoPeqFitResult } from '../types';
+import { EQPreset, PEQFilter, MeasurementData, SmoothingType, AutoPeqFitResult, GraphSettings, AutoFitLimits, StereoFilters } from '../types';
 import { parseImportedEQText } from '../utils/importExportParser';
 export type EqMode = '10-band' | '15-band' | '31-band' | 'peq';
 export interface AudioDraft {
+  stereoFilters: StereoFilters|null; eqChannel:'left'|'right';
+  graphSettings: GraphSettings; fitLimits: AutoFitLimits; targetMeasurementRef: string | null;
   version: 2; editingPresetId: string | null; presetName: string; hardwareAssigned: string; gearId: string | null;
   dirty: boolean; eqMode: EqMode; selectedTargetId: string; measurementRef: string | null;
   gains10: number[]; gains15: number[]; gains31: number[]; peqFilters: PEQFilter[]; selectedBand: string | null;
@@ -12,6 +16,8 @@ export interface AudioDraft {
   workbenchState: 'IDLE' | 'ADDING' | 'IMPORTING' | 'MEASUREMENT'; originalFit: AutoPeqFitResult | null;
 }
 export const freshDraft = (): AudioDraft => ({
+  stereoFilters:null,eqChannel:'left',
+  graphSettings: structuredClone(DEFAULT_GRAPH_SETTINGS), fitLimits: structuredClone(DEFAULT_FIT_LIMITS), targetMeasurementRef: null,
   version: 2, editingPresetId: null, presetName: '', hardwareAssigned: '', gearId: null, dirty: false,
   eqMode: '10-band', selectedTargetId: 'crinacle-ief-2025', measurementRef: null,
   gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0),
@@ -22,12 +28,12 @@ export const freshDraft = (): AudioDraft => ({
 const KEY = 'audiosage_audio_draft_v2';
 const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
 export function validateDraft(d: any): d is AudioDraft {
-  return d?.version === 2 && Object.keys(d).every(k => k in freshDraft()) &&
+  return (d?.stereoFilters===null||validateStereoFilters(d?.stereoFilters)) && ['left','right'].includes(d?.eqChannel) && (!d.stereoFilters || JSON.stringify(d.peqFilters)===JSON.stringify(d.stereoFilters[d.eqChannel])) && validateGraphSettings(d?.graphSettings) && validateFitLimits(d?.fitLimits) && (d.targetMeasurementRef === null || typeof d.targetMeasurementRef === 'string') && d?.version === 2 && Object.keys(d).every(k => k in freshDraft()) &&
     typeof d.dirty === 'boolean' && (d.gearId === null || typeof d.gearId === 'string') && (d.editingPresetId === null || typeof d.editingPresetId === 'string') && (d.selectedBand === null || typeof d.selectedBand === 'string') &&
     (d.originalFit === null || validateFit(d.originalFit)) && ['10-band','15-band','31-band','peq'].includes(d.eqMode) &&
     ['IDLE','ADDING','IMPORTING','MEASUREMENT'].includes(d.workbenchState) &&
     ['filter','iem','compensated'].includes(d.graphView) && ['absolute','shape'].includes(d.responseLevel) &&
-    ['RAW','1/6 OCT','1/3 OCT'].includes(d.smoothing) && typeof d.normalize === 'boolean' &&
+    ['RAW','1/48 OCT','1/24 OCT','1/12 OCT','1/6 OCT','1/3 OCT'].includes(d.smoothing) && typeof d.normalize === 'boolean' &&
     typeof d.presetName === 'string' && typeof d.hardwareAssigned === 'string' && typeof d.selectedTargetId === 'string' &&
     (d.measurementRef === null || typeof d.measurementRef === 'string') &&
     [10,15,31].every(n => Array.isArray(d[`gains${n}`]) && d[`gains${n}`].length === n && d[`gains${n}`].every((v: any) => finite(v) && Math.abs(v) <= 18)) &&
@@ -44,7 +50,7 @@ function validateFit(r: any): boolean {
 let draft = freshDraft(), error = '', blocked = false;
 try {
   const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-  if (raw) { const parsed = JSON.parse(raw); if (parsed.version === 2) { parsed.graphView ??= 'filter'; parsed.responseLevel ??= 'absolute'; } if (!validateDraft(parsed)) throw new Error('Unsupported or damaged Audio draft'); draft = parsed; }
+  if (raw) { const parsed = JSON.parse(raw); if (parsed.version === 2) { parsed.stereoFilters ??= null; parsed.eqChannel ??= 'left'; parsed.graphView ??= 'filter'; parsed.responseLevel ??= 'absolute'; parsed.graphSettings ??= structuredClone(DEFAULT_GRAPH_SETTINGS); parsed.fitLimits ??= structuredClone(DEFAULT_FIT_LIMITS); parsed.targetMeasurementRef ??= null; } if (!validateDraft(parsed)) throw new Error('Unsupported or damaged Audio draft'); draft = parsed; }
 } catch { error = 'Saved Audio draft could not be opened. Original data is preserved. Export a backup, then recover the draft or start fresh.'; blocked = true; }
 let snapshot = { draft, error, undoCount: 0, redoCount: 0 };
 const listeners = new Set<() => void>();
@@ -64,9 +70,11 @@ export const audioWorkspace = {
   subscribe: (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; },
   update(patch: Partial<AudioDraft>, history = true) {
     if (history && !gesture) { undo.push(clone(draft)); if (undo.length > 60) undo.shift(); redo.length = 0; }
-    const fitInputs = ['measurementRef','selectedTargetId','smoothing','normalize','maxAutoFilters','sampleRate'] as const;
+    if (patch.peqFilters && draft.stereoFilters && patch.stereoFilters === undefined) patch = { ...patch, stereoFilters: { ...draft.stereoFilters, [draft.eqChannel]: patch.peqFilters } };
+    if (patch.eqChannel && draft.stereoFilters && patch.peqFilters === undefined) patch = { ...patch, peqFilters: draft.stereoFilters[patch.eqChannel], selectedBand: null, originalFit: null };
+    const fitInputs = ['measurementRef','targetMeasurementRef','fitLimits','selectedTargetId','smoothing','normalize','maxAutoFilters','sampleRate','eqChannel'] as const;
     if (patch.originalFit === undefined && fitInputs.some(k => patch[k] !== undefined && patch[k] !== draft[k])) patch = { ...patch, originalFit: null };
-    const contentChanged = Object.keys(patch).some(k => !['workbenchState','selectedBand','editingPresetId','dirty','graphView','responseLevel'].includes(k));
+    const contentChanged = Object.keys(patch).some(k => !['workbenchState','selectedBand','editingPresetId','dirty','graphView','responseLevel','graphSettings'].includes(k));
     draft = { ...draft, ...patch, dirty: patch.dirty ?? (contentChanged ? true : draft.dirty) };
     publish();
   },
@@ -106,8 +114,9 @@ export async function getMeasurementRecords(): Promise<MeasurementRecord[]> {
 }
 export function validateMeasurementRecord(r: any): r is MeasurementRecord {
   return typeof r?.id === 'string' && r.kind === 'measurement' && typeof r.value?.name === 'string' &&
-    ['RAW','1/6 OCT','1/3 OCT'].includes(r.value.smoothing) && finite(r.value.normOffset) &&
+    ['RAW','1/48 OCT','1/24 OCT','1/12 OCT','1/6 OCT','1/3 OCT'].includes(r.value.smoothing) && finite(r.value.normOffset) &&
     Array.isArray(r.value.rawPoints) && r.value.rawPoints.length >= 2 &&
+    (r.value.channels === undefined || (!!r.value.channels && ['left','right'].every(key=>Array.isArray(r.value.channels[key]) && r.value.channels[key].length>=2 && r.value.channels[key].every((p:any,i:number,a:any[])=>finite(p.freq)&&p.freq>0&&finite(p.gain)&&finite(p.rawSpl)&&(!i||p.freq>a[i-1].freq))))) &&
     r.value.rawPoints.every((p: any, i: number, a: any[]) => finite(p.freq) && p.freq > 0 && finite(p.gain) && finite(p.rawSpl) && (!i || p.freq > a[i-1].freq));
 }
 export async function writeMeasurementRecords(records: MeasurementRecord[]) {
@@ -126,8 +135,8 @@ export function draftFromPreset(p: EQPreset): AudioDraft {
   const parsed = parseImportedEQText(p.bands);
   const mode = p.mode || parsed?.mode || (p.type === 'Parametric' ? 'peq' : '10-band');
   const d = { ...freshDraft(), editingPresetId: p.id, presetName: p.name, hardwareAssigned: p.hardware,
-    gearId: p.gearId || null, eqMode: mode, selectedTargetId: p.targetCurveId || 'none', measurementRef: p.measurementRef || null,
-    peqFilters: structuredClone(p.peqFilters || parsed?.peqFilters || []), requestedPreamp: p.requestedPreamp ?? p.preamp ?? parsed?.preamp ?? 0,
+    stereoFilters: p.stereoFilters || parsed?.stereoFilters || null, eqChannel: p.eqChannel || 'left', gearId: p.gearId || null, eqMode: mode, selectedTargetId: p.targetCurveId || 'none', targetMeasurementRef: p.targetMeasurementRef || null, fitLimits: p.fitLimits || structuredClone(DEFAULT_FIT_LIMITS), measurementRef: p.measurementRef || null,
+    peqFilters: structuredClone(p.stereoFilters?.[p.eqChannel || 'left'] || parsed?.stereoFilters?.left || p.peqFilters || parsed?.peqFilters || []), requestedPreamp: p.requestedPreamp ?? p.preamp ?? parsed?.preamp ?? 0,
     preampMode: p.preampMode || 'manual', sampleRate: p.sampleRate || 48000, workbenchState: 'ADDING',
     smoothing: p.analysis?.smoothing || '1/3 OCT', normalize: p.analysis?.normalize ?? true,
   } as AudioDraft;

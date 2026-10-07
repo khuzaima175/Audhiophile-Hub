@@ -1,6 +1,7 @@
 import React from 'react';
 import { Popover } from '../ui/Popover';
 import { LabCurve } from '../../types';
+import { channelImbalance } from '../../utils/graphTools';
 import { labStore } from '../../store/labStore';
 interface PerCurveRowProps {
   curve: LabCurve;
@@ -67,6 +68,11 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
         dB
       </label>
       <div className="curve-options"><Popover label={`Options for ${curve.name}`} triggerText="Options">
+          <label><input type="checkbox" checked={!!curve.pinned} onChange={e => labStore.updateCurve(curve.id, { pinned: e.target.checked })} />Pin curve</label>
+          <label>Curve color<input type="color" aria-label={`Color for ${curve.name}`} value={curve.color} onChange={e => labStore.updateCurve(curve.id, { color: e.target.value })} /></label>
+          <label>Measurement rig<input aria-label={`Rig for ${curve.name}`} value={curve.rig || ''} placeholder="e.g. IEC 60318-4" onChange={e => labStore.updateCurve(curve.id, { rig: e.target.value })} /></label>
+          {curve.channels && <><label>Channels<select aria-label={`Channels for ${curve.name}`} value={curve.channel || 'average'} onChange={e => labStore.updateCurve(curve.id, { channel: e.target.value as LabCurve['channel'] })}><option value="average">Average L/R</option><option value="left">Left</option><option value="right">Right</option><option value="both">Both</option></select></label><p>Channel difference: {channelImbalance(curve)?.toFixed(2) ?? '—'} dB RMS (100 Hz–10 kHz)</p></>}
+          <button onClick={() => labStore.setBaseline(curve.id)}>Use as baseline</button>
           {!curve.isTarget && (
             <>
               <label>
@@ -91,6 +97,7 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
               </label>
             </>
           )}
+          {curve.sourceUrl && /^https?:\/\//i.test(curve.sourceUrl) && <a href={curve.sourceUrl} target="_blank" rel="noopener noreferrer">Measurement source ↗</a>}
           <button onClick={download}>Download original CSV</button>
           {!curve.isTarget && (
             <button className="danger-text" onClick={() => labStore.removeCurve(curve.id)}>

@@ -16,7 +16,9 @@
     "test:retrieval": "node tests/retrieval.cjs",
     "test:workspace": "node tests/workspace-browser.cjs",
     "test:production": "node tests/production.cjs",
-    "test:lab": "node tests/lab-editor.cjs"
+    "test:lab": "node tests/lab-editor.cjs",
+    "test:graph": "node tests/graph-features.cjs",
+    "test:mobile-eq": "node tests/mobile-eq.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",

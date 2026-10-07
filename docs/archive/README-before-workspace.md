@@ -1,3 +1,5 @@
+> Historical snapshot: the 2026-10-07 mobile graph, Squig workflow and stereo EQ follow-up is described in [the current Graph Lab guide](../GRAPH_LAB_GUIDE.md). This archived body remains unchanged.
+
 > Historical snapshot retained for traceability. Marked superseded on 2026-10-07. Model IDs, theme descriptions and test claims below describe earlier work and are not current product guidance. See [the current document](../../README.md), [current UI](../../UI_REDESIGN.md) and [manual testing](../MANUAL_TESTING.md).
 
 <div align="center">

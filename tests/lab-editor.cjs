@@ -6,6 +6,14 @@ const fs = require('node:fs');
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || '/usr/bin/chromium', headless: true });
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
   page.setDefaultTimeout(10000);
+  const axesDoNotOverlap = async () => {
+    await page.waitForTimeout(120);
+    const collisions = await lab.locator('[data-axis=frequency]').evaluateAll(nodes => {
+      const bounds = nodes.map(n => ({text:n.textContent,...(()=>{const r=n.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};})()})).sort((a,b)=>a.left-b.left);
+      return bounds.slice(1).filter((b,i)=>b.left<bounds[i].right+3).map((b,i)=>b.text);
+    });
+    assert.deepEqual(collisions, [], 'Frequency labels overlap');
+  };
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('dialog', d => d.accept());
@@ -63,12 +71,12 @@ const fs = require('node:fs');
   assert.match(text, /Filter 1: ON PK/);
   await lab.getByRole('button', { name: 'Compare these curves', exact: true }).click();
   await plot.waitFor();
-  await lab.locator('input[type=file]').setInputFiles({ name: 'lab-source.csv', mimeType: 'text/csv', buffer: Buffer.from('Frequency,SPL\n20,82\n50,82\n100,80\n200,79\n500,78\n1000,80\n2000,85\n4000,81\n8000,86\n16000,76\n20000,70') });
+  await lab.getByLabel('Import measurement files').setInputFiles({ name: 'lab-source.csv', mimeType: 'text/csv', buffer: Buffer.from('Frequency,SPL\n20,82\n50,82\n100,80\n200,79\n500,78\n1000,80\n2000,85\n4000,81\n8000,86\n16000,76\n20000,70') });
   await lab.getByRole('button', { name: /Generate correction/ }).click();
   await lab.getByLabel('Preset name', { exact: false }).waitFor();
   assert.equal(await lab.count(), 1);
   assert.ok(await page.evaluate(()=>!!JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')).measurementRef));
-  for (const size of [{width:320,height:640},{width:390,height:844},{width:768,height:1024}]) {
+  for (const size of [{width:320,height:640},{width:360,height:800},{width:390,height:844},{width:568,height:320},{width:768,height:1024}]) {
     await page.setViewportSize(size);
     await lab.getByRole('button', { name: 'Compare curves', exact: true }).click();
     await plot.scrollIntoViewIfNeeded();
@@ -76,6 +84,7 @@ const fs = require('node:fs');
     const rect = await plot.boundingBox();
     assert.ok(rect.width <= size.width && rect.height >= 300, JSON.stringify(rect));
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth));
+    await axesDoNotOverlap();
     await lab.getByRole('button', { name: 'New EQ preset', exact: true }).click();
     await lab.getByLabel('Preset name', { exact: false }).fill(`Lab mobile ${size.width}`);
     await lab.getByRole('button', { name: /Band 1,/ }).scrollIntoViewIfNeeded();
@@ -84,6 +93,8 @@ const fs = require('node:fs');
     await page.waitForFunction(()=>!JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')).dirty);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth));
     await editor.scrollIntoViewIfNeeded();
+    await axesDoNotOverlap();
+    if(size.width<768) { const axis=await lab.locator('[data-axis=frequency]').first().boundingBox();const sheet=await lab.locator('.selected-band-sheet').boundingBox();assert.ok(axis.y+axis.height<sheet.y,'Selected band panel covers frequency axis'); }
     if (size.width === 390) { await page.waitForTimeout(3600); await page.screenshot({ path: 'artifacts/lab-editor-mobile.png', fullPage: true }); }
   }
   assert.deepEqual(errors, []);

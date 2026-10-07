@@ -1,3 +1,4 @@
+import { SMOOTHING_VALUES } from '../../utils/graphTools';
 import React, { useState } from 'react';
 import { useLabStore, labStore } from '../../store/labStore';
 import { TARGET_CURVES } from '../../constants/targetCurves';
@@ -57,6 +58,7 @@ export function LabToolbar({ onExportCsv, onToast, showComparisonControls = true
                 {t.shortName}
               </option>
             ))}
+            {state.curves.filter(c => c.isTarget && !c.id.startsWith("target-") && c.id !== "crinacle-ief-2025-ref").map(c => <option key={c.id} value={c.id}>{c.name} (custom)</option>)}
             <option value="none">No target</option>
           </select>
         </label>
@@ -74,9 +76,11 @@ export function LabToolbar({ onExportCsv, onToast, showComparisonControls = true
         <label className="control-field">
           Frequency range
           <select
-            value={state.zoomRange}
+            aria-label="Frequency range"
+            value={state.graphSettings ? (Object.entries({full:[20,20000],bass:[20,250],mids:[250,4000],treble:[4000,20000]}).find(([,r])=>r[0]===state.graphSettings!.minFreq&&r[1]===state.graphSettings!.maxFreq)?.[0] || 'custom') : state.zoomRange}
             onChange={(e) => labStore.setZoomRange(e.target.value as LabZoomRange)}
           >
+            <option value="custom" disabled>Custom range</option>
             <option value="full">Full · 20 Hz–20 kHz</option>
             <option value="bass">Bass · 20–250 Hz</option>
             <option value="mids">Mids · 250 Hz–4 kHz</option>
@@ -90,15 +94,15 @@ export function LabToolbar({ onExportCsv, onToast, showComparisonControls = true
             value={state.smoothing}
             onChange={(e) => labStore.setSmoothing(e.target.value as SmoothingType)}
           >
-            <option value="RAW">None (raw)</option>
-            <option value="1/6 OCT">1/6 octave</option>
-            <option value="1/3 OCT">1/3 octave</option>
+{SMOOTHING_VALUES.map(s => <option key={s} value={s}>{s === "RAW" ? "None (raw)" : s.toLowerCase().replace("oct", "octave")}</option>)}
           </select>
         </label>
         <details className="lab-advanced section-disclosure">
           <summary>Advanced</summary>
           <div className="lab-normalize">
-            <label className="control-field">Fitting smoothing (source data)<select value={state.fitSmoothing || 'RAW'} onChange={e => labStore.setFitSettings(e.target.value as SmoothingType, state.fitNormalize ?? true)}><option>RAW</option><option>1/6 OCT</option><option>1/3 OCT</option></select></label>
+            <label className="control-field">Normalization<select aria-label="Graph normalization" value={state.normalizationMode || 'frequency'} onChange={e => labStore.setNormalizationMode(e.target.value as 'frequency'|'mean'|'none')}><option value="frequency">At frequency</option><option value="mean">Mean level (log frequencies)</option><option value="none">Original levels</option></select></label>
+            <label className="control-field">Baseline<select aria-label="Graph baseline" value={state.baselineId || ''} onChange={e => labStore.setBaseline(e.target.value || null)}><option value="">None</option>{state.curves.filter(c => c.channel !== 'both').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <label className="control-field">Fitting smoothing (source data)<select value={state.fitSmoothing || 'RAW'} onChange={e => labStore.setFitSettings(e.target.value as SmoothingType, state.fitNormalize ?? true)}>{SMOOTHING_VALUES.map(s => <option key={s}>{s}</option>)}</select></label>
             <label><input type="checkbox" checked={state.fitNormalize ?? true} onChange={e => labStore.setFitSettings(state.fitSmoothing || 'RAW', e.target.checked)} />Fit normalized at 1 kHz</label>
             <label className="control-field">
               Level (dB)

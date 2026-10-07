@@ -2048,3 +2048,26 @@ summary::-webkit-details-marker {
   .lab-toolbar-actions { width: 100%; }
   .lab-toolbar-actions button { flex: 1; }
 }
+
+/* Axes use CSS pixels at every viewport; controls keep touch targets readable. */
+.manual-editor-plot { height: clamp(280px, 44dvh, 440px); }
+.graph-controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; padding-top: 12px; }
+.graph-controls-grid > label { display: flex; flex-direction: column; gap: 5px; min-width: 0; font-size: 13px; }
+.graph-controls-grid input:not([type=checkbox]), .graph-controls-grid select { width: 100%; min-width: 0; min-height: 40px; padding: 7px; background: var(--base); border: 1px solid var(--border); border-radius: 7px; }
+.graph-controls-grid .checkbox-control { flex-direction: row; align-items: center; }
+.graph-action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.graph-action-row > button { flex: 1 1 auto; }
+.lab-sidebar input[type=search] { width: 100%; min-width: 0; }
+@media (max-width: 767px) { .graph-controls-grid input:not([type=checkbox]), .graph-controls-grid select { min-height: 44px; } .manual-editor-plot { height: 320px; } }
+
+.eq-graph-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.eq-graph-actions > details { flex: 1 1 100%; }
+.catalog-results { display: grid; gap: 6px; max-height: 320px; overflow-y: auto; margin: 10px 0; }
+.measurement-catalog input { width: 100%; min-width: 0; }
+.measurement-catalog p { font-size: 12px; overflow-wrap: anywhere; margin: 8px 0; }
+
+.tone-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.tone-controls label { display:flex; flex-direction:column; font-size:12px; }
+.tone-controls input[type=number] { width:100px; background:var(--base); border:1px solid var(--border); border-radius:6px; padding:6px; }
+.tone-controls input[type=range] { min-width:80px; flex:1; max-width:240px; }
+@media (max-width: 767px) { .selected-band-sheet[open] { position:static; } }

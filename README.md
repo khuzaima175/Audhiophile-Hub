@@ -8,6 +8,12 @@ The implemented workspace adds a persistent shared EQ draft with linked measurem
 
 For hands-on testing after pulling from GitHub, follow [the manual testing guide](docs/MANUAL_TESTING.md). It covers setup, measurement fixtures, saving/refresh, audio, live research, recovery and production preview. Automated results are evidence for the tested environment, not a guarantee that every account/device works identically.
 
+## Graph Lab and mobile EQ update
+
+Phone graph axes now omit overlapping labels, and the selected-band panel leaves the frequency axis visible. Graph Lab adds custom zoom/dB scales, inspection, pins/colors/rigs, baselines, amplitude averaging, L/R comparison, multiple-file imports, a searchable Squig catalog adapter, custom targets, PNG/SVG exports and richer sharing. Manual EQ adds tap-to-place bands, type/Q editing, shortcuts, constrained AutoEQ and independent stereo banks with stereo APO export. Presets and backups preserve both banks and linked custom targets.
+
+Read [the Graph Lab guide](docs/GRAPH_LAB_GUIDE.md) for steps, source research and explicit differences from Squig. Public catalog access depends on each server's CORS/data conventions; mean-level alignment and fractional-octave smoothing use their labeled AudioSage algorithms.
+
 ## Run locally
 
 ```sh
@@ -73,6 +79,8 @@ npm run test:ui
 npm run test:workspace
 npm run test:lab
 npm run test:mobile
+npm run test:graph
+npm run test:mobile-eq
 # with npm run build and npm run preview -- --host 127.0.0.1 --port 3001:
 npm run test:production
 ```
@@ -83,6 +91,7 @@ Browser tests use `/usr/bin/chromium` or `PLAYWRIGHT_BROWSER_PATH`. `TEST_WEBKIT
 
 | Document | Purpose |
 |---|---|
+| [Graph Lab guide](docs/GRAPH_LAB_GUIDE.md) | Mobile graph fixes, comparison/catalog workflows, stereo EQ and Squig feature coverage |
 | [UI_REDESIGN.md](UI_REDESIGN.md) | Current navigation, black theme, controls, layouts and interaction semantics |
 | [Implementaion_plan.md](Implementaion_plan.md) | Compatibility entry point with completed milestones and commit references |
 | [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | Original eight-milestone requirements with current delivery status |

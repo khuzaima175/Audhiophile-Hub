@@ -112,12 +112,12 @@ export const syncApoProfile = (eqContent: string, customPath?: string) => {
         (line) =>
           !line.trim() ||
           line.trim().startsWith('#') ||
-          /^(Preamp:\s*[+-]?[\d.]+\s*dB|Filter\s+\d+:\s*(ON|OFF)\s+(PK|LSC|HSC|HPQ|LPQ|NO)\s+Fc\s+[\d.]+\s+Hz(?:\s+Gain\s+[+-]?[\d.]+\s+dB)?\s+Q\s+[\d.]+)\s*$/i.test(
+          /^(Channel:\s*(L|R|ALL)|Preamp:\s*[+-]?[\d.]+\s*dB|Filter\s+\d+:\s*(ON|OFF)\s+(PK|LSC|HSC|HPQ|LPQ|NO)\s+Fc\s+[\d.]+\s+Hz(?:\s+Gain\s+[+-]?[\d.]+\s+dB)?\s+Q\s+[\d.]+)\s*$/i.test(
             line,
           ),
       )
   )
-    return { success: false, error: 'Only generated preamp and EQ filter commands are accepted' };
+    return { success: false, error: 'Only generated channel, preamp and EQ filter commands are accepted' };
   const original = fs.readFileSync(configPath, 'utf8');
   if (original.split(/\r?\n/).some((l) => /^Include:\s*audiosage-eq\.txt\s*$/i.test(l.trim())))
     return {

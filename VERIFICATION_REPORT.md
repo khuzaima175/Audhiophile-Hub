@@ -33,7 +33,7 @@ The cursor marker originally intercepted drag-handle pointer events; cursor over
 ## Release checks still unrun
 
 - Live Gemini availability, credential verification, quota and grounding authorization for an actual user account.
-- Deployed public-asset inspection and any required credential rotation/revocation: no deployment URL or affected credential was provided. Local production exclusion is verified; historical deployed exposure is **unverified**.
+- Deployed public-asset inspection and any required credential rotation/revocation: the existing deployment is shown in screenshots, but its assets and any affected credentials were not inspected. Local production exclusion is verified; historical deployed exposure is **unverified**.
 - Edge and WebKit in this environment, physical mobile-device accessibility and listening, microphone/tab-capture permission flows, and real Windows Equalizer APO integration.
 - The specific originally reported toast overlap; passive notifications are now pointer-transparent and accessible, but that exact report lacked reproduction details.
 - Broad retrieval evaluation beyond the six-query fixture and adversarial model behavior beyond quote framing.
@@ -42,7 +42,7 @@ Release should wait for applicable live/deployed/physical checks and resolution 
 
 ## Reproduce the checks
 
-Run `npm ci`, then `npm run typecheck`, `npm run build`, `npm run test:core`, `npm run test:apo` and `npm run test:retrieval`. With the development server on port 3000, run `npm run test:dsp`, `npm run test:ui`, `npm run test:workspace`, `npm run test:lab` and `npm run test:mobile`. With the production build served using `npm run preview -- --host 127.0.0.1 --port 3001`, run `npm run test:production`.
+Run `npm ci`, then `npm run typecheck`, `npm run build`, `npm run test:core`, `npm run test:apo` and `npm run test:retrieval`. With the development server on port 3000, run `npm run test:dsp`, `npm run test:ui`, `npm run test:workspace`, `npm run test:lab`, `npm run test:mobile`, `npm run test:graph` and `npm run test:mobile-eq`. With the production build served using `npm run preview -- --host 127.0.0.1 --port 3001`, run `npm run test:production`.
 
 Browser suites use `/usr/bin/chromium` by default; set `PLAYWRIGHT_BROWSER_PATH` to an installed Chromium-compatible executable on another machine. `TEST_WEBKIT=1` additionally requests installed WebKit for mobile checks; it was not run here. Production AI requests are mocked and development UI requests are blocked. Browser screenshots are ignored under `artifacts/`.
 
@@ -61,3 +61,26 @@ Removed an obsolete `main > div:last-child` height cap that restricted the plot 
 Graph Lab now reuses the shared EQ editor and library through Compare curves, Edit EQ, Presets and New EQ preset actions. Manual creation and measurement correction remain in the tab; naming, gear assignment, graph/numeric editing, Save/copy, loading, export and refresh use the existing draft/storage policy. Background settings/EQ is unmounted while Lab is open; playback is stopped/released when switching views.
 
 Passed reruns: typecheck, production build, core, retrieval, UI smoke, workspace/recovery, mobile Chromium and mocked production AI/persistence. The new `npm run test:lab` verifies a desktop comparison canvas larger than 1400×600 at 1920×1080, a large editor plot, sidebar Options bounds, keyboard/drag/Undo/Redo, save/copy/reload/APO export, measured correction remaining in Lab, linked source retention and preset creation at 320/390/768-pixel widths. Screenshots are generated under ignored `artifacts/lab-*.png`. Gemini 3.8 → 3.7 → 3.5 Flash-Lite remains unchanged and passed mocked production regression. The Vercel deployment has not been inspected or manually published by this task; live/device limitations remain unchanged.
+
+## Mobile graph / Squig / stereo follow-up — 2026-10-07
+
+The user's phone screenshot reproduced dense manual-EQ labels. Label selection now reserves actual CSS-pixel widths; the selected-band panel no longer covers the axis. A new real-touch regression also caught browser scrolling canceling drags on SVG handles; touch gestures are now disabled on the editable SVG so drag capture can complete. Static comparison views retain vertical scrolling. Clear source now clears the persisted source reference and is available for loaded presets.
+
+Passed verification for this follow-up:
+
+| Check | Result |
+|---|---|
+| Typecheck and production build | Passed after final implementation |
+| Core / stereo math | DSP/normalization retained; amplitude averaging, channel RMS, constrained gain/Q/frequency/type fitting, catalog schema/search and generated stereo APO round-trip passed |
+| APO fixture | Generated L/R/ALL commands accepted; unsupported routing rejected; backup/idempotence/managed disable retained; disposable fixtures only |
+| `test:graph` | Separate/explicit channel imports; disjoint pairing preserves the original, malformed channels are rejected, no invented opposite channel; raw-level CSV, baseline, view/channel/pin/custom-target sharing, SVG/PNG payloads, catalog variant/missing-channel feedback, custom target save/reload/backup, selected-band Q/delete, tone playback, source clearing and stereo persistence/export passed |
+| Independent stereo audio | Six OfflineAudioContext cases: mono/stereo input at 44.1/48/96 kHz; +6/−6 dB banks preserve a 12 dB channel difference within 0.001 dB |
+| `test:lab` | Desktop canvas/edit/save/reload/export and mobile axes passed in development and production preview; collision/panel bounds checked at 320/360/390/568/768 pixels |
+| `test:mobile-eq` | Production preview at 360 pixels, real Chromium touch drag, one-step Undo/Redo, empty-space tap placement, type/Q editing, save/reload, label separation and 44-pixel hit areas passed |
+| Existing workspace/recovery and mobile | Passed; legacy draft/backup adaptation, source retention, portal/focus/Escape, overflow and touch inspection preserved |
+| Existing UI / DSP / retrieval | Passed; 4,842 independent DSP points and six rendered cases retain the previously reported error bounds; retrieval fixture remains 3 intended hits versus legacy 0 |
+| Production SDK / persistence | Passed with mocks; Gemini 3.8 → 3.7 → 3.5 Flash-Lite, requested/answering metadata and disabled-source exclusion retained |
+
+The new mobile example is saved in [docs/images/mobile-eq.png](docs/images/mobile-eq.png). Browser viewport/touch emulation does not establish physical-device listening or Safari/WebKit behavior. Catalog requests use controlled fixtures; live public catalog/CORS availability varies. Real Windows APO remains unrun. The screenshot identifies an existing Vercel deployment; local production preview tests do not verify its current assets or deployment status.
+
+[Graph Lab guide](docs/GRAPH_LAB_GUIDE.md) records the official Squig research sources and algorithm differences. AudioSage uses fractional-octave averaging and log-frequency mean alignment, not Squig's spline/ISO-weighted loudness algorithms. It does not claim exact equivalence with every public measurement host or customized fork. GitHub publication is separate from Vercel deployment.

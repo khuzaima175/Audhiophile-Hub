@@ -172,3 +172,7 @@ Acceptance journeys:
 4. Recovery: Import a legacy backup → migrate → simulate a failed write → recover preserved work → export and restore a complete versioned backup.
 
 Release only after required checks pass and confirmed credential exposure has been resolved. Keep unverified model availability, specific toast overlaps, Edge/WebKit behavior, physical audio behavior, and real Windows APO integration explicitly identified until tested.
+
+## Graph Lab / Squig follow-up status
+
+The mobile frequency-label collision and axis-covering band panel are fixed. Comparison/catalog/channel/custom-target/image workflows, constrained AutoEQ and independent stereo editing/playback/export have been added to the existing shared workspace. See [Graph Lab guide](GRAPH_LAB_GUIDE.md) for feature coverage, sources and differences; verification distinguishes automation from physical/live-server checks. The Gemini priority remains 3.8 Flash → 3.7 Flash → 3.5 Flash-Lite.

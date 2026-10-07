@@ -4,7 +4,7 @@ const Module = require('node:module');
 (async () => {
   const result = await esbuild.build({
     stdin: {
-      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';export * from './utils/conversionAudit';`,
+      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';export * from './utils/conversionAudit';export * from './utils/graphTools';export * from './utils/squigCatalog';export * from './utils/stereoEq';`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -73,7 +73,9 @@ const Module = require('node:module');
     'stereo.csv',
     'RAW',
   );
-  near(stereo.normOffset, 81);
+  near(stereo.normOffset,20*Math.log10((10**(80/20)+10**(82/20))/2),.005);
+  assert.equal(stereo.channels.left[1].rawSpl,80);
+  assert.equal(stereo.channels.right[1].rawSpl,82);
   const duplicates = dsp.parseMeasurementFile(
     '1000 80\n100 70\n1000 82\n10000 75\n200 Infinity',
     'duplicates.txt',
@@ -82,6 +84,21 @@ const Module = require('node:module');
   near(duplicates.normOffset, 81);
   assert.equal(duplicates.rawPoints.length, 3);
   assert.equal(dsp.parseMeasurementFile('100 70\n100 71\n100 72'), null);
+  const stereoBanks={left:[{id:'left',type:'PK',freq:1000,gain:6,q:1.4}],right:[{id:'right',type:'PK',freq:1000,gain:-6,q:1.4}]};
+  const stereoText=dsp.exportToEqualizerAPO([],[],[],0,48000,stereoBanks);
+  assert.match(stereoText,/Channel: L/);assert.match(stereoText,/Channel: R/);
+  const stereoEq=dsp.parseImportedEQText(stereoText);assert.equal(stereoEq.stereoFilters.left.length,1);assert.equal(stereoEq.stereoFilters.right.length,1);assert.equal(stereoEq.stereoFilters.right[0].gain,-6);
+  near(stereoEq.preamp,dsp.stereoPreamp(stereoBanks,'manual',0,48000));
+  assert.equal(dsp.parseImportedEQText('Channel: C\nFilter 1: ON PK Fc 1000 Hz Gain 6 dB Q 1'),null);
+  const amplitudeAverage = dsp.averageCurves([[{freq:20,gain:0},{freq:20000,gain:0}],[{freq:20,gain:6},{freq:20000,gain:6}]]);
+  near(amplitudeAverage[0].gain,20*Math.log10((1+10**(.3))/2));
+  assert.throws(()=>dsp.averageCurves([[{freq:20,gain:0},{freq:50,gain:0}],[{freq:100,gain:0},{freq:200,gain:0}]]),/common/);
+  near(dsp.channelImbalance({channels:{left:[{freq:20,gain:80},{freq:20000,gain:80}],right:[{freq:20,gain:84},{freq:20000,gain:84}]}}),4);
+  const catalog=dsp.parseSquigCatalog([{name:'Brand',phones:['Basic',{name:'Variants',file:['Model'],suffix:['Foam','Silicone']}]}]);
+  assert.equal(catalog.length,3);assert.equal(catalog[1].file,'Model Foam');assert.ok(dsp.catalogMatch('Test Model Foam','tst mdl fm'));assert.equal(dsp.catalogMatch('Test Model Foam','silicone'),false);
+  assert.throws(()=>dsp.catalogFileUrl('file:///etc/passwd','test','L'),/public/);
+  assert.match(dsp.catalogFileUrl('https://example.com/data/','Model +','L'),/Model%20%2B%20L.txt$/);
+  assert.equal(dsp.validateFitLimits({...dsp.DEFAULT_FIT_LIMITS,types:[]}),false);
   const target = dsp.SYNTHESIS_FREQUENCIES.map((freq) => ({ freq, gain: 0 }));
   const measured = target.map((p) => ({
     ...p,
@@ -92,6 +109,9 @@ const Module = require('node:module');
   assert.throws(() => dsp.synthesizeAutoPeq([{ freq: 20, gain: NaN }, { freq: 20000, gain: 1 }], target, options), /invalid/);
   assert.throws(() => dsp.synthesizeAutoPeq([{ freq: 20, gain: 0 }, { freq: 200, gain: 1 }], target, { ...options, normalize: true }), /1 kHz/);
   assert.throws(() => dsp.calculateRmsError([]), /empty/);
+  const constrained = dsp.synthesizeAutoPeq(measured,target,{...options,minFreq:500,maxFreq:2000,minGain:-3,maxGain:0,minQ:1.2,maxQ:1.5,types:['PK']});
+  assert.ok(constrained.filters.length>0);assert.ok(constrained.filters.every(f=>f.type==='PK'&&f.freq>=500&&f.freq<=2000&&f.gain>=-3&&f.gain<=0&&f.q>=1.2&&f.q<=1.5));
+  assert.throws(()=>dsp.synthesizeAutoPeq(measured,target,{...options,minQ:5,maxQ:1}),/Invalid AutoEQ/);
   const sortedFit = dsp.synthesizeAutoPeq([...measured].reverse(), target, options);
   const fit = dsp.synthesizeAutoPeq(measured, target, { maxFilters: 5, targetCurveId: 'flat' });
   near(sortedFit.finalRms, fit.finalRms);

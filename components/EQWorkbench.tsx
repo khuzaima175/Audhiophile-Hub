@@ -1,3 +1,8 @@
+import { stereoPreamp } from '../utils/stereoEq';
+import { ToneControls } from './ToneControls';
+import { GraphControls, FitControls } from './GraphControls';
+import { frequencyTicks, DEFAULT_GRAPH_SETTINGS, SMOOTHING_VALUES, validateFitLimits, averageCurves } from '../utils/graphTools';
+import { exportPlot } from '../utils/plotExport';
 import { useDismissSurface } from '../hooks/useDismissSurface';
 import { useElementSize } from '../hooks/useElementSize';
 import { auditWavelet, compareResponses } from '../utils/conversionAudit';
@@ -6,7 +11,7 @@ import { GearItem } from '../types';
 import { effectivePreamp } from '../utils/audioPolicy';
 import { audioWorkspace, useAudioWorkspace, useDraftField, draftFromPreset, getMeasurementRecords, storeMeasurement, freshDraft } from '../store/audioWorkspace';
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { EQPreset, LabCurve, PEQFilter, PEQFilterType, MeasurementData, SmoothingType } from '../types';
+import { CurvePoint, EQPreset, LabCurve, PEQFilter, PEQFilterType, MeasurementData, SmoothingType } from '../types';
 import { labStore } from '../store/labStore';
 import {
   ISO_10_BANDS,
@@ -76,6 +81,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   const [gains15, setGains15] = useDraftField('gains15');
   const [gains31, setGains31] = useDraftField('gains31');
   const [peqFilters, setPeqFilters] = useDraftField('peqFilters');
+  const [customTarget, setCustomTarget] = useState<MeasurementData|null>(null);
+  const customTargetInput = useRef<HTMLInputElement>(null);
+  const [addOnGraph, setAddOnGraph] = useState(false);
   const [measurement, setMeasurement] = useState<MeasurementData | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   useEffect(() => {
@@ -87,6 +95,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     }).catch(() => { if (active) setImportError('Measurement storage unavailable. Restore a backup or try again.'); });
     return () => { active = false; };
   }, [draft.measurementRef]);
+  useEffect(() => {
+    let active=true;setCustomTarget(null);
+    if(draft.targetMeasurementRef)getMeasurementRecords().then(records=>{if(!active)return;const record=records.find(r=>r.id===draft.targetMeasurementRef);if(record)setCustomTarget(record.value);else setImportError('Linked custom target is missing. Restore its backup or select a bundled target.');}).catch(()=>{if(active)setImportError('Custom target storage unavailable.');});
+    return()=>{active=false;};
+  },[draft.targetMeasurementRef]);
   const replaceAllowed = () => !audioWorkspace.getSnapshot().draft.dirty || window.confirm('Replace unfinished Audio work? Cancel keeps your draft.');
   // Import State
   const [importText, setImportText] = useState('');
@@ -108,6 +121,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     db: number;
   } | null>(null);
 
+  useEffect(() => { const keyboard = (event: KeyboardEvent) => {
+    if (!(event.ctrlKey || event.metaKey) || (event.target as HTMLElement)?.closest('input,textarea,select,[contenteditable=true]')) return;
+    if (event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? audioWorkspace.redo() : audioWorkspace.undo(); }
+    else if (event.key.toLowerCase() === 'y') { event.preventDefault(); audioWorkspace.redo(); }
+  };window.addEventListener('keydown',keyboard);return()=>window.removeEventListener('keydown',keyboard); }, []);
   const svgRef = useRef<SVGSVGElement>(null);
   const plot = useElementSize();
   const audioFileInputRef = useRef<HTMLInputElement>(null);
@@ -142,6 +160,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     setVolume,
     playPinkNoise,
     playSineSweep,
+    playTone, setToneFrequency,
     playLiveTab,
     handleFileUpload,
     toggleFilePlayback,
@@ -152,6 +171,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     isoBands: eqMode === 'peq' ? [] : currentIsoBands,
     isoGains: eqMode === 'peq' ? [] : currentIsoGains,
     peqFilters: eqMode === 'peq' ? peqFilters : [],
+    stereoFilters: eqMode === 'peq' ? draft.stereoFilters : null,
     isBypassed,
     requestedPreamp: draft.requestedPreamp,
     preampMode: draft.preampMode,
@@ -193,17 +213,22 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
   // Selected Target Curve
   const currentTarget = useMemo(() => {
-    const target = TARGET_CURVES.find((t) => t.id === selectedTargetId) || TARGET_CURVES[0];
+    if(draft.targetMeasurementRef && !customTarget) return {id:selectedTargetId,shortName:'Linked target loading / unavailable',color:'#69c9a4',points:[] as CurvePoint[]};
+    const target = customTarget ? {id:selectedTargetId,shortName:customTarget.name,color:'#69c9a4',points:customTarget.rawPoints.map(p=>({freq:p.freq,gain:p.rawSpl}))} : TARGET_CURVES.find((t) => t.id === selectedTargetId) || TARGET_CURVES[0];
     const datum = getInterpolatedTargetGain(1000, target.points);
     return { ...target, points: draft.normalize ? target.points.map((p) => ({ ...p, gain: p.gain - datum })) : target.points };
-  }, [selectedTargetId, draft.normalize]);
+  }, [selectedTargetId, draft.normalize, customTarget, draft.targetMeasurementRef]);
 
   // Update measurement smoothing reactively
   const activeSmoothedPoints = useMemo(() => {
     if (!measurement) return [];
     if (draft.normalize && (measurement.rawPoints[0].freq > 1000 || measurement.rawPoints.at(-1)!.freq < 1000)) return [];
-    return smoothLogCurve(measurement.rawPoints.map(p => ({ ...p, gain: draft.normalize ? p.gain : p.rawSpl })), smoothing);
-  }, [measurement, smoothing, draft.normalize]);
+    const selected = draft.stereoFilters && measurement.channels ? measurement.channels[draft.eqChannel] : measurement.rawPoints;
+    const smoothed = smoothLogCurve(selected.map(p => ({ ...p, gain: p.rawSpl })), smoothing);
+    const datumPoints = draft.stereoFilters && measurement.channels ? averageCurves([measurement.channels.left,measurement.channels.right].map(points=>points.map(p=>({freq:p.freq,gain:p.rawSpl})))).map(p=>({...p,rawSpl:p.gain})) : measurement.rawPoints.map(p=>({...p,gain:p.rawSpl}));
+    const datum = draft.normalize ? getInterpolatedTargetGain(1000,smoothLogCurve(datumPoints,smoothing)) : 0;
+    return smoothed.map(p=>({...p,gain:p.gain-datum}));
+  }, [measurement, smoothing, draft.normalize, draft.eqChannel, draft.stereoFilters]);
 
   // Resampled measured points on 180-frequency grid
   const resampledMeasuredPoints = useMemo(() => {
@@ -212,11 +237,12 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   }, [activeSmoothedPoints]);
 
   const fitEvaluation = useMemo(() => {
+    if (draft.targetMeasurementRef && !customTarget) return { result: null, error: 'Load the linked custom target or select another target before fitting.' };
     if (measurement && draft.normalize && (measurement.rawPoints[0].freq > 1000 || measurement.rawPoints.at(-1)!.freq < 1000)) return { result: null, error: 'Normalization at 1 kHz requires source support at 1 kHz. Import wider data or disable normalization.' };
     if (!activeSmoothedPoints.length || selectedTargetId === 'none') return { result: null, error: '' };
-    try { return { result: synthesizeAutoPeq(activeSmoothedPoints, currentTarget.points, { maxFilters: maxAutoFilters, targetCurveId: selectedTargetId, smoothing, normalize: draft.normalize, sampleRate: draft.sampleRate }), error: '' }; }
+    try { return { result: synthesizeAutoPeq(activeSmoothedPoints, currentTarget.points, { ...draft.fitLimits, maxFilters: maxAutoFilters, targetCurveId: selectedTargetId, smoothing, normalize: draft.normalize, sampleRate: draft.sampleRate }), error: '' }; }
     catch (e) { return { result: null, error: (e as Error).message }; }
-  }, [measurement, activeSmoothedPoints, currentTarget, selectedTargetId, maxAutoFilters, smoothing, draft.normalize, draft.sampleRate]);
+  }, [measurement, activeSmoothedPoints, currentTarget, selectedTargetId, maxAutoFilters, smoothing, draft.normalize, draft.sampleRate, draft.fitLimits, draft.targetMeasurementRef, customTarget]);
   const autoPeqResult = fitEvaluation.result;
   // View Mode: 'iem' (Compare IEM vs Target) | 'filter' (Raw EQ Cuts/Boosts) | 'compensated' (Post-EQ Net)
   const [eqViewMode, setEqViewMode] = useDraftField('graphView');
@@ -252,9 +278,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       const measured = resampledMeasuredPoints.length
         ? getInterpolatedTargetGain(p.freq, resampledMeasuredPoints)
         : 0;
-      return { freq: p.freq, gain: measured + p.gain + (draft.responseLevel === 'absolute' ? effectivePreamp(eqMode === 'peq' ? peqFilters : graphicFilters(currentIsoBands, currentIsoGains), draft.preampMode, draft.requestedPreamp, draft.sampleRate) : 0) };
+      return { freq: p.freq, gain: measured + p.gain + (draft.responseLevel === 'absolute' ? (eqMode === 'peq' && draft.stereoFilters ? stereoPreamp(draft.stereoFilters,draft.preampMode,draft.requestedPreamp,draft.sampleRate) : effectivePreamp(eqMode === 'peq' ? peqFilters : graphicFilters(currentIsoBands, currentIsoGains), draft.preampMode, draft.requestedPreamp, draft.sampleRate)) : 0) };
     });
-  }, [compositeCurvePoints, resampledMeasuredPoints, draft.preampMode, draft.requestedPreamp, draft.sampleRate, draft.responseLevel, peqFilters, currentIsoBands, currentIsoGains, eqMode]);
+  }, [compositeCurvePoints, resampledMeasuredPoints, draft.preampMode, draft.requestedPreamp, draft.sampleRate, draft.responseLevel, draft.stereoFilters, peqFilters, currentIsoBands, currentIsoGains, eqMode]);
 
   // Active displayed EQ curve based on selected view mode
   const activeEqPoints = useMemo(() => {
@@ -267,6 +293,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   // AUTO-RANGE Y-AXIS (Accommodates Harman, measured deep bass, and corrected curves)
   const { minY, maxY, yTicks } = useMemo(() => {
     if (frozenRange) return frozenRange;
+    if(draft.graphSettings.yRange){const [minY,maxY]=draft.graphSettings.yRange;const step=maxY-minY>60?12:6;const yTicks=[];for(let db=Math.ceil(minY/step)*step;db<=maxY;db+=step)yTicks.push(db);return {minY,maxY,yTicks};}
     const targetPoints = selectedTargetId !== 'none' && currentTarget ? currentTarget.points : [];
     const curveList = [activeEqPoints, targetPoints];
     if (resampledMeasuredPoints.length > 0) {
@@ -274,46 +301,61 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     }
     if (compensatedResponsePoints.length) curveList.push(compensatedResponsePoints);
     return calculateAutoRangedYBounds(curveList, selectedTargetId !== 'none');
-  }, [activeEqPoints, currentTarget, selectedTargetId, resampledMeasuredPoints, compensatedResponsePoints, frozenRange]);
+  }, [activeEqPoints, currentTarget, selectedTargetId, resampledMeasuredPoints, compensatedResponsePoints, frozenRange, draft.graphSettings.yRange]);
 
   const workbenchViewport: ViewportDimensions = useMemo(
     () => ({
       ...DEFAULT_VIEWPORT,
-      width: embeddedInLab ? Math.max(260, plot.size.width || 960) : DEFAULT_VIEWPORT.width,
-      height: embeddedInLab ? Math.max(280, plot.size.height || 440) : 290,
-      padding: { top: 25, right: 25, bottom: 35, left: 52 },
+      width: Math.max(240, plot.size.width || 800),
+      height: Math.max(260, plot.size.height || 340),
+      minFreq: draft.graphSettings.minFreq, maxFreq: draft.graphSettings.maxFreq,
+      padding: { top: 25, right: 18, bottom: 38, left: 44 },
       minY,
       maxY,
     }),
-    [minY, maxY, embeddedInLab, plot.size.width, plot.size.height],
+    [minY, maxY, embeddedInLab, plot.size.width, plot.size.height, draft.graphSettings.minFreq, draft.graphSettings.maxFreq],
   );
 
+  function clipPoints(points: {freq:number;gain:number}[]) {
+    if(!points.length)return [];
+    const lo=Math.max(workbenchViewport.minFreq!,points[0].freq),hi=Math.min(workbenchViewport.maxFreq!,points.at(-1)!.freq);
+    if(lo>=hi)return [];
+    return [{freq:lo,gain:getInterpolatedTargetGain(lo,points)},...points.filter(p=>p.freq>lo&&p.freq<hi),{freq:hi,gain:getInterpolatedTargetGain(hi,points)}];
+  }
+  function addGraphBand(event: React.MouseEvent<SVGSVGElement>) {
+    if((event.target as Element).closest('.eq-handle') || eqViewMode!=='filter')return;
+    const r=event.currentTarget.getBoundingClientRect();const x=(event.clientX-r.left)*workbenchViewport.width/r.width,y=(event.clientY-r.top)*workbenchViewport.height/r.height;
+    if(x<workbenchViewport.padding.left||x>workbenchViewport.width-workbenchViewport.padding.right||y<workbenchViewport.padding.top||y>workbenchViewport.height-workbenchViewport.padding.bottom)return;
+    if(eqMode!=='peq'&&draft.dirty&&!window.confirm('Switch to parametric editing? Graphic settings are retained.'))return;
+    const id=crypto.randomUUID();const gain=Math.max(-18,Math.min(18,Math.round((maxY-(y-workbenchViewport.padding.top)/(workbenchViewport.height-workbenchViewport.padding.top-workbenchViewport.padding.bottom)*(maxY-minY))*2)/2));
+    audioWorkspace.update({eqMode:'peq',workbenchState:'ADDING',selectedBand:id,peqFilters:[...peqFilters,{id,type:'PK',freq:xToFreq(x,workbenchViewport),gain,q:1.4,enabled:true}]});setAddOnGraph(false);
+  }
   // Generate SVG path for active curve
   const compositeSvgPath = useMemo(() => {
-    return generateSvgPathFromPoints(activeEqPoints, workbenchViewport, minY, maxY);
+    return generateSvgPathFromPoints(clipPoints(activeEqPoints), workbenchViewport, minY, maxY);
   }, [activeEqPoints, workbenchViewport, minY, maxY]);
 
   // Target Curve SVG Path
   const targetSvgPath = useMemo(() => {
     if (!currentTarget || selectedTargetId === 'none') return '';
-    return generateSvgPathFromPoints(currentTarget.points, workbenchViewport, minY, maxY);
+    return generateSvgPathFromPoints(clipPoints(currentTarget.points), workbenchViewport, minY, maxY);
   }, [currentTarget, selectedTargetId, workbenchViewport, minY, maxY]);
 
   // Measured Response SVG Path (Solid Cream)
   const measuredSvgPath = useMemo(() => {
     if (!resampledMeasuredPoints || resampledMeasuredPoints.length === 0) return '';
     const pts = resampledMeasuredPoints.map((p) => ({ freq: p.freq, gain: p.gain }));
-    return generateSvgPathFromPoints(pts, workbenchViewport, minY, maxY);
+    return generateSvgPathFromPoints(clipPoints(pts), workbenchViewport, minY, maxY);
   }, [resampledMeasuredPoints, workbenchViewport, minY, maxY]);
 
   // Corrected Response SVG Path (Phosphor Teal)
   const correctedSvgPath = useMemo(() => {
     if (!measurement) return '';
-    return generateSvgPathFromPoints(compensatedResponsePoints, workbenchViewport, minY, maxY);
+    return generateSvgPathFromPoints(clipPoints(compensatedResponsePoints), workbenchViewport, minY, maxY);
   }, [measurement, compensatedResponsePoints, workbenchViewport, minY, maxY]);
 
   // One response-based attenuation policy for graph, playback, preset and export.
-  const currentPreamp = useMemo(() => effectivePreamp(eqMode === 'peq' ? peqFilters : graphicFilters(currentIsoBands, currentIsoGains), draft.preampMode, draft.requestedPreamp, draft.sampleRate), [eqMode, peqFilters, currentIsoBands, currentIsoGains, draft.preampMode, draft.requestedPreamp, draft.sampleRate]);
+  const currentPreamp = useMemo(() => (eqMode === 'peq' && draft.stereoFilters ? stereoPreamp(draft.stereoFilters,draft.preampMode,draft.requestedPreamp,draft.sampleRate) : effectivePreamp(eqMode === 'peq' ? peqFilters : graphicFilters(currentIsoBands, currentIsoGains), draft.preampMode, draft.requestedPreamp, draft.sampleRate)), [eqMode, peqFilters, currentIsoBands, currentIsoGains, draft.preampMode, draft.requestedPreamp, draft.sampleRate, draft.stereoFilters]);
   // Measurement File Drop & Parse Handler
   const handleProcessMeasurementText = useCallback(
     async (text: string, name: string) => {
@@ -412,14 +454,14 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   // Add a new Parametric filter row
   const handleAddPeqFilter = () => {
     const newFilter: PEQFilter = {
-      id: `f-${Date.now()}`,
+      id: crypto.randomUUID(),
       type: 'PK',
       freq: 2400,
       gain: 0,
       q: 1.41,
       enabled: true,
     };
-    setPeqFilters((prev) => [...prev, newFilter]);
+    audioWorkspace.update({peqFilters:[...peqFilters,newFilter],selectedBand:newFilter.id});
   };
 
   // Delete a Parametric filter row
@@ -438,7 +480,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
     let bandsString = '';
     if (eqMode === 'peq') {
-      bandsString = exportToEqualizerAPO(peqFilters, [], [], currentPreamp, draft.sampleRate);
+      bandsString = exportToEqualizerAPO(peqFilters, [], [], currentPreamp, draft.sampleRate, draft.stereoFilters);
     } else {
       bandsString = exportToEqualizerAPO([], currentIsoBands, currentIsoGains, currentPreamp, draft.sampleRate);
     }
@@ -452,10 +494,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       bands: bandsString,
       graphicGains: eqMode !== 'peq' ? [...currentIsoGains] : undefined,
       peqFilters: eqMode === 'peq' ? [...peqFilters] : undefined,
+      stereoFilters: eqMode === 'peq' && draft.stereoFilters ? structuredClone(draft.stereoFilters) : undefined, eqChannel: draft.eqChannel,
       targetCurveId: selectedTargetId,
       preamp: currentPreamp,
       gearId: draft.gearId || undefined,
-      measurementRef: draft.measurementRef || undefined,
+      measurementRef: draft.measurementRef || undefined, targetMeasurementRef: draft.targetMeasurementRef || undefined, fitLimits: draft.fitLimits,
       requestedPreamp: draft.requestedPreamp,
       preampMode: draft.preampMode,
       sampleRate: draft.sampleRate,
@@ -480,6 +523,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         eqMode === 'peq' ? [] : preset.graphicGains || currentIsoGains,
         preset.preamp ?? currentPreamp,
         draft.sampleRate,
+        preset.stereoFilters,
       );
       try {
         const syncRes = await syncApoProfileToServer(apoExport);
@@ -545,7 +589,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       } catch (e) { setImportError((e as Error).message); }
       return;
     }
-    audioWorkspace.update({ requestedPreamp: result.preamp ?? 0, preampMode: 'manual', measurementRef: null });
+    audioWorkspace.update({ requestedPreamp: result.preamp ?? 0, preampMode: 'manual', measurementRef: null, stereoFilters: result.stereoFilters || null, eqChannel:'left' });
     setEqMode(result.mode);
 
     if (result.mode === 'peq' && result.peqFilters) {
@@ -576,7 +620,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       : currentIsoBands;
     const gains = p?.graphicGains || currentIsoGains;
     const parametric = p ? p.mode === 'peq' || p.type === 'Parametric' : eqMode === 'peq';
-    const str = exportToEqualizerAPO(filters, parametric ? [] : bands, parametric ? [] : gains, p?.preamp ?? currentPreamp, p?.sampleRate || draft.sampleRate);
+    const str = exportToEqualizerAPO(filters, parametric ? [] : bands, parametric ? [] : gains, p?.preamp ?? currentPreamp, p?.sampleRate || draft.sampleRate, p ? p.stereoFilters : eqMode === 'peq' ? draft.stereoFilters : null);
 
     navigator.clipboard.writeText(str).then(() => {
       setCopiedKey(p?.id ? `apo-${p.id}` : 'apo-curr');
@@ -617,6 +661,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       parametric ? [] : p?.graphicGains || currentIsoGains,
       p?.preamp ?? currentPreamp,
       p?.sampleRate || draft.sampleRate,
+      p ? p.stereoFilters : eqMode === 'peq' ? draft.stereoFilters : null,
     );
     downloadPresetFile(`${name}_EqualizerAPO.txt`, str);
     showToast(`Downloaded ${name}_EqualizerAPO.txt`);
@@ -625,7 +670,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   // Crosshair move over SVG with multi-curve readout
   const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg || !draft.graphSettings.inspect) return;
     const rect = svg.getBoundingClientRect();
     const scaleX = workbenchViewport.width / rect.width;
     const scaleY = workbenchViewport.height / rect.height;
@@ -675,9 +720,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
   const openCompare = () => {
     const curves: LabCurve[] = [];
-    if (measurement) curves.push({ id: draft.measurementRef!, name: measurement.name, color: '#f0b47c', points: measurement.rawPoints, provenance: 'measured', provenanceDetails: `Imported source; ${measurement.rawPoints.length} points; raw SPL available in linked measurement`, offset: 0, visible: true, solo: false });
-    curves.push({ id: 'audio-draft-correction', name: `${presetName || 'Audio draft'} correction`, color: '#79aaff', points: compositeCurvePoints, provenance: 'eq-compensated', provenanceDetails: `Current editable correction shape; ${draft.sampleRate} Hz; effective preamp ${currentPreamp} dB`, isFilterCurve: true, sourceTargetId: selectedTargetId === 'none' ? undefined : selectedTargetId, offset: 0, visible: true, solo: false });
-    if (measurement && compensatedResponsePoints.length >= 2) curves.push({ id: 'audio-draft-posteq', name: `${presetName || 'Audio draft'} current post-EQ`, color: '#d28ef0', points: compensatedResponsePoints, provenance: 'eq-compensated', provenanceDetails: `Measured source plus current correction; ${draft.responseLevel === 'absolute' ? 'includes effective attenuation' : 'shape excludes preamp'}; ${draft.sampleRate} Hz`, preserveAbsolute: true, offset: 0, visible: true, solo: false });
+    if(customTarget&&draft.targetMeasurementRef)curves.push({id:selectedTargetId,name:customTarget.name,points:customTarget.rawPoints.map(p=>({freq:p.freq,gain:p.rawSpl})),measurementRef:draft.targetMeasurementRef,isTarget:true,provenance:'target',provenanceDetails:'User imported target; rig compatibility must be checked',color:'#d9d078',visible:true,solo:false,offset:0});
+    if (measurement) curves.push({ id: draft.measurementRef!, name: measurement.name, color: '#f0b47c', points: measurement.rawPoints.map(p=>({freq:p.freq,gain:p.rawSpl})), channels: measurement.channels ? {left:measurement.channels.left.map(p=>({freq:p.freq,gain:p.rawSpl})),right:measurement.channels.right.map(p=>({freq:p.freq,gain:p.rawSpl}))} : undefined, measurementRef: draft.measurementRef || undefined, provenance: 'measured', provenanceDetails: `Imported source; ${measurement.rawPoints.length} points; raw SPL available in linked measurement`, offset: 0, visible: true, solo: false });
+    curves.push({ id: 'audio-draft-correction', name: `${presetName || 'Audio draft'} ${draft.stereoFilters ? draft.eqChannel+' ' : ''}correction`, color: '#79aaff', points: compositeCurvePoints, provenance: 'eq-compensated', provenanceDetails: `Current editable correction shape; ${draft.sampleRate} Hz; effective preamp ${currentPreamp} dB`, isFilterCurve: true, sourceTargetId: selectedTargetId === 'none' ? undefined : selectedTargetId, offset: 0, visible: true, solo: false });
+    if (measurement && compensatedResponsePoints.length >= 2) curves.push({ id: 'audio-draft-posteq', name: `${presetName || 'Audio draft'} ${draft.stereoFilters ? draft.eqChannel+' ' : ''}current post-EQ`, color: '#d28ef0', points: compensatedResponsePoints, provenance: 'eq-compensated', provenanceDetails: `Measured source plus current correction; ${draft.responseLevel === 'absolute' ? 'includes effective attenuation' : 'shape excludes preamp'}; ${draft.sampleRate} Hz`, preserveAbsolute: true, offset: 0, visible: true, solo: false });
+    if(draft.stereoFilters) { const other=draft.eqChannel==='left'?'right':'left';curves.push({id:'audio-draft-other-correction',name:`${presetName||'Audio draft'} ${other} correction`,points:evaluateCompositeCurve(SYNTHESIS_FREQUENCIES,[],[],draft.stereoFilters[other],draft.sampleRate),provenance:'eq-compensated',provenanceDetails:`Independent ${other} correction shape; common preamp ${currentPreamp} dB`,color:'#edab77',visible:true,solo:false,offset:0,isFilterCurve:true,sourceTargetId:selectedTargetId==='none'?undefined:selectedTargetId}); }
     labStore.setTargetCurveId(selectedTargetId);
     labStore.setViewMode('rawFilter');
     labStore.openLab(curves, selectedTargetId);
@@ -780,20 +827,38 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       </div>
   );
   const graphEditor = (<>
+      {eqMode === 'peq' && <div className="audio-policy-controls">
+        <label><input aria-label="Independent stereo EQ" type="checkbox" checked={!!draft.stereoFilters} onChange={e=>{
+          if(e.target.checked)audioWorkspace.update({stereoFilters:{left:structuredClone(peqFilters),right:structuredClone(peqFilters)},eqChannel:'left'});
+          else if(window.confirm('Use the currently selected bank for both channels? Save a copy first to keep both banks.'))audioWorkspace.update({stereoFilters:null});
+        }}/>Independent left / right EQ</label>
+        {draft.stereoFilters && <><label>Editing channel<select aria-label="EQ channel" value={draft.eqChannel} onChange={e=>audioWorkspace.update({eqChannel:e.target.value as 'left'|'right',dirty:draft.dirty},false)}><option value="left">Left</option><option value="right">Right</option></select></label>
+          <button className="secondary-button" onClick={()=>audioWorkspace.update({stereoFilters:{...draft.stereoFilters!,[draft.eqChannel==='left'?'right':'left']:structuredClone(peqFilters)}})}>Copy bank to other channel</button>
+          <p>Editing {draft.eqChannel}; playback applies both banks independently. APO exports both channels. Wavelet exports the selected bank. Headroom covers the stronger channel.</p></>}
+      </div>}
       <div className="audio-view-tabs">
         <button className="secondary-button" onClick={() => { if (eqMode !== 'peq' && draft.dirty && !window.confirm('Add a parametric band and switch from graphic mode? Graphic settings will be kept.')) return; setEqMode('peq'); handleAddPeqFilter(); }}>Add band</button>
         <button className="secondary-button" onClick={() => { audioWorkspace.update({ gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0), peqFilters: peqFilters.map(f => ({ ...f, gain: 0 })) }); }}>Reset gains</button>
         <button className="secondary-button" onClick={() => setIsBypassed(!isBypassed)}>{isBypassed ? 'Enable EQ' : 'Raw bypass'}</button>
+      </div>
+      <div className="eq-graph-actions">
+        <button className="secondary-button" aria-pressed={addOnGraph} onClick={()=>setAddOnGraph(!addOnGraph)}>{addOnGraph?'Tap graph to place band':'Add band on graph'}</button>
+        <button disabled={eqMode !== 'peq'} className="secondary-button" onClick={()=>audioWorkspace.update({peqFilters:[...peqFilters].sort((a,b)=>a.freq-b.freq)})}>Sort bands</button>
+        <button disabled={eqMode !== 'peq'} className="secondary-button" onClick={()=>audioWorkspace.update({peqFilters:peqFilters.map(f=>({...f,enabled:!peqFilters.some(f=>f.enabled!==false)}))})}>{peqFilters.some(f=>f.enabled!==false)?'Disable all bands':'Enable all bands'}</button>
+        <button className="secondary-button" onClick={()=>{if(svgRef.current)exportPlot(svgRef.current,'audiosage-eq','png',`${presetName||'Audio draft'} · ${draft.sampleRate} Hz · effective preamp ${currentPreamp} dB`).catch(e=>showToast(e.message));}}>Save graph PNG</button>
+        <GraphControls value={draft.graphSettings} onChange={graphSettings=>audioWorkspace.update({graphSettings},false)}/>
       </div>
       <div className="eq-graph-layout">
       <details className="selected-band-sheet" open={!!draft.selectedBand}>
         <summary>Selected band</summary>
         {eqMode === 'peq' ? (() => { const f = peqFilters.find(f => f.id === draft.selectedBand); return f ? <div className="audio-policy-controls">
           <label>Frequency (Hz)<input aria-label="Selected frequency" type="number" min="20" max="20000" value={f.freq} onChange={e => handleUpdatePeqFilter(f.id, { freq: Math.max(20,Math.min(20000,Number(e.target.value) || 20)) })} /></label>
+          <label>Filter type<select aria-label="Selected filter type" value={f.type} onChange={e=>handleUpdatePeqFilter(f.id,{type:e.target.value as PEQFilterType})}>{['PK','LS','HS','HP','LP','NOTCH'].map(t=><option key={t}>{t}</option>)}</select></label>
           {gainApplies(f.type) && <label>Gain (dB)<input aria-label="Selected gain" type="number" min="-18" max="18" step="0.5" value={f.gain} onChange={e => handleUpdatePeqFilter(f.id, { gain: Math.max(-18,Math.min(18,Number(e.target.value) || 0)) })} /></label>}
           <label>Q<input aria-label="Selected Q" type="number" min="0.1" max="20" step="0.1" value={f.q} onChange={e => handleUpdatePeqFilter(f.id, { q: Math.max(.1,Math.min(20,Number(e.target.value) || 1)) })} /></label>
+          <button className="secondary-button" onClick={()=>audioWorkspace.update({peqFilters:peqFilters.filter(p=>p.id!==f.id),selectedBand:null})}>Remove selected band</button>
           <label><input type="checkbox" checked={f.enabled !== false} onChange={e => handleUpdatePeqFilter(f.id, { enabled: e.target.checked })} />Enabled</label>
-        </div> : <p>Select a numbered graph handle.</p>; })() : <p>Graphic bands have fixed frequencies. Drag vertically or use Up/Down keys.</p>}
+        </div> : <p>Select a numbered graph handle.</p>; })() : <div className="audio-policy-controls"><label>Graphic gain (dB)<input aria-label="Selected graphic gain" type="number" min="-12" max="12" step="0.5" value={currentIsoGains[Number(draft.selectedBand?.replace('graphic-',''))||0]||0} onChange={e=>handleSliderChange(Number(draft.selectedBand?.replace('graphic-',''))||0,Math.max(-12,Math.min(12,Number(e.target.value)||0)))}/></label><p>Fixed frequency: {currentIsoBands[Number(draft.selectedBand?.replace('graphic-',''))||0]} Hz</p></div>}
       </details>
       {/* 4. LIVE SVG CURVE VISUALIZER (Measured Cream, Target Dashed, Corrected Phosphor Teal) */}
       <details className="section-disclosure space-y-3" open={workbenchState !== 'IDLE' || !!measurement}>
@@ -828,12 +893,13 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
               </label>
               <label className="control-field">
                 Reference target
-                <select value={selectedTargetId} onChange={(e) => setSelectedTargetId(e.target.value)}>
+                <select value={selectedTargetId} onChange={(e) => audioWorkspace.update({selectedTargetId:e.target.value,targetMeasurementRef:e.target.value===selectedTargetId?draft.targetMeasurementRef:null})}>
                   {TARGET_CURVES.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.shortName}
                     </option>
                   ))}
+                  {customTarget && <option value={selectedTargetId}>{customTarget.name} (custom)</option>}
                   <option value="none">No target</option>
                 </select>
               </label>
@@ -851,13 +917,16 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         </div>
 
         {/* SVG Curve Canvas with CrinGraph Axis Craft & Auto-Ranging */}
-        <div ref={plot.ref} className={`relative w-full overflow-hidden bg-audio-surface rounded-xl border border-audio-border/80 ${embeddedInLab ? 'lab-editor-plot' : ''}`}>
+        <div ref={plot.ref} className={`relative w-full overflow-hidden bg-audio-surface rounded-xl border border-audio-border/80 ${embeddedInLab ? 'lab-editor-plot' : 'manual-editor-plot'}`}>
           <svg
             ref={svgRef}
+            style={{touchAction: eqViewMode === 'filter' ? 'none' : 'pan-y'}}
             viewBox={`0 0 ${workbenchViewport.width} ${workbenchViewport.height}`}
-            className={`w-full block cursor-crosshair eq-edit-graph ${embeddedInLab ? 'h-full' : 'h-auto'}`}
+            className={`w-full block cursor-crosshair eq-edit-graph h-full`}
             onPointerMove={handleSvgMouseMove}
             onPointerDown={handleSvgMouseMove}
+            onDoubleClick={event => addGraphBand(event)}
+            onClick={event => {if(addOnGraph && !(event.target as Element).closest('.eq-handle')) addGraphBand(event);}}
             onPointerLeave={(e) => {
               if (e.pointerType === 'mouse') setHoveredPoint(null);
             }}
@@ -892,7 +961,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
               fill="#eb9689"
               fillOpacity="0.07"
             />
-            <text
+            {freqToX(9000,workbenchViewport)-freqToX(6000,workbenchViewport)>120 && <text
               x={(freqToX(6000, workbenchViewport) + freqToX(9000, workbenchViewport)) / 2}
               y={workbenchViewport.padding.top + 13}
               fill="#eb9689"
@@ -903,10 +972,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
               opacity="0.85"
             >
               SIBILANCE RISK (6-9kHz)
-            </text>
+            </text>}
 
             {/* CrinGraph Decade Grid Lines & Axis Ticks (1/1.5/2/3/4/6/8 per decade) */}
-            {CRINGRAPH_FREQ_TICKS.map(({ freq, label, major }) => {
+            {frequencyTicks(workbenchViewport).map(({ freq, label, major }) => {
               const x = freqToX(freq, workbenchViewport);
               return (
                 <g key={freq}>
@@ -920,10 +989,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                     strokeDasharray={major ? undefined : '2 2'}
                   />
                   <text
+                    data-axis="frequency"
                     x={x}
                     y={workbenchViewport.height - 12}
                     fill={major ? '#edf0ec' : '#8A7E6E'}
-                    fontSize={embeddedInLab ? (major ? '12' : '11') : (major ? '8.5' : '7.5')}
+                    fontSize={major ? '12' : '11'}
                     fontWeight={major ? 'bold' : 'normal'}
                     fontFamily="monospace"
                     textAnchor="middle"
@@ -953,7 +1023,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                     x={workbenchViewport.padding.left - 6}
                     y={y + 3}
                     fill={isZero ? '#b4e4bd' : '#8A7E6E'}
-                    fontSize={embeddedInLab ? '12' : '8'}
+                    fontSize="12"
                     fontFamily="monospace"
                     textAnchor="end"
                     fontWeight={isZero ? 'bold' : 'normal'}
@@ -1017,9 +1087,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             )}
 
             {eqViewMode === 'filter' && <FilterHandles viewport={workbenchViewport} bands={currentIsoBands} gains={currentIsoGains} onGain={handleSliderChange} onFilter={handleUpdatePeqFilter} onDragging={active => setFrozenRange(active ? { minY, maxY, yTicks } : null)} />}
+            {draft.graphSettings.showLabels && <text x={workbenchViewport.padding.left+8} y={workbenchViewport.padding.top+18} fill="#edf0ec" fontSize="12">{eqViewMode === 'filter' ? `${presetName || 'EQ correction'}${draft.stereoFilters ? ' · '+draft.eqChannel : ''}`.slice(0,40) : `${measurement?.name || 'Manual EQ'} / ${currentTarget.shortName}`.slice(0,40)}</text>}
             {/* Dual-Curve Crosshair & Dynamic Readout */}
-            {hoveredPoint && (
-              <g pointerEvents="none">
+            {draft.graphSettings.inspect && hoveredPoint && (
+              <g data-testid="graph-crosshair" pointerEvents="none">
                 <line
                   x1={hoveredPoint.x}
                   y1={workbenchViewport.padding.top}
@@ -1059,7 +1130,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                   )}
                   y={Math.max(hoveredPoint.y - 12, workbenchViewport.padding.top + 20)}
                   fill="#edf0ec"
-                  fontSize={embeddedInLab ? '12' : '8'}
+                  fontSize="12"
                   fontFamily="monospace"
                   fontWeight="bold"
                   textAnchor="middle"
@@ -1200,6 +1271,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                 <span>{isPlaying && activeSource === 'sweep' ? '⏹ Stop Sweep' : '▶ 20Hz—20kHz Sweep'}</span>
               </button>
 
+              <ToneControls active={activeSource === "tone"} play={async frequency=>{if(isCapturing)stopTabCapture();await playTone(frequency);}} stop={stopAudio} onFrequency={setToneFrequency}/>
               {/* Upload Music File for Audition */}
               <button
                 type="button"
@@ -1343,24 +1415,23 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             </>
           )}
 
-          {workbenchState === 'MEASUREMENT' && (
+          {(workbenchState === 'MEASUREMENT' || !!draft.measurementRef) && (
             <div className="flex items-center gap-2">
-              <button
+              {workbenchState === 'MEASUREMENT' && <button
                 type="button"
                 onClick={handleLoadAutoPeqIntoEditor}
                 className="px-3.5 py-1.5 rounded-lg bg-audio-signal text-black font-mono font-bold text-xs hover:bg-audio-signal/90 shadow-glow-teal flex items-center gap-1.5 transition-all active:scale-95"
               >
                 <span>Edit generated EQ</span>
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={() => {
-                  setMeasurement(null);
-                  setWorkbenchState('IDLE');
+                  audioWorkspace.update({measurementRef:null,originalFit:null,workbenchState:'ADDING'});
                 }}
                 className="px-3 py-1.5 rounded-lg border border-audio-border text-xs font-mono text-audio-muted hover:text-audio-text"
               >
-                ✕ Clear
+                Clear source
               </button>
             </div>
           )}
@@ -1370,11 +1441,15 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       {conversionReport && <p role="status" className="text-xs text-audio-muted">{conversionReport}</p>}
       {fitEvaluation.error && <p role="alert">Fitting failed: {fitEvaluation.error}</p>}
       {draft.originalFit && <p className="text-xs text-audio-muted">Original automatic fit: {draft.originalFit.finalRms} dB RMS · {draft.originalFit.evaluatedPoints} evaluated points. Current response follows your editable filters.</p>}
+      <input ref={customTargetInput} aria-label="Import EQ custom target" type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;try{const target=parseMeasurementFile(await f.text(),f.name,'RAW');if(!target||target.isGraphicEQ)throw new Error('Import numeric acoustic target data');const ref=await storeMeasurement(target);audioWorkspace.update({targetMeasurementRef:ref,selectedTargetId:'custom-target-'+ref});}catch(err){setImportError((err as Error).message);}e.target.value='';}}/>
+      <button className="secondary-button" onClick={()=>customTargetInput.current?.click()}>Import custom target</button>
+      <FitControls value={draft.fitLimits} onChange={fitLimits=>audioWorkspace.update({fitLimits})}/>
       {embeddedInLab && workbenchState !== 'IDLE' && <details className="section-disclosure"><summary>Level, sample rate & playback settings</summary>{policyControls}</details>}
       {/* Hidden Measurement File Input */}
       <input
         type="file"
         ref={measurementFileInputRef}
+        aria-label="Import EQ source measurement"
         accept=".csv,.tsv,.txt"
         className="hidden"
         onChange={(e) => {
@@ -1438,7 +1513,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1 bg-audio-surface p-1 rounded-xl border border-audio-border">
                   <span className="text-[9px] font-mono text-audio-muted px-1.5">SMOOTH:</span>
-                  {(['RAW', '1/6 OCT', '1/3 OCT'] as SmoothingType[]).map((sm) => (
+                  {SMOOTHING_VALUES.map((sm) => (
                     <button
                       key={sm}
                       type="button"
@@ -1459,7 +1534,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                     <span className="text-[9px] font-mono text-audio-muted">FILTERS:</span>
                     <input
                       type="range"
-                      min={5}
+                      min={1}
                       max={20}
                       step={1}
                       value={maxAutoFilters}
@@ -1848,7 +1923,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
                   <div className="h-8 bg-audio-surface rounded-lg border border-audio-border/60 p-1 flex items-end gap-1 mb-3">
                     {(preset.graphicGains && preset.graphicGains.length > 0
                       ? preset.graphicGains
-                      : [0, 1.2, 0.5, 0, -0.5, 1.0, 2.5, 1.8, -2.0, 0.5]
+                      : evaluateCompositeCurve(ISO_10_BANDS, [], [], preset.peqFilters || parseImportedEQText(preset.bands)?.peqFilters || [], preset.sampleRate || 48000).map(p => p.gain)
                     ).map((g, idx) => {
                       const heightPct = Math.max(15, Math.min(100, 50 + g * 3.5));
                       return (

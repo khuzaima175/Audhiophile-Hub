@@ -7,7 +7,7 @@ import { SYNTHESIS_FREQUENCIES } from './curveSynthesizer';
  * Features:
  * - Automatically skips non-numeric header lines (*, Measurement:, Date:, Frequency, #, //, etc.)
  * - Detects delimiter (comma, tab, semicolon, or whitespace)
- * - Auto-detects columns: 1st number = Freq (Hz), 2nd number = SPL (dB), 3rd number (if present) = R (dB), averaged as (L+R)/2
+ * - Auto-detects columns: 1st number = Freq (Hz), 2nd number = SPL (dB), 3rd number is right SPL only for an explicit L/R header; stereo averaging uses linear amplitude
  * - Normalizes data to 0 dB at 1 kHz (or custom datum)
  * - Log-frequency fractional octave smoothing (RAW, 1/6 OCT, 1/3 OCT)
  */
@@ -47,7 +47,7 @@ export const smoothLogCurve = (points: MeasurementPoint[], smoothing: SmoothingT
 
   // Octave width fraction in log10 space
   // 1/3 octave = log10(2) / 3 ≈ 0.10034; 1/6 octave = log10(2) / 6 ≈ 0.05017
-  const fraction = smoothing === '1/3 OCT' ? 3 : 6;
+  const fraction = Number(smoothing.match(/1\/(\d+)/)?.[1] || 6);
   const halfWindowLog = Math.log10(Math.pow(2, 1 / fraction)) / 2;
 
   const logFreqs = points.map((p) => Math.log10(Math.max(1, p.freq)));
@@ -110,6 +110,7 @@ export const parseMeasurementFile = (
 
   const headerComments: string[] = [];
   const rawReadings: { freq: number; spl: number }[] = [];
+  const leftReadings: {freq:number;spl:number}[] = [], rightReadings: {freq:number;spl:number}[] = [];
   let isGraphicEQ = false;
   // A third column is commonly REW phase, not a second acoustic channel.
   const stereoColumns = textContent
@@ -217,7 +218,8 @@ export const parseMeasurementFile = (
       // If 3 columns (e.g. Left and Right channel SPLs), average them
       let spl = num2;
       if (stereoColumns && Number.isFinite(num3)) {
-        spl = (num2 + num3) / 2;
+        spl = 20*Math.log10((10**(num2/20)+10**(num3/20))/2);
+        leftReadings.push({freq:num1,spl:num2});rightReadings.push({freq:num1,spl:num3});
       }
 
       rawReadings.push({ freq: num1, spl });
@@ -279,6 +281,11 @@ export const parseMeasurementFile = (
     rawSpl: parseFloat(r.spl.toFixed(2)),
   }));
 
+  const prepareChannel = (readings: {freq:number;spl:number}[]) => {
+    const groups=new Map<number,number[]>();readings.forEach(p=>groups.set(p.freq,[...(groups.get(p.freq)||[]),p.spl]));
+    return [...groups].sort((a,b)=>a[0]-b[0]).map(([freq,values])=>{const rawSpl=values.reduce((a,b)=>a+b,0)/values.length;return {freq,gain:rawSpl-normOffset,rawSpl};});
+  };
+  const channels=leftReadings.length>=3&&rightReadings.length>=3?{left:prepareChannel(leftReadings),right:prepareChannel(rightReadings)}:undefined;
   // Apply log-frequency smoothing
   const smoothedPoints = smoothLogCurve(rawPoints, smoothing);
 
@@ -290,6 +297,7 @@ export const parseMeasurementFile = (
     sampleCount: rawPoints.length,
     smoothing,
     headerComments,
+    channels,
     isGraphicEQ: false,
   };
 };

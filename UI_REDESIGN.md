@@ -57,3 +57,11 @@ Use [the manual testing guide](docs/MANUAL_TESTING.md) after pulling the project
 The tab now exposes New EQ preset, Edit EQ and Presets alongside Compare curves. Creation starts with an editable parametric band. Name/gear/save/export controls and the graph appear before long numeric filter lists; level/rate/playback policy is expandable. Existing presets load into the shared draft for editing, saving or copying. Generate correction and Start manual EQ stay in Graph Lab instead of navigating away. Comparing an edited draft opens its current curves. The background settings/EQ page unmounts while Lab is open to avoid duplicate editors/audio engines.
 
 A dedicated `npm run test:lab` journey checks desktop plot dimensions, Options bounds, pointer/keyboard editing, Undo/Redo, save/copy/reload/export, measurement links and mobile creation. Existing UI, workspace, mobile and mocked production suites were rerun successfully. Physical/device limitations remain those in the verification report.
+
+## Mobile graph and Squig workflow follow-up
+
+Comparison and EQ use the same collision-aware frequency label selection in measured CSS-pixel viewports. The phone's selected-band panel is in normal flow below the chart; it cannot obscure axis labels. Armed tap-to-place adds a band without requiring double-click. Numeric frequency/type/gain/Q/Enabled controls, Q/Delete keyboard edits, sorting, enable-all and Undo/Redo share the existing draft. Preset previews now reflect actual filters rather than a sample pattern.
+
+Expandable graph/AutoEQ controls separate viewing from fitting. Local curve search, multi-file/channel pairing, pins/colors/rig metadata, baselines, derived averages, channel views and graph images are available in the comparison rail. The catalog browser searches compatible public Squig catalogs and exposes loading/missing-channel/CORS failures. Custom targets remain linked through presets/backups. Independent stereo selects one editing bank while both banks play; the UI explains the selected-bank Wavelet export and common headroom.
+
+Test tone and local-track listening are available in comparison and EQ. Source and target uploads have distinct accessible names, as do comparison source/destination selectors. See [the Graph Lab guide](docs/GRAPH_LAB_GUIDE.md) for complete workflows and algorithm differences.

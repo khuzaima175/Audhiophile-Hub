@@ -36,3 +36,7 @@ Typecheck, build, core/APO/retrieval fixtures, Chromium UI/workspace/mobile chec
 Live Gemini, deployed public assets/credential rotation, physical audio/mobile devices, Edge/WebKit, capture permission flows and real Windows APO require testing in the relevant environment. The exact earlier toast-overlap report is still unreproduced. The local six-query retrieval fixture is not a general quality benchmark.
 
 Run [manual testing](docs/MANUAL_TESTING.md) to exercise the new workflows on your machine. The [verification report](VERIFICATION_REPORT.md) is the authoritative record of passed and unrun checks; the [UI document](UI_REDESIGN.md) describes current controls. Historical snapshots under `docs/archive/` are preserved for comparison and should not guide current setup or release decisions.
+
+## Graph Lab / Squig follow-up status
+
+The mobile frequency-label collision and axis-covering band panel are fixed. Comparison/catalog/channel/custom-target/image workflows, constrained AutoEQ and independent stereo editing/playback/export have been added to the existing shared workspace. See [Graph Lab guide](docs/GRAPH_LAB_GUIDE.md) for feature coverage, sources and differences; verification distinguishes automation from physical/live-server checks. The Gemini priority remains 3.8 Flash → 3.7 Flash → 3.5 Flash-Lite.

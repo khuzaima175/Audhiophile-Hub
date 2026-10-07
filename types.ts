@@ -58,7 +58,9 @@ export interface PEQFilter {
   enabled?: boolean;
 }
 
+export interface StereoFilters { left: PEQFilter[]; right: PEQFilter[]; }
 export interface EQPreset {
+  stereoFilters?: StereoFilters; eqChannel?: 'left'|'right';
   id: string;
   name: string;
   hardware: string; // The IEM/Headphone name
@@ -69,6 +71,8 @@ export interface EQPreset {
   peqFilters?: PEQFilter[]; // Parametric filters
   targetCurveId?: string; // Target reference ID
   gearId?: string;
+  targetMeasurementRef?: string;
+  fitLimits?: AutoFitLimits;
   measurementRef?: string;
   requestedPreamp?: number;
   preampMode?: 'automatic' | 'manual';
@@ -164,7 +168,7 @@ export const DEFAULT_PROFILE: AudioProfile = {
   },
 };
 
-export type SmoothingType = 'RAW' | '1/6 OCT' | '1/3 OCT';
+export type SmoothingType = 'RAW' | '1/48 OCT' | '1/24 OCT' | '1/12 OCT' | '1/6 OCT' | '1/3 OCT';
 
 
 export interface MeasurementPoint {
@@ -180,15 +184,28 @@ export interface MeasurementData {
   normOffset: number; // dB subtracted at 1kHz datum
   sampleCount: number;
   smoothing: SmoothingType;
+  channels?: { left: MeasurementPoint[]; right: MeasurementPoint[] };
   headerComments?: string[];
   isGraphicEQ?: boolean; // true when parsed from GraphicEQ/AutoEQ format
 }
 
+export interface GraphSettings {
+  minFreq: number; maxFreq: number; yRange: [number, number] | null; inspect: boolean; showLabels: boolean;
+}
+export interface AutoFitLimits {
+  minFreq: number; maxFreq: number; minGain: number; maxGain: number; minQ: number; maxQ: number;
+  types: ('PK' | 'LS' | 'HS')[];
+}
 export interface AutoPeqFitOptions {
   sampleRate?: number;
   normalize?: boolean;
   maxFilters: number; // 5 to 20 filters
   targetCurveId: string;
+  minFreq?: number;
+  maxFreq?: number;
+  minQ?: number;
+  maxQ?: number;
+  types?: ('PK' | 'LS' | 'HS')[];
   minGain?: number; // default -12 dB
   maxGain?: number; // default +12 dB
   smoothing?: SmoothingType;
@@ -259,6 +276,12 @@ export interface LabCurve {
   isInverted?: boolean; // When true, inverts/reconstructs raw filter cuts into positive IEM response
   isFilterCurve?: boolean; // When true, this is a corrective filter (GraphicEQ/AutoEQ), not a raw IEM measurement
   preserveAbsolute?: boolean;
+  pinned?: boolean;
+  rig?: string;
+  sourceUrl?: string;
+  channels?: { left: CurvePoint[]; right: CurvePoint[] };
+  channel?: 'average' | 'left' | 'right' | 'both';
+  measurementRef?: string;
   sourceTargetId?: string; // The target curve ID this filter was designed for (locked at import time)
 }
 
@@ -271,6 +294,10 @@ export interface LabState {
   zoomRange: LabZoomRange;
   smoothing: SmoothingType;
   deltaMode: boolean; // global DELTA mode: target flattens to 0dB, all curves show deviation
+  graphSettings?: GraphSettings;
+  fitLimits?: AutoFitLimits;
+  baselineId?: string | null;
+  normalizationMode?: 'frequency' | 'mean' | 'none';
   fitSmoothing?: SmoothingType;
   fitNormalize?: boolean;
   viewMode?: LabViewMode; // 'reconstructed' | 'rawFilter' | 'netPostEq'

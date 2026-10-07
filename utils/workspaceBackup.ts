@@ -43,16 +43,17 @@ export function validateBackup(input: any): WorkspaceBackup {
 }
 export function missingBackupReferences(backup: WorkspaceBackup) {
   const ids = new Set(backup.audio.measurements.map(r=>r.id)), gear = new Set(backup.profile.gearLibrary.map(g=>g.id));
-  const targets = new Set([...TARGET_CURVES.map(t=>t.id),'none']);
-  return [backup.audio.draft,...backup.profile.eqLibrary].flatMap(p=>[...(('selectedTargetId' in p ? p.selectedTargetId : p.targetCurveId) && !targets.has('selectedTargetId' in p ? p.selectedTargetId : p.targetCurveId!) ? ['Missing reference target'] : []),...(p.measurementRef && !ids.has(p.measurementRef) ? [`Measurement ${p.measurementRef}`] : []), ...(p.gearId && !gear.has(p.gearId) ? [`Gear ${p.gearId}`] : [])]);
+  const targets = new Set([...TARGET_CURVES.map(t=>t.id),'none',...backup.audio.comparison.curves.filter(c=>c.isTarget).map(c=>c.id),...[backup.audio.draft,...backup.profile.eqLibrary].filter(p=>p.targetMeasurementRef&&ids.has(p.targetMeasurementRef)).map(p=>'selectedTargetId' in p?p.selectedTargetId:p.targetCurveId || 'none')]);
+  return [backup.audio.draft,...backup.profile.eqLibrary].flatMap(p=>[...(('selectedTargetId' in p ? p.selectedTargetId : p.targetCurveId) && !targets.has('selectedTargetId' in p ? p.selectedTargetId : p.targetCurveId!) ? ['Missing reference target'] : []),...(p.targetMeasurementRef && !ids.has(p.targetMeasurementRef) ? [`Target measurement ${p.targetMeasurementRef}`] : []),...(p.measurementRef && !ids.has(p.measurementRef) ? [`Measurement ${p.measurementRef}`] : []), ...(p.gearId && !gear.has(p.gearId) ? [`Gear ${p.gearId}`] : [])]);
 }
 export function recoverMissingReferences(backup: WorkspaceBackup) {
   const ids = new Set(backup.audio.measurements.map(r=>r.id)), gear = new Set(backup.profile.gearLibrary.map(g=>g.id));
-  const targets = new Set([...TARGET_CURVES.map(t=>t.id),'none']);
+  const targets = new Set([...TARGET_CURVES.map(t=>t.id),'none',...backup.audio.comparison.curves.filter(c=>c.isTarget).map(c=>c.id),...[backup.audio.draft,...backup.profile.eqLibrary].filter(p=>p.targetMeasurementRef&&ids.has(p.targetMeasurementRef)).map(p=>'selectedTargetId' in p?p.selectedTargetId:p.targetCurveId || 'none')]);
   if (!targets.has(backup.audio.draft.selectedTargetId)) backup.audio.draft.selectedTargetId = 'none';
+  if (backup.audio.draft.targetMeasurementRef && !ids.has(backup.audio.draft.targetMeasurementRef)) backup.audio.draft.targetMeasurementRef = null;
   if (backup.audio.draft.measurementRef && !ids.has(backup.audio.draft.measurementRef)) backup.audio.draft.measurementRef = null;
   if (backup.audio.draft.gearId && !gear.has(backup.audio.draft.gearId)) backup.audio.draft.gearId = null;
-  backup.profile.eqLibrary = backup.profile.eqLibrary.map(p=>({ ...p, targetCurveId: p.targetCurveId && targets.has(p.targetCurveId) ? p.targetCurveId : 'none', measurementRef: p.measurementRef && ids.has(p.measurementRef) ? p.measurementRef : undefined, gearId: p.gearId && gear.has(p.gearId) ? p.gearId : undefined }));
+  backup.profile.eqLibrary = backup.profile.eqLibrary.map(p=>({ ...p, targetMeasurementRef: p.targetMeasurementRef && ids.has(p.targetMeasurementRef) ? p.targetMeasurementRef : undefined, targetCurveId: p.targetCurveId && targets.has(p.targetCurveId) ? p.targetCurveId : 'none', measurementRef: p.measurementRef && ids.has(p.measurementRef) ? p.measurementRef : undefined, gearId: p.gearId && gear.has(p.gearId) ? p.gearId : undefined }));
 }
 // Stage full pre-restore recovery data before replacing any live state. Legacy originals stay recoverable.
 export async function restoreWorkspaceBackup(backup: WorkspaceBackup) {

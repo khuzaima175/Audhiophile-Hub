@@ -12,7 +12,7 @@ const fs=require('node:fs');
   const nav=async label=>{await page.locator('.workspace-sidebar').getByRole('button',{name:label,exact:false}).click();await page.waitForTimeout(100);};
   const draft=()=>page.evaluate(async()=>(await import('/store/audioWorkspace.ts')).audioWorkspace.getSnapshot());
   await nav('Equalizer');
-  await page.locator('input[accept=".csv,.tsv,.txt"]').setInputFiles({name:'journey.csv',mimeType:'text/csv',buffer:Buffer.from('Frequency,SPL\n20,82\n50,82\n100,80\n200,79\n500,78\n1000,80\n2000,85\n4000,81\n8000,86\n16000,76\n20000,70')});
+  await page.getByLabel('Import EQ source measurement',{exact:true}).setInputFiles({name:'journey.csv',mimeType:'text/csv',buffer:Buffer.from('Frequency,SPL\n20,82\n50,82\n100,80\n200,79\n500,78\n1000,80\n2000,85\n4000,81\n8000,86\n16000,76\n20000,70')});
   await page.getByRole('button',{name:'Edit generated EQ',exact:true}).click();
   let state=await draft();assert.ok(state.draft.measurementRef);assert.ok(state.draft.peqFilters.length);assert.ok(state.draft.originalFit.evaluatedPoints>0);
   const ref=state.draft.measurementRef;

@@ -60,7 +60,7 @@ const assert = require('node:assert/strict');
           .click();
       const lab = page.getByRole('dialog', { name: 'Graph lab', exact: true });
       await lab.waitFor();
-      await lab.getByLabel('Frequency range').selectOption('treble');
+      await lab.getByLabel('Frequency range',{exact:true}).selectOption('treble');
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         name + ' graph overflow',

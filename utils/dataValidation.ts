@@ -1,3 +1,5 @@
+import { validateStereoFilters } from './stereoEq';
+import { validateFitLimits } from './graphTools';
 const record = (x: unknown): x is Record<string, any> => !!x && typeof x === 'object' && !Array.isArray(x);
 const strings = (x: unknown) => Array.isArray(x) && x.every((v) => typeof v === 'string');
 export function validateProfile(x: unknown): boolean {
@@ -38,8 +40,12 @@ export function validateProfile(x: unknown): boolean {
           (p.requestedPreamp === undefined || (Number.isFinite(p.requestedPreamp) && Math.abs(p.requestedPreamp) <= 36)) &&
           (p.sampleRate === undefined || [44100,48000,96000].includes(p.sampleRate)) &&
           (p.gearId === undefined || typeof p.gearId === 'string') &&
+          (p.targetMeasurementRef === undefined || typeof p.targetMeasurementRef === 'string') &&
+          (p.fitLimits === undefined || validateFitLimits(p.fitLimits)) &&
+          (p.stereoFilters === undefined || validateStereoFilters(p.stereoFilters)) &&
+          (p.eqChannel === undefined || ['left','right'].includes(p.eqChannel)) &&
           (p.measurementRef === undefined || typeof p.measurementRef === 'string') &&
-          (p.analysis === undefined || (record(p.analysis) && ['RAW','1/6 OCT','1/3 OCT'].includes(p.analysis.smoothing) && typeof p.analysis.normalize === 'boolean')) &&
+          (p.analysis === undefined || (record(p.analysis) && ['RAW','1/48 OCT','1/24 OCT','1/12 OCT','1/6 OCT','1/3 OCT'].includes(p.analysis.smoothing) && typeof p.analysis.normalize === 'boolean')) &&
           (p.graphicGains === undefined ||
             (Array.isArray(p.graphicGains) &&
               [10, 15, 31].includes(p.graphicGains.length) &&
