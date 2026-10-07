@@ -40,7 +40,7 @@ export const CANDIDATE_HIGH_SHELF_FREQS = [6000, 8000, 10000, 12000, 14000];
  * Calculate Root-Mean-Square (RMS) error across frequency points
  */
 export const calculateRmsError = (residuals: number[]): number => {
-  if (!residuals || residuals.length === 0) return 0;
+  if (!residuals?.length || !residuals.every(Number.isFinite)) throw new Error('Cannot evaluate empty or invalid residuals');
   const sumSq = residuals.reduce((acc, val) => acc + val * val, 0);
   return Math.sqrt(sumSq / residuals.length);
 };
@@ -57,17 +57,26 @@ export const synthesizeAutoPeq = (
   options: AutoPeqFitOptions,
 ): AutoPeqFitResult => {
   const { minGain = -12, maxGain = 12, sampleRate = DSP_SAMPLE_RATE } = options;
-  const maxFilters = Math.max(1, Math.min(20, Math.floor(options.maxFilters || 10)));
-  if (measuredPoints.length < 2 || targetPoints.length < 2)
-    throw new Error('At least two measured and target points are required');
+  if (![minGain, maxGain, sampleRate, options.maxFilters].every(Number.isFinite) || minGain > maxGain || sampleRate < 40000)
+    throw new Error('Invalid fitting settings');
+  const maxFilters = Math.max(1, Math.min(20, Math.floor(options.maxFilters)));
+  const prepare = (points: CurvePoint[]) => {
+    if (points.some(p => !Number.isFinite(p.freq) || p.freq <= 0 || !Number.isFinite(p.gain))) throw new Error('Curve contains invalid frequency or gain values');
+    const buckets = new Map<number, number[]>();
+    points.forEach(p => buckets.set(p.freq, [...(buckets.get(p.freq) || []), p.gain]));
+    return [...buckets].sort((a,b) => a[0]-b[0]).map(([freq,gains]) => ({ freq, gain: gains.reduce((a,b) => a+b,0)/gains.length }));
+  };
+  measuredPoints = prepare(measuredPoints);
+  targetPoints = prepare(targetPoints);
+  if (measuredPoints.length < 2 || targetPoints.length < 2) throw new Error('At least two distinct measured and target frequencies are required');
   const lower = Math.max(20, measuredPoints[0].freq, targetPoints[0].freq);
-  const upper = Math.min(20000, sampleRate / 2 - 1, measuredPoints.at(-1).freq, targetPoints.at(-1).freq);
+  const upper = Math.min(20000, sampleRate / 2 - 1, measuredPoints.at(-1)!.freq, targetPoints.at(-1)!.freq);
   if (lower >= upper) throw new Error('Measurement and target have no overlapping frequency range');
+  if (options.normalize && (lower > 1000 || upper < 1000)) throw new Error('Normalization at 1 kHz requires both curves to support 1 kHz');
   const measurementDatum = options.normalize ? getInterpolatedTargetGain(1000, measuredPoints) : 0;
   const targetDatum = options.normalize ? getInterpolatedTargetGain(1000, targetPoints) : 0;
-
-  // 1. Evaluate measurement and target on the standard 180-point synthesis grid
   const evalFreqs = SYNTHESIS_FREQUENCIES.filter((f) => f >= lower && f <= upper);
+  if (!evalFreqs.length) throw new Error('Overlap contains no evaluation points. Import wider source data.');
   const measuredGainOnGrid = evalFreqs.map((f) => {
     return getInterpolatedTargetGain(f, measuredPoints) - measurementDatum;
   });
@@ -203,6 +212,9 @@ export const synthesizeAutoPeq = (
   const matchPct = initialRms > 0 ? Math.max(0, Math.min(100, 100 * (1 - finalRms / initialRms))) : 100;
 
   return {
+    settings: { ...options, sampleRate },
+    evaluatedPoints: evalFreqs.length,
+    support: [lower, upper],
     filters: committedFilters,
     preamp,
     initialRms,

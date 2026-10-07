@@ -189,23 +189,12 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     return resampleToSynthesisFrequencies(activeSmoothedPoints);
   }, [activeSmoothedPoints]);
 
-  // Auto-PEQ Greedy Residual Synthesizer calculation
-  const autoPeqResult = useMemo(() => {
-    if (
-      !resampledMeasuredPoints ||
-      resampledMeasuredPoints.length === 0 ||
-      !currentTarget ||
-      selectedTargetId === 'none'
-    ) {
-      return null;
-    }
-    return synthesizeAutoPeq(resampledMeasuredPoints, currentTarget.points, {
-      maxFilters: maxAutoFilters,
-      targetCurveId: selectedTargetId,
-      smoothing,
-    });
-  }, [resampledMeasuredPoints, currentTarget, selectedTargetId, maxAutoFilters, smoothing]);
-
+  const fitEvaluation = useMemo(() => {
+    if (!activeSmoothedPoints.length || selectedTargetId === 'none') return { result: null, error: '' };
+    try { return { result: synthesizeAutoPeq(activeSmoothedPoints, currentTarget.points, { maxFilters: maxAutoFilters, targetCurveId: selectedTargetId, smoothing, normalize: draft.normalize, sampleRate: draft.sampleRate }), error: '' }; }
+    catch (e) { return { result: null, error: (e as Error).message }; }
+  }, [activeSmoothedPoints, currentTarget, selectedTargetId, maxAutoFilters, smoothing, draft.normalize, draft.sampleRate]);
+  const autoPeqResult = fitEvaluation.result;
   // View Mode: 'iem' (Compare IEM vs Target) | 'filter' (Raw EQ Cuts/Boosts) | 'compensated' (Post-EQ Net)
   const [eqViewMode, setEqViewMode] = useState<'iem' | 'filter' | 'compensated'>('filter');
 
@@ -235,7 +224,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
   // Post-EQ Compensated Response = Target + Filter
   const compensatedResponsePoints = useMemo(() => {
-    return compositeCurvePoints.map((p) => {
+    return compositeCurvePoints.filter(p => resampledMeasuredPoints.length && p.freq >= resampledMeasuredPoints[0].freq && p.freq <= resampledMeasuredPoints.at(-1)!.freq).map((p) => {
       const measured = resampledMeasuredPoints.length
         ? getInterpolatedTargetGain(p.freq, resampledMeasuredPoints)
         : 0;
@@ -257,11 +246,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     if (resampledMeasuredPoints.length > 0) {
       curveList.push(resampledMeasuredPoints.map((p) => ({ freq: p.freq, gain: p.gain })));
     }
-    if (autoPeqResult?.correctedPoints) {
-      curveList.push(autoPeqResult.correctedPoints);
-    }
+    if (compensatedResponsePoints.length) curveList.push(compensatedResponsePoints);
     return calculateAutoRangedYBounds(curveList, selectedTargetId !== 'none');
-  }, [activeEqPoints, currentTarget, selectedTargetId, resampledMeasuredPoints, autoPeqResult]);
+  }, [activeEqPoints, currentTarget, selectedTargetId, resampledMeasuredPoints, compensatedResponsePoints]);
 
   const workbenchViewport: ViewportDimensions = useMemo(
     () => ({
@@ -294,9 +281,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
   // Corrected Response SVG Path (Phosphor Teal)
   const correctedSvgPath = useMemo(() => {
-    if (!autoPeqResult?.correctedPoints || autoPeqResult.correctedPoints.length === 0) return '';
-    return generateSvgPathFromPoints(autoPeqResult.correctedPoints, workbenchViewport, minY, maxY);
-  }, [autoPeqResult, workbenchViewport, minY, maxY]);
+    if (!measurement) return '';
+    return generateSvgPathFromPoints(compensatedResponsePoints, workbenchViewport, minY, maxY);
+  }, [measurement, compensatedResponsePoints, workbenchViewport, minY, maxY]);
 
   // Preamp headroom calculation
   const currentPreamp = useMemo(() => {
@@ -319,7 +306,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
         const fit = synthesizeAutoPeq(
           parsed.rawPoints.map((p) => ({ freq: p.freq, gain: 0 })),
           parsed.rawPoints,
-          { maxFilters: 20, targetCurveId: 'imported-correction', normalize: true },
+          { maxFilters: 20, targetCurveId: 'imported-correction', normalize: false },
         );
         setMeasurement(null);
         setEqMode('peq');
@@ -353,7 +340,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
   // Load Auto-PEQ Filters into the editable PEQ Editor
   const handleLoadAutoPeqIntoEditor = () => {
-    if (!autoPeqResult || autoPeqResult.filters.length === 0) return;
+    if (!autoPeqResult) return;
+    audioWorkspace.update({ originalFit: structuredClone(autoPeqResult) });
     setPeqFilters(autoPeqResult.filters);
     setEqMode('peq');
     setWorkbenchState('ADDING');
@@ -514,7 +502,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
       const fit = synthesizeAutoPeq(
         result.graphicPoints.map((p) => ({ freq: p.freq, gain: 0 })),
         result.graphicPoints,
-        { maxFilters: 20, targetCurveId: 'imported-correction', normalize: true },
+        { maxFilters: 20, targetCurveId: 'imported-correction', normalize: false },
       );
       setEqMode('peq');
       setPeqFilters(fit.filters);
@@ -524,6 +512,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
       showToast(`GraphicEQ converted to PEQ. Approximation residual: ${fit.finalRms} dB RMS.`);
       return;
     }
+    audioWorkspace.update({ requestedPreamp: result.preamp ?? 0, preampMode: 'manual', measurementRef: null });
     setEqMode(result.mode);
 
     if (result.mode === 'peq' && result.peqFilters) {
@@ -636,13 +625,13 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
         currentTarget && selectedTargetId !== 'none'
           ? getInterpolatedTargetGain(freq, currentTarget.points)
           : undefined;
-      const correctedDb = autoPeqResult?.correctedPoints
-        ? getInterpolatedTargetGain(freq, autoPeqResult.correctedPoints)
+      const correctedDb = compensatedResponsePoints.length && measurement
+        ? getInterpolatedTargetGain(freq, compensatedResponsePoints)
         : undefined;
       const eqDb = getInterpolatedTargetGain(freq, compositeCurvePoints);
 
       const displayDb =
-        correctedDb !== undefined ? correctedDb : measuredDb !== undefined ? measuredDb : eqDb;
+        getInterpolatedTargetGain(freq, activeEqPoints);
       const curveY = dbToY(displayDb, workbenchViewport, minY, maxY);
 
       setHoveredPoint({
@@ -762,6 +751,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
         </div>
       </div>
 
+      {fitEvaluation.error && <p role="alert">Fitting failed: {fitEvaluation.error}</p>}
+      {draft.originalFit && <p className="text-xs text-audio-muted">Original automatic fit: {draft.originalFit.finalRms} dB RMS · {draft.originalFit.evaluatedPoints} evaluated points. Current response follows your editable filters.</p>}
       {/* Hidden Measurement File Input */}
       <input
         type="file"
@@ -1468,7 +1459,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
             )}
 
             {/* Active Live Manual EQ Curve (Brushed Brass) - when no measurement active */}
-            {!measuredSvgPath && compositeSvgPath && (
+            {compositeSvgPath && (
               <path
                 d={compositeSvgPath}
                 fill="none"

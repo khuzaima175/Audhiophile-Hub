@@ -61,9 +61,9 @@ export function LabToolbar({ onExportCsv, onToast }: LabToolbarProps) {
             value={state.viewMode || 'rawFilter'}
             onChange={(e) => labStore.setViewMode(e.target.value as LabViewMode)}
           >
-            <option value="reconstructed">Estimated response</option>
-            <option value="rawFilter">EQ correction</option>
-            <option value="netPostEq">After EQ (inferred)</option>
+            <option disabled={!state.curves.some(c => c.isFilterCurve && c.sourceTargetId)} value="reconstructed">Estimated response</option>
+            <option value="rawFilter">Source / EQ correction</option>
+            <option disabled={!state.curves.some(c => c.isFilterCurve && c.sourceTargetId)} value="netPostEq">After EQ (inferred)</option>
           </select>
         </label>
         <label className="control-field">
@@ -92,6 +92,8 @@ export function LabToolbar({ onExportCsv, onToast }: LabToolbarProps) {
         <details className="lab-advanced section-disclosure">
           <summary>Advanced</summary>
           <div className="lab-normalize">
+            <label className="control-field">Fitting smoothing (source data)<select value={state.fitSmoothing || 'RAW'} onChange={e => labStore.setFitSettings(e.target.value as SmoothingType, state.fitNormalize ?? true)}><option>RAW</option><option>1/6 OCT</option><option>1/3 OCT</option></select></label>
+            <label><input type="checkbox" checked={state.fitNormalize ?? true} onChange={e => labStore.setFitSettings(state.fitSmoothing || 'RAW', e.target.checked)} />Fit normalized at 1 kHz</label>
             <label className="control-field">
               Level (dB)
               <input

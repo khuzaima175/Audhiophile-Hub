@@ -6,9 +6,10 @@ interface PerCurveRowProps {
   curve: LabCurve;
   isPrimary: boolean;
   onSendAutoPeq?: (curve: LabCurve) => void;
+  onManualEq?: () => void;
   onToast?: (message: string) => void;
 }
-export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSendAutoPeq, onToast }) => {
+export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSendAutoPeq, onManualEq, onToast }) => {
   const download = () => {
     const csv =
       'Frequency_Hz,dB\n' +
@@ -47,7 +48,7 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
       >
         <strong>{curve.name}</strong>
         <small>
-          {source} · {curve.points.length} points {isPrimary && '· Selected'}
+          {source} · {curve.provenanceDetails} · {curve.points.length} points {isPrimary && '· Selected'}
         </small>
       </button>
       <label className="curve-offset">
@@ -97,9 +98,10 @@ export const PerCurveRow: React.FC<PerCurveRowProps> = ({ curve, isPrimary, onSe
             </button>
           )}
       </Popover>
-      {!curve.isTarget && onSendAutoPeq && (
+      {curve.isTarget && onManualEq && <button className="secondary-button" onClick={onManualEq}>Start manual EQ</button>}
+      {curve.provenance === 'measured' && !curve.isFilterCurve && onSendAutoPeq && (
         <button className="secondary-button curve-eq" onClick={() => onSendAutoPeq(curve)}>
-          Create EQ ↗
+          Generate correction ↗
         </button>
       )}
     </div>

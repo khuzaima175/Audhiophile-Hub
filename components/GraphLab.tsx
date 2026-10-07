@@ -1,3 +1,4 @@
+import { audioWorkspace, freshDraft, storeMeasurement } from '../store/audioWorkspace';
 import { useDismissSurface } from '../hooks/useDismissSurface';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useLabStore, labStore } from '../store/labStore';
@@ -30,9 +31,10 @@ import { WaveformIcon } from './Icon';
 
 interface GraphLabProps {
   onSavePreset?: (preset: EQPreset) => void;
+  onOpenEditor?: () => void;
 }
 
-export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
+export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset, onOpenEditor }) => {
   const labState = useLabStore();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
@@ -98,6 +100,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       : 0;
 
     return labState.curves.map((curve) => {
+      if (!curve.points.length) return { ...curve, displayPoints: [] };
+      const normSupported = curve.points[0].freq <= labState.normHz && curve.points.at(-1)!.freq >= labState.normHz;
+      if (!normSupported && !curve.isFilterCurve) return { ...curve, displayPoints: [] };
       const smoothed = curve.isTarget
         ? curve.points
         : smoothLogCurve(
@@ -309,18 +314,22 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   } | null>(null);
 
   const handleSynthesizeAndAuditionDelta = () => {
-    const curveA = displayCurves.find((c) => c.id === labState.auditionAId);
+    const curveA = labState.curves.find((c) => c.id === labState.auditionAId);
     const curveB =
-      displayCurves.find((c) => c.id === labState.auditionBId) || displayCurves.find((c) => c.isTarget);
+      labState.curves.find((c) => c.id === labState.auditionBId) || labState.curves.find((c) => c.isTarget);
 
     if (!curveA || !curveB) {
       showToast('Select Curve A and Curve B for Audition Delta');
       return;
     }
 
-    // Synthesize PEQ from Delta (Curve A to Curve B)
-    const peqResult = synthesizeAutoPeq(curveA.displayPoints, curveB.displayPoints, {
-      normalize: true,
+    if (curveA.isFilterCurve || curveA.isTarget || curveA.provenance !== 'measured') { showToast('Choose a measured source for comparison EQ.'); return; }
+    try {
+    // Fit original source arrays; display changes never affect analysis.
+    const peqResult = synthesizeAutoPeq(smoothLogCurve(curveA.points.map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW'), curveB.points, {
+      normalize: labState.fitNormalize ?? true,
+      sampleRate: audioEngine.audioContext?.sampleRate || 48000,
+      smoothing: labState.fitSmoothing || 'RAW',
       maxFilters: 10,
       targetCurveId: 'audition-delta',
     });
@@ -335,35 +344,24 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         `Audition Delta PEQ Loaded (${peqResult.filters.length} filters • RMS ${peqResult.finalRms}dB)`,
       );
     }
+    } catch (e) { showToast((e as Error).message); }
   };
 
+  useEffect(() => { setAuditionResult(null); audioEngine.stopAudio(); }, [labState.curves.map(c => c.id + JSON.stringify(c.points)).join('|'), labState.fitNormalize, labState.fitSmoothing]);
+
   // Auto-PEQ send to Workbench
-  const handleSendAutoPeq = (curve: LabCurve) => {
-    if (!activeTarget) return;
-    const measured = displayCurves.find((c) => c.id === curve.id)?.displayPoints || curve.points;
-    const peqResult = synthesizeAutoPeq(measured, activeTarget.points, {
-      normalize: true,
-      maxFilters: 10,
-      targetCurveId: activeTarget.id,
-    });
-    if (peqResult && onSavePreset) {
-      const newPreset: EQPreset = {
-        id: `peq-${Date.now()}`,
-        name: `${curve.name} Auto-PEQ`,
-        hardware: curve.name,
-        type: 'Parametric',
-        mode: 'peq',
-        bands: peqResult.filters
-          .map((f) => `Filter: ON ${f.type} Fc ${f.freq} Hz Gain ${f.gain} dB Q ${f.q}`)
-          .join('\n'),
-        peqFilters: peqResult.filters,
-        preamp: peqResult.preamp,
-        targetCurveId: activeTarget.id,
-        timestamp: Date.now(),
-      };
-      onSavePreset(newPreset);
-      showToast(`Saved "${newPreset.name}" to EQ Library`);
-    }
+  const handleSendAutoPeq = async (curve: LabCurve) => {
+    if (!activeTarget || curve.provenance !== 'measured' || curve.isFilterCurve) { showToast('Generate correction requires a measured source and reference target.'); return; }
+    if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work with this correction?')) return;
+    try {
+      const measured = smoothLogCurve(curve.points.map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW');
+      const result = synthesizeAutoPeq(measured, activeTarget.points, {
+        normalize: labState.fitNormalize ?? true, sampleRate: 48000, smoothing: labState.fitSmoothing || 'RAW', maxFilters: 10, targetCurveId: activeTarget.id,
+      });
+      const ref = await storeMeasurement({ name: curve.name, rawPoints: curve.points.map(p => ({ ...p, rawSpl: p.gain })), smoothedPoints: [], normOffset: 0, sampleCount: curve.points.length, smoothing: 'RAW' });
+      audioWorkspace.replace({ ...freshDraft(), dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
+      labStore.closeLab(); onOpenEditor?.();
+    } catch (e) { showToast((e as Error).message); }
   };
 
   // Ingest Measurement File
@@ -424,12 +422,12 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       <LabToolbar
         onToast={showToast}
         onExportCsv={() => {
-          const rows = ['curve,frequency_hz,gain_db'];
+          const rows = [`# Displayed data: mode=${labState.viewMode}; normalization=${labState.normDb}dB@${labState.normHz}Hz; smoothing=${labState.smoothing}; delta=${labState.deltaMode}. Per-curve offset/inversion/difference below.`, 'curve,frequency_hz,gain_db,offset_db,inverted,difference,provenance'];
           displayCurves
             .filter((c) => c.visible)
             .forEach((c) =>
               c.displayPoints.forEach((p) =>
-                rows.push(`"${c.name.replaceAll('"', '""')}",${p.freq},${p.gain}`),
+                rows.push(`"${c.name.replaceAll('"', '""')}",${p.freq},${p.gain},${c.offset},${!!c.isInverted},${!!c.deltaCompensate},${c.provenance}`),
               ),
             );
           const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
@@ -783,6 +781,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
                 curve={curve}
                 isPrimary={curve.id === labState.primaryCurveId}
                 onSendAutoPeq={handleSendAutoPeq}
+                onManualEq={() => { if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return; audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING', selectedTargetId: labState.targetCurveId }); labStore.closeLab(); onOpenEditor?.(); }}
                 onToast={showToast}
               />
             ))}

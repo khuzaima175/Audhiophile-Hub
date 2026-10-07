@@ -28,6 +28,9 @@ const DEFAULT_STATE: LabState = {
   zoomRange: 'full',
   smoothing: 'RAW',
   deltaMode: false,
+  viewMode: 'rawFilter',
+  fitSmoothing: 'RAW',
+  fitNormalize: true,
   primaryCurveId: null,
   auditionAId: null,
   auditionBId: null,
@@ -138,16 +141,8 @@ export const labStore = {
   },
 
   toggleSolo: (id: string) => {
-    const target = state.curves.find((c) => c.id === id);
-    const nextSolo = !target?.solo;
-
-    state = {
-      ...state,
-      curves: state.curves.map((c) => {
-        if (c.id === id) return { ...c, solo: nextSolo, visible: true };
-        return { ...c, solo: false, visible: nextSolo ? (c.isTarget ? true : false) : true };
-      }),
-    };
+    const nextSolo = !state.curves.find(c => c.id === id)?.solo;
+    state = { ...state, curves: state.curves.map(c => ({ ...c, solo: c.id === id && nextSolo })) };
     notify();
   },
 
@@ -166,6 +161,8 @@ export const labStore = {
     };
     notify();
   },
+
+  setFitSettings: (fitSmoothing: SmoothingType, fitNormalize: boolean) => { state = { ...state, fitSmoothing, fitNormalize }; notify(); },
 
   setViewMode: (viewMode: 'reconstructed' | 'rawFilter' | 'netPostEq') => {
     state = { ...state, viewMode };

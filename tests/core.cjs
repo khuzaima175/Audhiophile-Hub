@@ -75,7 +75,15 @@ const Module = require('node:module');
     ...p,
     gain: dsp.calculateFilterGainAtFreq(p.freq, 'PK', 1000, 6, 1.4),
   }));
+  const options = { maxFilters: 5, targetCurveId: 'flat' };
+  assert.throws(() => dsp.synthesizeAutoPeq([{ freq: 280, gain: 0 }, { freq: 281, gain: 1 }], [{ freq: 280, gain: 0 }, { freq: 281, gain: 0 }], options), /no evaluation points/);
+  assert.throws(() => dsp.synthesizeAutoPeq([{ freq: 20, gain: NaN }, { freq: 20000, gain: 1 }], target, options), /invalid/);
+  assert.throws(() => dsp.synthesizeAutoPeq([{ freq: 20, gain: 0 }, { freq: 200, gain: 1 }], target, { ...options, normalize: true }), /1 kHz/);
+  assert.throws(() => dsp.calculateRmsError([]), /empty/);
+  const sortedFit = dsp.synthesizeAutoPeq([...measured].reverse(), target, options);
   const fit = dsp.synthesizeAutoPeq(measured, target, { maxFilters: 5, targetCurveId: 'flat' });
+  near(sortedFit.finalRms, fit.finalRms);
+  assert.ok(fit.evaluatedPoints > 0);
   assert.ok(fit.finalRms < fit.initialRms * 0.2);
   assert.ok(fit.filters.length <= 5);
   assert.ok(fit.matchPercentage >= 0 && fit.matchPercentage <= 100);

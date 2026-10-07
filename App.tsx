@@ -820,6 +820,7 @@ const App: React.FC = () => {
           }
         >
           <GraphLab
+            onOpenEditor={() => navigate('eq')}
             onSavePreset={(newPreset) => {
               const updatedEqLib = [...(profile.eqLibrary || []), newPreset];
               setProfile((prev) => ({ ...prev, eqLibrary: updatedEqLib }));

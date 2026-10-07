@@ -187,6 +187,9 @@ export interface AutoPeqFitOptions {
 }
 
 export interface AutoPeqFitResult {
+  settings?: AutoPeqFitOptions;
+  evaluatedPoints?: number;
+  support?: [number, number];
   filters: PEQFilter[];
   preamp: number;
   initialRms: number;
@@ -259,6 +262,8 @@ export interface LabState {
   zoomRange: LabZoomRange;
   smoothing: SmoothingType;
   deltaMode: boolean; // global DELTA mode: target flattens to 0dB, all curves show deviation
+  fitSmoothing?: SmoothingType;
+  fitNormalize?: boolean;
   viewMode?: LabViewMode; // 'reconstructed' | 'rawFilter' | 'netPostEq'
   primaryCurveId: string | null;
   auditionAId: string | null;
