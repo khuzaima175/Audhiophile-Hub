@@ -1,5 +1,7 @@
 # Updated AudioSage implementation plan
 
+Status updated 2026-10-07: implementation milestones 0–7 are delivered in separate commits, ending at `868c97d`. The requirements below are retained for traceability. Delivery does not mean all live/deployed/physical acceptance checks were available: see [implementation evidence](IMPLEMENTATION_EVIDENCE.md), [verification results](../VERIFICATION_REPORT.md), and [manual testing](MANUAL_TESTING.md). Current UI and behavior are described in [README](../README.md) and [UI_REDESIGN.md](../UI_REDESIGN.md).
+
 Based on repository revision bc96299a4e51b889cbbfda55f991dc187bcecef9 and the verified plan review.
 
 Goal: one reliable Audio workspace for manual EQ, measurement-based correction, comparison, and presets, alongside a clearer research workflow and improved local retrieval.

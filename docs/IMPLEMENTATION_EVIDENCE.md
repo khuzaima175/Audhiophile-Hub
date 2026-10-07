@@ -1,6 +1,8 @@
 # Implementation evidence
 
-Starting revision: bc96299a4e51b889cbbfda55f991dc187bcecef9. Working tree clean at start. User plan preserved in IMPLEMENTATION_PLAN.md. Deployment is separate.
+Updated 2026-10-07. Implementation commits: milestone 0 `33a889c`, 1 `2b2ca54`, 2 `1b50a08`, 3 `cc41e36`, 4 `d17f873`, 5 `2263b47`, 6 `2161d1b`, 7 `868c97d`. Earlier milestone paragraphs record evidence at that point in implementation; the final milestone and [verification report](../VERIFICATION_REPORT.md) record consolidated results. Follow [manual testing](MANUAL_TESTING.md) to check live accounts and devices.
+
+Starting revision: bc96299a4e51b889cbbfda55f991dc187bcecef9. Working tree clean at start. User plan preserved in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). Deployment is separate.
 
 ## Milestone 0
 
@@ -61,3 +63,7 @@ Desktop comparison curves and selected-band controls sit beside their graphs; mo
 Passed: typecheck, production build, core, APO, six-query retrieval fixture (3 intended hits vs legacy 0), UI smoke, workspace/recovery journeys, Chromium mobile sizes, 4,842 independent response points plus six rendered-audio cases. Production SDK streaming/grounding and unavailable-model behavior are tested with mocked responses, including selected/answering model provenance and disabled-source exclusion. A production build with both placeholder environment keys contains neither placeholder.
 
 Unrun: deployed asset inspection/rotation (no URL/credential), live account/model authorization, Edge/WebKit, physical listening/mobile device, real tab capture/microphone and Windows APO. Original exact toast overlap remains unreproduced. See VERIFICATION_REPORT.md for evidence and limits. No deployment performed.
+
+## Documentation consolidation
+
+All repository Markdown entry points now describe the current shared draft, linked measurements, direct graph editing, black responsive UI, retrieval/provenance and recovery behavior. The older root UI-fix plan is a compatibility status page; historical README/report snapshots carry explicit superseded notices. The manual guide includes clone/pull setup, a synthetic measurement fixture, four main acceptance journeys, physical/live checks and static production preview. No live/deployed verification result is upgraded by this documentation update.

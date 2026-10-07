@@ -1,61 +1,53 @@
-# AudioSage workspace redesign
+# AudioSage workspace UI
 
-The app now uses task-based navigation: Overview, Research assistant, My gear, Equalizer, Graph lab, Listening profile, Research notes, and Settings & data. The previous hardware dashboard and all-in-one settings modal have been replaced with a consistent charcoal-and-sage workspace.
+Updated 2026-10-07 for the implemented eight-milestone workspace plan. This document describes the current UI; [verification results](VERIFICATION_REPORT.md) distinguish tested behavior from checks still needing real accounts or devices.
 
-## How the workflows fit together
+## Navigation and starting workflows
 
-| Area              | Purpose and features                                                                                                                                                                                                                                                                                  |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview          | Explains the three main workflows, shows saved gear and presets, and resumes previous research. Starting a suggested question fills the composer so it can be reviewed before sending.                                                                                                                |
-| Research          | Text, multiline input, image attachments, voice questions, technical analysis, streaming responses, citations, glossary definitions, embedded graphs, verification, copying, and saving notes.                                                                                                        |
-| My gear           | Owned gear, wishlist and tested items, category/status dropdowns, rating, price, notes, search/filtering, and comparison of two or three items.                                                                                                                                                       |
-| Equalizer         | 10-, 15-, and 31-band graphic EQ, parametric filters, measurement import, automatic target matching, preset editing, browser audio capture, local audio, pink noise, sweeps, bypass, playback volume, and APO/Wavelet exports. Advanced measurement, preview, and playback controls expand on demand. |
-| Graph lab         | Measurement import, reference targets, functional bass/mids/treble zoom, smoothing, normalization, curve visibility, offsets, inversion, difference/solo views, comparison EQ audition, EQ creation, CSV export, and shared graph links.                                                              |
-| Listening profile | Preferred sound, everyday gear, genres, sensitivities, additional notes, and tuning preferences. Profile fields save as they are edited.                                                                                                                                                              |
-| Research notes    | Manually saved listening notes and searchable AI summaries of previous conversations.                                                                                                                                                                                                                 |
-| Settings & data   | Gemini connection, optional Equalizer APO integration, full JSON backups, restore, and reset.                                                                                                                                                                                                         |
+Overview offers three entry points: Research, Manual EQ, and Measurement-based EQ. Existing sidebar entries remain available so saved gear, presets and conversations are easy to find. Pages reset their scroll position when opened. On phones, navigation opens as a drawer and closes after selection.
 
-## Functional fixes included
+| Area | Current behavior |
+|---|---|
+| Overview | Start the three workflows, review saved gear/presets, or resume research. Suggested questions fill the composer for review before sending. |
+| Research assistant | Multiline composition, attachments, voice questions, streaming answers, technical analysis, glossary and graph tools. Each new answer records requested/answering models and supplied context separately from cited web sources. |
+| My gear | Stable gear identities, owned/wishlist/tested status, category, ratings, price, notes, search, filters and comparison. EQ presets can link to a gear record. |
+| Equalizer | One persistent draft shared by Editor, Compare and Presets. Graphic and parametric EQ, linked measurements, source-based fitting, numbered graph handles, selected-band controls, Undo/Redo, preamp/rate policy, preview, Save and Save as copy. |
+| Graph lab | Expanded comparison graph with a desktop curve sidebar and a collapsible mobile curve panel. Independent display and fitting settings, curve Options menus, original/displayed CSV exports, shared graphs and correction creation into the same draft. |
+| Listening profile | Preferences save as edited. Create EQ draft explicitly turns tuning preferences into manual EQ parameters. |
+| Research notes | Edit, pin, disable and delete notes; generate conversation summaries. Older-conversation retrieval is opt-in; summaries with stale or unknown source coverage are excluded until regenerated. |
+| Settings & data | Personal Gemini connection and capability test, retrieval settings, local APO integration, complete version-3 backups, validated restore and preserved-workspace recovery. |
 
-- Pages start at their headings instead of inheriting the chat scroll position.
-- Mobile navigation closes after selection; dialogs keep the workspace behind them out of keyboard focus.
-- The composer supports Shift+Enter and avoids sending during IME composition or recording.
-- Corrupt saved JSON no longer crashes startup or silently overwrites the original data.
-- Backups are validated before restore and refresh conversations, notes, and the profile immediately. Backup export can preserve unreadable original sections for recovery.
-- Graph zoom now changes the frequency mapping, ticks, cursor frequency, and plotted domain. Smoothing is applied to measured curves.
-- Graph comparison EQ installs real audio filters; bypass keeps its separate dry signal path and preamp headroom.
-- Changing filter topology rebuilds the audio chain. Volume changes update playback, and closing Graph lab releases audio resources.
-- Browser capture initializes its audio context on demand, shows its capture prompt in both workspaces, and avoids restarting capture cleanup on each render.
-- New EQ presets start clean. Loading a preset clears previous editor state. Typed frequency, gain, and Q values are bounded.
-- Exported APO presets use their saved band layout, preserve disabled filters, and account for combined filter headroom. Parametric-to-Wavelet export samples the actual filter response. GraphicEQ exports avoid duplicate 20 Hz entries.
-- Shared graphs preserve filter provenance, source target, inversion, visibility, view mode, and smoothing; restored graphs include their reference target.
-- Squig.link 1000 Hz datum normalization is enforced across target curves, raw measurements, and reconstructed GraphicEQ curves to ensure accurate relative alignment.
-- Monotonic cubic Hermite interpolation (Fritsch-Carlson) prevents overshoot artifacts when synthesizing curves from sparse graphic equalizer bands.
-- Solo mode cleanly isolates a chosen curve against the target baseline and refocuses the dynamic Y-axis auto-ranging bounds.
-- Inverted post-EQ mode displays true residual delta error against the reference target.
-- Settings modal preserves the active tab when adding or editing gear, facts, or EQ presets, eliminating unwanted tab switching to the listener profile.
-- Multi-tier Gemini reasoning pipeline upgraded to `gemini-3.8-flash` primary with automatic fallback to `gemini-3.7-flash` and `gemini-3.5-flash-lite`.
-- Fake online, latency, token, and verification status displays have been removed.
-- Large tools load on demand; the AI SDK has its own production chunk. React type definitions and repeatable browser checks are now included.
+## Visual design and layout
 
-## Verification
+The chassis uses semantic near-black, graphite, gray and soft-white tokens. Blue focus indicators and separate graph-series colors identify interaction and plotted data. The explicit Tailwind configuration remains loaded. Fader ticks and zero marks use the actual numeric ranges, including asymmetric ranges.
 
-Start the local app with `npm run dev`, then run:
+On desktop, selected-band controls sit beside the EQ graph and the comparison curve list sits beside the Lab graph. Smaller screens stack controls and expose expandable panels. Primary mobile controls and graph handle hit areas target at least 44 CSS pixels. Reduced-motion preferences are respected.
 
-```sh
-npm run typecheck
-npm run build
-npm run test:core
-npm run test:apo
-npm run test:dsp
-npm run test:ui
-npm run test:mobile
-```
+## Graph editing and comparison
 
-The browser checks use installed Microsoft Edge and an isolated browser context. Set `AUDIOSAGE_TEST_URL` for another local server URL, or `PLAYWRIGHT_MODULE` for an externally bundled Playwright installation. Screenshots are saved under the ignored `artifacts/` directory.
+- Numbered handles select and edit correction filters. Parametric frequency dragging is logarithmic; graphic bands move vertically at fixed frequencies. Pass/notch filters omit gain edits that have no effect.
+- Arrow keys edit the selected handle, with Shift for larger steps. Numeric inputs update the same draft. Pointer capture keeps the drag active outside the initial hit area; Escape or pointer cancellation restores the starting parameters. One completed drag creates one Undo entry, with history capped at 60 changes.
+- Measurements and targets are read-only graph inputs. Generating correction requires measured data; reference targets can start manual EQ. Original-fit results remain labeled separately from the response of the current edited filters.
+- Correction view shows EQ response shape. Current post-EQ can include effective attenuation or show shape. A target-minus-correction reconstruction is labeled as an inference, not a measured headphone response.
+- Display smoothing, normalization, offsets, inversion, difference views and Solo do not modify source-based fitting inputs. Solo preserves the curve's saved visibility choice. Fitting has separate smoothing/normalization settings and visibly rejects unsupported or empty ranges.
+- Original curve CSV preserves source values; displayed CSV and shared graphs include transformation and provenance metadata. Absolute post-EQ comparisons retain attenuation instead of normalizing it away.
 
-The suite checks desktop and phone layouts, navigation, multiline composition, profile persistence, gear creation/filtering, notes, EQ import/save/reset, graph zoom/import/export, actual Web Audio filters/bypass/cleanup through a muted output, graph share metadata, backup restore and validation, command palette keyboard behavior, and corrupt saved-data recovery. AI requests are blocked during testing.
+## Surfaces, focus and feedback
 
-The subsequent accuracy audit, expanded mobile checks, live connection test, bridge hardening, and Tailwind 4 migration are documented in [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md). The current dependency audit reports zero vulnerabilities. Physical device and acoustic measurement limitations are listed in that report.
+Curve Options use portal popovers positioned within the viewport and updated during scroll/resize. Outside pointer dismissal, keyboard navigation and focus restoration are supported. Escape dismisses one active surface: a drag or popover takes priority; Advanced/composer/session disclosures close before their containing graph or page surface. Structural curve/band panels are not treated as transient menus.
 
-The existing README edits were preserved.
+Passive notifications occupy an accessible, pointer-transparent area. Damaged saved data, failed writes and missing restore links expose recovery choices rather than silently discarding the original. Save retains the open draft, Save as copy creates a separate identity, and replacing dirty work requires an explicit choice. View/selection changes do not mark audio parameters dirty.
+
+## Research and audio status
+
+The model catalog is Gemini 2.5 Flash, Pro and Flash-Lite. The selector displays the requested model; each answer records the model that actually answered. Only unavailable-model errors cause fallback. Connection testing checks the streaming/grounding request and distinguishes credential, model, quota, network and request failures. Actual availability depends on the user's account.
+
+Context supplied identifies local records made available to an answer. Sources cited lists web sources supported by grounding references. Supplied records need not be used by the model. Retrieved passages are quoted as untrusted data; this does not establish prompt-injection immunity.
+
+Audio controls distinguish requested preamp from effective protective attenuation, the intended rate from the active AudioContext rate, and raw bypass from optional file RMS matching. Matching uses the first ten seconds across channels with a 24 dB attenuation limit; it is not loudness or true-peak measurement. A single playback owner stops the previous source and releases capture when switching workspaces.
+
+## Validation and manual testing
+
+Automated Chromium checks cover desktop/mobile layouts, draft persistence, handle gestures, focus/Escape, source fitting, graph exports, backup/recovery and mocked production research. DSP checks compare browser responses and rendered tones at 44.1/48/96 kHz. Edge/WebKit, physical listening, live capture permissions, real Gemini authorization and Windows APO remain unrun here.
+
+Use [the manual testing guide](docs/MANUAL_TESTING.md) after pulling the project. See [README](README.md) for setup and [the verification report](VERIFICATION_REPORT.md) for commands and evidence. Screenshots are generated under ignored `artifacts/`; dependencies, credentials and build outputs are excluded from Git.

@@ -1,312 +1,34 @@
-# AudioSage UI Fix — Antigravity Implementation Plan
+# AudioSage implementation status
 
-> **STATUS: FULLY IMPLEMENTED & VERIFIED** (Completed in workspace redesign commit `c6f57da` and verified via Playwright UI and mobile test suites).
-> All 6 layout, scroll containment, and table styling fixes are live and active in the codebase.
+Updated 2026-10-07. This compatibility document keeps the repository's original filename. It replaces the older six-fix UI instructions, line-number examples and blanket verification claims with the current implementation status.
 
----
+The [eight-milestone plan](docs/IMPLEMENTATION_PLAN.md) is the source of requirements. [Implementation evidence](docs/IMPLEMENTATION_EVIDENCE.md) records what changed and how it was checked. Deployment remains a separate release step.
 
-## Overview of Issues
+## Delivered milestones
 
-| # | Bug | Root Cause | Files Affected |
-|---|-----|-----------|----------------|
-| 1 | Wide comparison table breaks layout / sidebar disappears | `overflow-x: hidden` on the root `<div>` in `App.tsx` clips the sidebar when a child overflows | `App.tsx`, `MessageBubble.tsx` |
-| 2 | Cannot scroll left/right on the table | The message container has `overflow-x: hidden` which prevents horizontal scroll from propagating to the inner table wrapper | `App.tsx`, `MessageBubble.tsx` |
-| 3 | Cannot scroll up while AI is streaming | `scrollToBottom()` fires on every `sessions` state change (every streamed chunk), forcibly jumping the viewport to the bottom | `App.tsx` |
-| 4 | Sidebar disappears when table is wide | Same as #1 — the root flex container clips when any child exceeds viewport width | `App.tsx` |
+| Milestone | Delivered behavior | Commit |
+|---|---|---|
+| 0 — Immediate blockers | Viewport-aware portal menus, one-surface Escape, centralized personal-key/model configuration and production build-time key exclusion | `33a889c` |
+| 1 — Shared draft and storage | Persistent version-2 draft, linked IndexedDB measurements, stable gear/preset identity, Save/copy, dirty replacement and grouped Undo | `2b2ca54` |
+| 2 — Graph/fitting semantics | Original-source fitting, separate display transforms, visible invalid-range failures and current response separate from original fit | `1b50a08` |
+| 3 — Audio and exports | Requested/effective preamp, rate assumptions, exclusive playback ownership, raw/RMS-matched bypass and export metadata | `cc41e36` |
+| 4 — Graph editing | Numbered pointer/keyboard handles, selected-band controls, cancellation and one Undo entry per drag | `d17f873` |
+| 5 — Workspace UI | Three starting workflows, near-black theme, semantic tokens, responsive controls and numeric fader scales | `2263b47` |
+| 6 — Local retrieval | Ranked matching passages, exact short terms, disabled/stale-source exclusion, context budgets and answer provenance | `2161d1b` |
+| 7 — Recovery and verification | Version-3 complete backups, legacy validation/recovery, rollback fixtures, conversion audits, production checks and current documentation | `868c97d` |
 
----
+## Current UI and workflow rules
 
-## Fix 1 — Root Layout Overflow (`App.tsx`)
+Editor, Compare and Presets share one draft; Graph Lab is the expanded comparison view. Save retains that draft, Save as copy creates a new preset, and dirty replacement requires a choice. Source measurement arrays live in IndexedDB and remain linked through refresh. Curve transformations and Solo affect display, not the original fitting data.
 
-### Problem
-Line 423 in `App.tsx`:
-```tsx
-<div className="flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-x-hidden overflow-y-hidden selection:bg-audio-accent selection:text-black touch-pan-all">
-```
-`overflow-x-hidden` on the outermost flex container causes two catastrophic side-effects:
-- Any child element (the table) that grows wider than the viewport causes the browser to **clip the entire flex row**, making the sidebar vanish.
-- It prevents any inner `overflow-x: auto` from working because the parent already hides the overflow.
+Manual EQ can start without a measurement. Measurement-based EQ imports numeric data, fits a compatible target and sends editable correction filters into the draft. Research uses a personal browser key on hosted builds, with the requested model kept separate from the actual answering model. Preferences only change audio through the explicit Create EQ draft action.
 
-### Fix
-**Remove `overflow-x-hidden` and `overflow-y-hidden` from the root div.** Let the children manage their own overflow independently.
+The current chassis is near-black/graphite rather than the earlier sage design. Desktop curve/band panels sit beside their graphs; mobile panels stack or expand. Portal menus restore focus. Escape cancels an active drag or closes the nearest transient surface before its containing graph. Passive notifications do not intercept clicks.
 
-**Find this line (App.tsx ~line 423):**
-```tsx
-<div className="flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-x-hidden overflow-y-hidden selection:bg-audio-accent selection:text-black touch-pan-all">
-```
+## Verification and remaining release work
 
-**Replace with:**
-```tsx
-<div className="flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">
-```
+Typecheck, build, core/APO/retrieval fixtures, Chromium UI/workspace/mobile checks, independent browser DSP comparisons and rendered-tone cases passed. Production research checks use mocked responses; they do not verify a real account's authorization. Local production placeholder-key exclusion passed.
 
-> `overflow-hidden` (shorthand) sets both axes to hidden **on the root only**, which is fine — it clips the page boundary. The key change is that the sidebar and main column are now independent flex children with their own scroll contexts, so the sidebar will never be pushed off-screen by a child's width.
+Live Gemini, deployed public assets/credential rotation, physical audio/mobile devices, Edge/WebKit, capture permission flows and real Windows APO require testing in the relevant environment. The exact earlier toast-overlap report is still unreproduced. The local six-query retrieval fixture is not a general quality benchmark.
 
----
-
-## Fix 2 — Messages Container Overflow (`App.tsx`)
-
-### Problem
-Line 486 in `App.tsx`, the messages scroll container:
-```tsx
-<div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 ...">
-```
-`overflow-x-hidden` here means that even though the table wrapper inside has `overflow-x: auto`, the parent has already clipped it — horizontal scroll is impossible.
-
-### Fix
-**Change `overflow-x-hidden` to `overflow-x-clip`** (clips visually but does not create a scroll container, so children can still scroll horizontally within themselves).
-
-**Find this block (App.tsx ~line 486):**
-```tsx
-<div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 space-y-2 scroll-smooth scroll-touch mobile-scroll-fix bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}>
-```
-
-**Replace with:**
-```tsx
-<div
-  className="flex-1 overflow-y-auto overflow-x-clip p-4 md:p-8 space-y-2 scroll-smooth bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]"
-  style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
->
-```
-
-> `overflow-x: clip` is the correct modern value here — it prevents the container from becoming a horizontal scroll container itself (which would fight with `overflow-y: auto`), while still allowing descendant elements to establish their own independent horizontal scroll contexts.
-
----
-
-## Fix 3 — Streaming Scroll Lock (`App.tsx`)
-
-### Problem
-Lines 94–100 in `App.tsx`:
-```tsx
-const scrollToBottom = () => {
-  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-};
-
-useEffect(() => {
-  scrollToBottom();
-}, [sessions, currentSessionId, isGenerating]);
-```
-This fires `scrollToBottom()` on **every single state update** — including every streamed text chunk. So while the AI is typing, the view is constantly snapping back to the bottom, making it impossible to scroll up to re-read earlier content.
-
-### Fix
-**Track whether the user has manually scrolled up, and only auto-scroll if they are already near the bottom.**
-
-**Replace the scroll logic section (App.tsx ~lines 94–100) with:**
-```tsx
-const scrollContainerRef = useRef<HTMLDivElement>(null);
-const userScrolledUpRef = useRef(false);
-
-const scrollToBottom = (force = false) => {
-  const container = scrollContainerRef.current;
-  if (!container) return;
-  // Only auto-scroll if user is within 150px of bottom, or if forced (new session)
-  const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-  if (force || distanceFromBottom < 150) {
-    container.scrollTop = container.scrollHeight;
-  }
-};
-
-const handleMessagesScroll = () => {
-  const container = scrollContainerRef.current;
-  if (!container) return;
-  const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-  userScrolledUpRef.current = distanceFromBottom > 150;
-};
-
-useEffect(() => {
-  scrollToBottom();
-}, [sessions, currentSessionId]);
-
-// Force scroll to bottom only when a new session is selected
-useEffect(() => {
-  scrollToBottom(true);
-}, [currentSessionId]);
-```
-
-**Then add the ref and scroll handler to the messages container div (App.tsx ~line 486):**
-
-Find:
-```tsx
-<div
-  className="flex-1 overflow-y-auto overflow-x-clip p-4 md:p-8 space-y-2 scroll-smooth bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]"
-  style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
->
-```
-
-Replace with:
-```tsx
-<div
-  ref={scrollContainerRef}
-  onScroll={handleMessagesScroll}
-  className="flex-1 overflow-y-auto overflow-x-clip p-4 md:p-8 space-y-2 scroll-smooth bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#101010] to-[#050505]"
-  style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
->
-```
-
-Also **remove the old `messagesEndRef` div** at the bottom of the messages list:
-```tsx
-<div ref={messagesEndRef} />   // DELETE THIS LINE
-```
-
-And remove `messagesEndRef` from the top of the component:
-```tsx
-const messagesEndRef = useRef<HTMLDivElement>(null);  // DELETE THIS LINE
-```
-
-> Now the view only snaps to the bottom when you're already near the bottom. If you scroll up to re-read, streaming continues without pulling you back down.
-
----
-
-## Fix 4 — MessageBubble Containment (`MessageBubble.tsx`)
-
-### Problem
-The AI message bubble wrapper has `overflow-hidden` which clips the table's horizontal scroll container before it gets a chance to scroll:
-```tsx
-// MessageBubble.tsx ~line 155
-className={`... overflow-hidden ...`}
-```
-
-And the inner content wrapper also has `overflow-hidden`:
-```tsx
-// MessageBubble.tsx ~line 167
-<div className="leading-relaxed text-[15px] font-light tracking-wide break-words overflow-hidden w-full min-w-0">
-```
-
-### Fix
-
-**In MessageBubble.tsx, find the outer bubble div (~line 155):**
-```tsx
-className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 overflow-hidden ${isUser
-```
-
-**Replace `overflow-hidden` with `overflow-visible` for AI messages only:**
-```tsx
-className={`w-full max-w-7xl rounded-2xl px-4 py-4 md:px-6 md:py-5 shadow-lg backdrop-blur-sm flex flex-col min-w-0 ${isUser
-  ? 'bg-audio-highlight border border-audio-border text-white rounded-br-sm ml-auto max-w-[90%] sm:max-w-[80%] overflow-hidden'
-  : 'bg-[#101010] border border-audio-border/50 text-audio-text rounded-bl-sm max-w-full overflow-visible'
-}`}
-```
-
-**Then find the inner content div (~line 167):**
-```tsx
-<div className="leading-relaxed text-[15px] font-light tracking-wide break-words overflow-hidden w-full min-w-0">
-```
-
-**Replace with:**
-```tsx
-<div className="leading-relaxed text-[15px] font-light tracking-wide break-words w-full min-w-0">
-```
-
-> Removing `overflow-hidden` here lets the table's own scroll container work correctly. The table wrapper in `renderTable()` already has `overflow-x-auto` with a border and rounded corners — that is sufficient containment.
-
----
-
-## Fix 5 — Table Wrapper (`MessageBubble.tsx`)
-
-The table wrapper in `renderTable()` is already mostly correct. Make two small improvements:
-
-**Find the table scroll div inside `renderTable` (~line 112):**
-```tsx
-<div
-  className="w-full overflow-x-auto overscroll-x-contain rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
-  style={{
-    WebkitOverflowScrolling: 'touch',
-    touchAction: 'pan-x',
-    scrollbarWidth: 'thin'
-  }}
->
-```
-
-**Replace with:**
-```tsx
-<div
-  className="w-full overflow-x-auto rounded-lg border border-audio-border shadow-md bg-[#080808] scrollbar-thin"
-  style={{
-    WebkitOverflowScrolling: 'touch',
-    overscrollBehavior: 'contain auto',
-    scrollbarWidth: 'thin',
-    maxWidth: '100%'
-  }}
->
-```
-
-> Removing `touchAction: 'pan-x'` allows vertical scrolling of the page while also allowing horizontal table scrolling — they no longer conflict.
-
----
-
-## Fix 6 — `index.css` Global Overflow
-
-### Problem
-```css
-html, body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-```
-`overflow-x: hidden` on `body` is a classic culprit — it creates a new stacking context and breaks `position: sticky` in children (including the sticky first column of the table). It also contributes to the layout-break symptoms.
-
-### Fix
-**In `index.css`, find:**
-```css
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-```
-
-**Replace with:**
-```css
-html,
-body {
-  max-width: 100vw;
-  overflow-x: clip;
-}
-```
-
-> `overflow-x: clip` prevents horizontal scrollbars on the document level without creating a new block formatting context, preserving `position: sticky` behavior in child elements.
-
----
-
-## Summary of All Changes
-
-| File | Location | Change |
-|------|----------|--------|
-| `App.tsx` | Root div (line ~423) | `overflow-x-hidden overflow-y-hidden` → `overflow-hidden` |
-| `App.tsx` | Messages container (line ~486) | `overflow-x-hidden` → `overflow-x-clip`; remove `mobile-scroll-fix scroll-touch` classes |
-| `App.tsx` | Messages container (line ~486) | Add `ref={scrollContainerRef}` and `onScroll={handleMessagesScroll}` |
-| `App.tsx` | Scroll logic (lines ~94–100) | Replace `scrollToBottom` + `useEffect` with smart proximity-based scroll |
-| `App.tsx` | Remove `messagesEndRef` | Delete `useRef` declaration and `<div ref={messagesEndRef} />` |
-| `MessageBubble.tsx` | Outer bubble div (~line 155) | Remove `overflow-hidden` from AI message bubble; keep it for user bubbles |
-| `MessageBubble.tsx` | Inner content div (~line 167) | Remove `overflow-hidden` |
-| `MessageBubble.tsx` | Table scroll div in `renderTable` | Remove `touchAction: 'pan-x'`; add `overscrollBehavior: 'contain auto'` |
-| `index.css` | `html, body` block | `overflow-x: hidden` → `overflow-x: clip` |
-
----
-
-## What NOT to Change
-
-- `TableModal.tsx` — the modal is fine; it already has `overflow: auto` correctly.
-- `Sidebar.tsx` — sidebar is fine; it has `flex-shrink-0` which is correct.
-- `prose-table` CSS in `index.css` — table styles are correct.
-- All Tailwind config / `tailwind.config.js` — no changes needed.
-
----
-
-## Expected Result After Fixes
-
-- ✅ Sidebar stays visible regardless of how wide the comparison table is
-- ✅ Comparison tables scroll horizontally within their own container
-- ✅ You can scroll up freely while the AI is still generating a response
-- ✅ Auto-scroll resumes when you're already near the bottom (normal chat flow)
-- ✅ Sticky first column in tables continues to work correctly
-- ✅ No zoom-in/zoom-out workaround needed
-
----
-
-## Verification & Test Results
-
-All 6 fixes are tested and passing in the automated test suite:
-- `npm run test:ui` verifies horizontal scrolling of wide comparison tables without pushing the sidebar or hiding navigation elements.
-- `npm run test:mobile` checks touch-scroll and viewport boundary containment at 320×640, 390×844, 568×320, and 768×1024 viewports in Chromium and WebKit.
-- `npm run typecheck` confirms clean TypeScript compilation with zero errors across `App.tsx` and `MessageBubble.tsx`.
+Run [manual testing](docs/MANUAL_TESTING.md) to exercise the new workflows on your machine. The [verification report](VERIFICATION_REPORT.md) is the authoritative record of passed and unrun checks; the [UI document](UI_REDESIGN.md) describes current controls. Historical snapshots under `docs/archive/` are preserved for comparison and should not guide current setup or release decisions.

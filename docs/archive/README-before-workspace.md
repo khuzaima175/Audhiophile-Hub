@@ -1,3 +1,5 @@
+> Historical snapshot retained for traceability. Marked superseded on 2026-10-07. Model IDs, theme descriptions and test claims below describe earlier work and are not current product guidance. See [the current document](../../README.md), [current UI](../../UI_REDESIGN.md) and [manual testing](../MANUAL_TESTING.md).
+
 <div align="center">
 
 # 🎛️ AudioSage: Audiophile Research Assistant & Acoustic Suite
@@ -10,7 +12,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3-38B2AC.svg?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
 [![Gemini 3.8 Flash](https://img.shields.io/badge/Gemini_3.8_Flash-Google_AI-FFA116.svg?style=flat-square&logo=google)](https://ai.google.dev/)
 [![Theme](https://img.shields.io/badge/Theme-Warm_Hi--Fi_Chassis-C6934F.svg?style=flat-square)](#-design-system-warm-hi-fi-chassis)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+Archived license badge: MIT (the original linked LICENSE file is absent from this repository).
 
 </div>
 
@@ -42,7 +44,7 @@
 
 ## Current verification status
 
-The current application uses a redesigned task-based workspace and a shared digital biquad model. See [UI_REDESIGN.md](UI_REDESIGN.md) for navigation and [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for the tested accuracy, mobile support, sources, and remaining physical-device limitations. The historical feature catalog below includes earlier interface descriptions. Bundled acoustic targets are approximations, not certified measurement datasets.
+The current application uses a redesigned task-based workspace and a shared digital biquad model. See [UI_REDESIGN.md](../../UI_REDESIGN.md) for navigation and [VERIFICATION_REPORT.md](../../VERIFICATION_REPORT.md) for the tested accuracy, mobile support, sources, and remaining physical-device limitations. The historical feature catalog below includes earlier interface descriptions. Bundled acoustic targets are approximations, not certified measurement datasets.
 
 ## Overview
 

@@ -1,5 +1,7 @@
 # AudioSage verification report
 
+Updated 2026-10-07 for implementation through `868c97d`. Documentation-only follow-up does not change the recorded test outcomes. Use [the manual testing guide](docs/MANUAL_TESTING.md) for real-account/device checks and [the UI guide](UI_REDESIGN.md) for current interaction behavior.
+
 Implementation base: `bc96299a4e51b889cbbfda55f991dc187bcecef9`. Original working tree was clean. The uploaded plan and milestone evidence are in `docs/`. Each milestone has its own commit. Deployment is separate.
 
 ## Automated evidence
@@ -37,3 +39,11 @@ The cursor marker originally intercepted drag-handle pointer events; cursor over
 - Broad retrieval evaluation beyond the six-query fixture and adversarial model behavior beyond quote framing.
 
 Release should wait for applicable live/deployed/physical checks and resolution of any confirmed credential exposure. No publication or external deployment was performed.
+
+## Reproduce the checks
+
+Run `npm ci`, then `npm run typecheck`, `npm run build`, `npm run test:core`, `npm run test:apo` and `npm run test:retrieval`. With the development server on port 3000, run `npm run test:dsp`, `npm run test:ui`, `npm run test:workspace` and `npm run test:mobile`. With the production build served using `npm run preview -- --host 127.0.0.1 --port 3001`, run `npm run test:production`.
+
+Browser suites use `/usr/bin/chromium` by default; set `PLAYWRIGHT_BROWSER_PATH` to an installed Chromium-compatible executable on another machine. `TEST_WEBKIT=1` additionally requests installed WebKit for mobile checks; it was not run here. Production AI requests are mocked and development UI requests are blocked. Browser screenshots are ignored under `artifacts/`.
+
+Manual results should record date, commit, browser/OS/device and the actual operation checked. Repository publication to GitHub is distinct from application deployment and does not establish live model availability or device compatibility.

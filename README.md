@@ -2,6 +2,12 @@
 
 AudioSage is a browser workspace for researching audio gear, manually editing EQ, fitting corrections to numeric measurements, comparing curves, and keeping presets and listening preferences locally.
 
+## Current workspace
+
+The implemented workspace adds a persistent shared EQ draft with linked measurements, direct graph editing and grouped Undo, separate fitting/display settings, consistent preamp/rate/export policy, ranked local retrieval and version-3 backup recovery. The UI uses a near-black theme with three starting workflows; desktop curve/band panels sit beside graphs and mobile panels stack or expand.
+
+For hands-on testing after pulling from GitHub, follow [the manual testing guide](docs/MANUAL_TESTING.md). It covers setup, measurement fixtures, saving/refresh, audio, live research, recovery and production preview. Automated results are evidence for the tested environment, not a guarantee that every account/device works identically.
+
 ## Run locally
 
 ```sh
@@ -66,8 +72,20 @@ npm run test:dsp
 npm run test:ui
 npm run test:workspace
 npm run test:mobile
-# with the audited production preview on port 3001:
-node tests/production.cjs
+# with npm run build and npm run preview -- --host 127.0.0.1 --port 3001:
+npm run test:production
 ```
 
 Browser tests use `/usr/bin/chromium` or `PLAYWRIGHT_BROWSER_PATH`. `TEST_WEBKIT=1` additionally runs installed WebKit in the mobile suite. AI requests in automated browser checks are blocked or mocked; no real key is needed. See [verification report](VERIFICATION_REPORT.md) and [milestone evidence](docs/IMPLEMENTATION_EVIDENCE.md). Earlier documentation is archived for traceability and is not current product guidance. Deployment remains a separate release step.
+
+## Documentation map
+
+| Document | Purpose |
+|---|---|
+| [UI_REDESIGN.md](UI_REDESIGN.md) | Current navigation, black theme, controls, layouts and interaction semantics |
+| [Implementaion_plan.md](Implementaion_plan.md) | Compatibility entry point with completed milestones and commit references |
+| [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | Original eight-milestone requirements with current delivery status |
+| [Implementation evidence](docs/IMPLEMENTATION_EVIDENCE.md) | Per-milestone behavior and verification evidence |
+| [Verification report](VERIFICATION_REPORT.md) | Passed automated checks and explicit unrun release checks |
+| [Manual testing guide](docs/MANUAL_TESTING.md) | Reproducible local and physical/account test journeys |
+| [Archived README](docs/archive/README-before-workspace.md) / [archived verification](docs/archive/VERIFICATION-before-workspace.md) | Historical snapshots; superseded by current documentation |

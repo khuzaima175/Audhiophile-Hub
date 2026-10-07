@@ -1,3 +1,5 @@
+> Historical snapshot retained for traceability. Marked superseded on 2026-10-07. Model IDs, theme descriptions and test claims below describe earlier work and are not current product guidance. See [the current document](../../VERIFICATION_REPORT.md), [current UI](../../UI_REDESIGN.md) and [manual testing](../MANUAL_TESTING.md).
+
 # AudioSage verification — 7 October 2026
 
 ## What was verified
