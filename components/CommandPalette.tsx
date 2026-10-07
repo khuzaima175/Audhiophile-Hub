@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ChatSession, AudioProfile } from '../types';
 import { labStore } from '../store/labStore';
-import { SearchIcon, WaveformIcon, EqIcon, HeadphonesIcon, BrainIcon, ActivityIcon, PlusIcon, StarIcon } from './Icon';
+import {
+  SearchIcon,
+  WaveformIcon,
+  EqIcon,
+  HeadphonesIcon,
+  BrainIcon,
+  ActivityIcon,
+  PlusIcon,
+  StarIcon,
+} from './Icon';
 import Engraved from './ui/Engraved';
 import Led from './ui/Led';
 
@@ -67,7 +76,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-lab',
         category: 'ACTIONS',
-        title: 'Open Graph Lab (Full-Screen Measurement Explorer)',
+        title: 'Open graph lab',
         subtitle: 'Audition deltas, normalize curves, and export squig-grade plots',
         icon: <WaveformIcon />,
         action: () => {
@@ -78,8 +87,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-new',
         category: 'ACTIONS',
-        title: 'Start New Acoustic Research',
-        subtitle: 'Create a clean session console',
+        title: 'New research',
+        subtitle: 'Start a new conversation',
         icon: <PlusIcon />,
         action: () => {
           onNewChat();
@@ -89,7 +98,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-eq',
         category: 'ACTIONS',
-        title: 'Open EQ Targeter & Wavelet Library',
+        title: 'Open equalizer',
         subtitle: 'Manage 10-band curves and PEQ filters',
         icon: <EqIcon />,
         action: () => {
@@ -100,7 +109,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-autoeq',
         category: 'ACTIONS',
-        title: 'Synthesize Auto-EQ from FR Graph',
+        title: 'Analyze a graph image',
         subtitle: 'Upload frequency response image',
         icon: <WaveformIcon />,
         action: () => {
@@ -111,7 +120,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-gear',
         category: 'ACTIONS',
-        title: 'Open Gear Rack & Battle Mode',
+        title: 'Open my gear',
         subtitle: 'Compare IEMs, DACs, and headphones',
         icon: <HeadphonesIcon />,
         action: () => {
@@ -122,7 +131,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-tech',
         category: 'ACTIONS',
-        title: 'Toggle Senior Tech Analysis Mode',
+        title: 'Toggle technical analysis',
         subtitle: 'Enable THD, Group Delay, and SINAD telemetry',
         icon: <ActivityIcon />,
         action: () => {
@@ -133,7 +142,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-profile',
         category: 'ACTIONS',
-        title: 'Open Listener Profile & Faders',
+        title: 'Open listening profile',
         subtitle: 'Calibrate Crinacle IEF 2025 and sibilance notch',
         icon: <BrainIcon />,
         action: () => {
@@ -189,7 +198,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     });
 
     return list;
-  }, [sessions, profile, onNewChat, onOpenKnowledgeBase, onAutoEQClick, onToggleAdvanced, onSelectSession, onClose]);
+  }, [
+    sessions,
+    profile,
+    onNewChat,
+    onOpenKnowledgeBase,
+    onAutoEQClick,
+    onToggleAdvanced,
+    onSelectSession,
+    onClose,
+  ]);
 
   const filteredItems = useMemo(() => {
     if (!query.trim()) return items;
@@ -198,7 +216,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       (item) =>
         item.title.toLowerCase().includes(q) ||
         (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
-        item.category.toLowerCase().includes(q)
+        item.category.toLowerCase().includes(q),
     );
   }, [items, query]);
 
@@ -221,18 +239,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 md:pt-24 bg-black/85 backdrop-blur-md p-3 animate-in fade-in duration-150">
+      <div className="fixed inset-0" onClick={onClose} />
       <div
-        className="fixed inset-0"
-        onClick={onClose}
-      />
-      <div className="panel bg-[#140F0C] w-full max-w-2xl rounded-2xl border border-audio-border shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[75vh] animate-in zoom-in-95 duration-150">
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search workspace"
+        className="panel bg-[#1a211c] w-full max-w-2xl rounded-2xl border border-audio-border shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[75vh] animate-in zoom-in-95 duration-150"
+      >
         {/* Search Input Bar */}
-        <div className="p-3.5 border-b border-audio-border/70 flex items-center gap-3 bg-[#110D0A]">
+        <div className="p-3.5 border-b border-audio-border/70 flex items-center gap-3 bg-[#151a17]">
           <div className="text-audio-accent">
             <SearchIcon />
           </div>
           <input
             ref={inputRef}
+            aria-label="Search workspace commands"
             type="text"
             value={query}
             onChange={(e) => {
@@ -267,7 +288,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ${
-                        isSelected ? 'bg-black/20 text-black' : 'bg-audio-surface text-audio-accent border border-audio-border'
+                        isSelected
+                          ? 'bg-black/20 text-black'
+                          : 'bg-audio-surface text-audio-accent border border-audio-border'
                       }`}
                     >
                       {item.icon}
@@ -300,7 +323,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             })
           ) : (
             <div className="py-12 text-center text-audio-muted text-xs font-mono">
-              No matching commands or acoustic records found for &quot;{query}&quot;
+              No matching results for &quot;{query}&quot;
             </div>
           )}
         </div>
@@ -314,7 +337,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
           <div className="flex items-center gap-1 text-audio-accent">
             <Led color="brass" size="sm" />
-            <span>AudioSage 2.0 Command Palette</span>
+            <span>Workspace search</span>
           </div>
         </div>
       </div>

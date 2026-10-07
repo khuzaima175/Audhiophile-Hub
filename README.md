@@ -2,12 +2,12 @@
 
 # 🎛️ AudioSage: Audiophile Research Assistant & Acoustic Suite
 
-**An elite AI-driven companion, acoustic knowledge engine, and real-time DSP tuning workbench tailored specifically for audiophiles, IEM enthusiasts, and headphone hobbyists.**
+**An acoustic knowledge base, comparison tool, and real-time DSP tuning workbench tailored for IEMs and headphones.**
 
 [![React Version](https://img.shields.io/badge/React-19.2-61DAFB.svg?style=flat-square&logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6.2-646CFF.svg?style=flat-square&logo=vite)](https://vitejs.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6.svg?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3-38B2AC.svg?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
 [![Gemini 3.6 Flash](https://img.shields.io/badge/Gemini_3.6_Flash-Google_AI-FFA116.svg?style=flat-square&logo=google)](https://ai.google.dev/)
 [![Theme](https://img.shields.io/badge/Theme-Warm_Hi--Fi_Chassis-C6934F.svg?style=flat-square)](#-design-system-warm-hi-fi-chassis)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
@@ -18,16 +18,16 @@
 
 ## 📑 Table of Contents
 
-- [✨ Executive Summary](#-executive-summary)
-- [🚀 Comprehensive Feature Catalog](#-comprehensive-feature-catalog)
+- [Overview](#-overview)
+- [Comprehensive Feature Catalog](#-comprehensive-feature-catalog)
   - [1. 🎛️ EQ Workbench & Live Web Audio DSP Audition Engine](#1-️-eq-workbench--live-web-audio-dsp-audition-engine)
   - [2. 📈 CrinGraph Acoustic Frequency Response Suite](#2--cringraph-acoustic-frequency-response-suite)
   - [3. ⚔️ Battle Mode Product Shootouts & Google Grounding](#3-️-battle-mode-product-shootouts--google-grounding)
-  - [4. 🧠 Persistent Acoustic RAG, Memory Lane & Knowledge Base](#4--persistent-acoustic-rag-memory-lane--knowledge-base)
-  - [5. ⚡ Gemini 3.6 Flash Multi-Model AI Engine & Streaming Pipeline](#5--gemini-36-flash-multi-model-ai-engine--streaming-pipeline)
+  - [4. 🧠 Persistent Acoustic Knowledge Base & Listener Profile](#4--persistent-acoustic-knowledge-base--listener-profile)
+  - [5. ⚡ Gemini Multi-Model Assistant & Streaming Pipeline](#5--gemini-multi-model-assistant--streaming-pipeline)
   - [6. 🎚️ Home Console Hardware Bay & Harmonic Oscilloscope](#6-️-home-console-hardware-bay--harmonic-oscilloscope)
   - [7. 📚 Interactive Audiophile Glossary with Hover Cards](#7--interactive-audiophile-glossary-with-hover-cards)
-  - [8. ⌨️ Global Command Palette (⌘K) & Navigation Power Layer](#8-️-global-command-palette-k--navigation-power-layer)
+  - [8. ⌨️ Global Command Palette (⌘K) & Navigation Layer](#8-️-global-command-palette-k--navigation-layer)
   - [9. 💾 Digital Headroom Safety, Universal Importer & Portability](#9--digital-headroom-safety-universal-importer--portability)
 - [📐 Mathematical Foundations & DSP Transfer Functions](#-mathematical-foundations--dsp-transfer-functions)
 - [🎯 Reference Target Curve Datasets](#-reference-target-curve-datasets)
@@ -40,11 +40,15 @@
 
 ---
 
-## ✨ Executive Summary
+## Current verification status
 
-**AudioSage** bridges rigorous acoustic science with personal listening preferences. Built around a tactile **Warm Hi-Fi Chassis** aesthetic inspired by vintage analog amplifiers, McIntosh instrumentation, brushed brass faceplates, and analog VU meters, AudioSage provides deep technical gear analysis, auto-EQ targeting, multi-gear shootout comparisons, in-browser audio synthesis, and long-term acoustic memory.
+The current application uses a redesigned task-based workspace and a shared digital biquad model. See [UI_REDESIGN.md](UI_REDESIGN.md) for navigation and [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for the tested accuracy, mobile support, sources, and remaining physical-device limitations. The historical feature catalog below includes earlier interface descriptions. Bundled acoustic targets are approximations, not certified measurement datasets.
 
-Whether you're deciding between planar magnetic IEMs, fine-tuning your daily driver against the **Crinacle IEF Preference 2025 (B&K 5128)** or **Harman In-Ear 2019** targets, or generating verified **Equalizer APO** and **Wavelet** presets with automatic digital headroom clipping safety, AudioSage provides instant, verified, and personalized audio intelligence.
+## Overview
+
+**AudioSage** combines acoustic measurement analysis with parametric EQ tuning. Built with a dark analog audio interface, AudioSage provides gear specification analysis, auto-EQ targeting, comparison shootouts, in-browser audio filtering, and persistent listening profile storage.
+
+Features include comparing IEMs and headphones, matching measurement curves against **Crinacle IEF Preference 2025 (B&K 5128)** or **Harman In-Ear 2019** targets, and exporting verified **Equalizer APO** and **Wavelet** presets with digital headroom safety.
 
 ---
 
@@ -88,7 +92,7 @@ The built-in Acoustic EQ Workbench is a studio-grade DSP synthesizer, measuremen
   * **12dB/octave Butterworth High Pass (HP)** and **Low Pass (LP)** filters.
   * **Band Stop / Notch (NOTCH / NO)** for surgical sibilance attenuation.
 * **Tier-2 Live Web Audio Audition Engine**:
-  * **Voss-McCartney $1/f$ Pink Noise Generator**: Seamless 5-second buffer looping with authentic natural spectral density.
+  * **Voss-McCartney $1/f$ Pink Noise Generator**: Continuous 5-second buffer looping with authentic natural spectral density.
   * **$20\text{ Hz} \to 20\text{ kHz}$ Logarithmic Sine Sweep**: 6-second exponential frequency sweep across the human audible range to audit acoustic dips and peaks.
   * **Local Audio Audition Track**: Upload your own `.mp3`, `.wav`, `.flac`, `.aac`, or `.ogg` tracks to hear your active EQ curves applied live in real-time.
   * **Zero-Pop Latching A/B Bypass Switch**: Features a 30ms linear crossfade gain transition between wet (filtered) and dry (unprocessed) channels with amber/green LED indicators.
@@ -129,23 +133,23 @@ A signature visualization component (`FRGraph.tsx`) engineered specifically for 
 
 ---
 
-### 4. 🧠 Persistent Acoustic RAG, Memory Lane & Knowledge Base
+### 4. 🧠 Persistent Acoustic Knowledge Base & Listener Profile
 
-* **Personalized Listener Profile**: Captures your sound signature preferences, active gear inventory, and acoustic quirks.
+* **Personalized Listener Profile**: Captures sound signature preferences, active gear inventory, and acoustic characteristics.
 * **Live Tuning Faders**:
-  * **Sub-Bass Shelf (100 Hz)**: Adjust sub-bass punch ($\pm 6\text{ dB}$).
-  * **8 kHz Sibilance Notch**: Surgical reduction for treble sensitivity ($-6\text{ dB} \to +3\text{ dB}$).
-  * **10 kHz+ Treble Air**: Ultra-high frequency sparkle and micro-detail ($\pm 6\text{ dB}$).
-  * *Instant Compilation*: Automatically synthesizes fader positions into persistent neural system prompt instructions.
-* **Automated Session Summarizer (`generateSessionSummary`)**: Analyzes past research transcripts and extracts structured topics, conclusions, and key technical facts into permanent storage.
-* **Persistent RAG Retrieval Engine**: Evaluates user prompts against historical conversation logs and consolidated knowledge base entries, dynamically injecting matching acoustic context.
-* **Full Data Portability**: 1-click JSON backup export and import for all chat sessions, listener profiles, gear libraries, and custom EQ presets.
+  * **Sub-Bass Shelf (100 Hz)**: Adjust sub-bass level ($\pm 6\text{ dB}$).
+  * **8 kHz Sibilance Notch**: Attenuation for treble sensitivity ($-6\text{ dB} \to +3\text{ dB}$).
+  * **10 kHz+ Treble Air**: High frequency extension adjustment ($\pm 6\text{ dB}$).
+  * *Prompt Integration*: Synthesizes fader positions into system prompt instructions.
+* **Automated Session Summarizer (`generateSessionSummary`)**: Analyzes past research transcripts and extracts structured topics and gear notes into local storage.
+* **Knowledge Retrieval**: Evaluates queries against historical logs and stored knowledge base entries to inject relevant acoustic context.
+* **Full Data Portability**: 1-click JSON backup export and import for chat sessions, listener profiles, gear libraries, and custom EQ presets.
 
 ---
 
-### 5. ⚡ Gemini 3.6 Flash Multi-Model AI Engine & Streaming Pipeline
+### 5. ⚡ Gemini Multi-Model Assistant & Streaming Pipeline
 
-* **Multi-Tier Fallback Architecture**: Primary reasoning runs on `gemini-3.6-flash`, backed by seamless automatic fallback chains to `gemini-2.5-flash` and `gemini-2.0-flash` for high reliability.
+* **Multi-Tier Fallback Architecture**: Primary reasoning runs on `gemini-3.6-flash`, backed by fallback chains to `gemini-2.5-flash` and `gemini-2.0-flash`.
 * **Senior Audio Research Engineer Mode**: Toggleable advanced protocol that activates in-depth technical analysis for:
   * **Group Delay & Minimum Phase Response**
   * **Impulse Response & Transient Snappiness**
@@ -155,7 +159,7 @@ A signature visualization component (`FRGraph.tsx`) engineered specifically for 
 * **Multimodal Query Capabilities**:
   * Text-based natural language inquiries.
   * **Frequency Graph Image Upload**: Upload any measured FR graph to automatically calculate transfer function gain offsets against Crinacle IEF 2025.
-  * **In-Browser Voice Query**: Seamless audio recording with browser-optimized Opus, WebM, and AAC encoding.
+  * **In-Browser Voice Query**: Direct audio recording with browser-optimized Opus, WebM, and AAC encoding.
 * **Streaming Signal-Chain Timeline**: Visual state chips tracking AI execution phases: `[SEARCH ✓] [RAG …] [VERIFY]`.
 * **Telemetry & Error Recovery**:
   * Real-time TTFT (Time-To-First-Token) latency monitor.
@@ -208,24 +212,13 @@ A signature visualization component (`FRGraph.tsx`) engineered specifically for 
 
 ## 📐 Mathematical Foundations & DSP Transfer Functions
 
-AudioSage implements standard digital biquad filter transfer functions in the frequency domain for interactive curve synthesis and audio graph rendering:
+The workbench uses digital biquad coefficients from the [W3C Audio EQ Cookbook](https://www.w3.org/TR/audio-eq-cookbook/), evaluated at the selected sampling frequency:
 
-### 1. Peaking Bell Filter (PK)
-$$H_{\text{PK}}(f) = \frac{\text{Gain}}{1 + \left(\left|\frac{f}{F_c} - \frac{F_c}{f}\right| \cdot Q\right)^2}$$
+`H(z) = (b0 + b1 z^-1 + b2 z^-2) / (1 + a1 z^-1 + a2 z^-2)`
 
-### 2. Low-Shelf Filter (LS)
-$$H_{\text{LS}}(f) = \frac{\text{Gain}}{1 + \left(\frac{f}{F_c}\right)^2}$$
+The plotted gain is `20 log10 |H(exp(j 2πf/Fs))|`. Gains of cascaded filters add in dB. Graphic sliders configure a bank of peaking filters; the plotted curve includes their overlap. The graph, fitter, playback, and APO export share this model. Shelves use IIR nodes to preserve custom Q, and pass-filter Q is converted to the Web Audio dB convention. Zero-gain pass and notch filters remain active.
 
-### 3. High-Shelf Filter (HS)
-$$H_{\text{HS}}(f) = \frac{\text{Gain}}{1 + \left(\frac{F_c}{f}\right)^2}$$
-
-### 4. 2nd-Order Butterworth High Pass / Low Pass
-$$H_{\text{HP}}(f) = -10 \cdot \log_{10}\left(1 + \left(\frac{F_c}{f}\right)^4\right) \quad (\text{clamped at } -36\text{ dB})$$
-$$H_{\text{LP}}(f) = -10 \cdot \log_{10}\left(1 + \left(\frac{f}{F_c}\right)^4\right) \quad (\text{clamped at } -36\text{ dB})$$
-
-### 5. Composite Transfer Function
-The composite curve at any frequency $f \in [20\text{ Hz}, 20\text{ kHz}]$ is the linear superposition of all active graphic and parametric filters:
-$$H_{\text{total}}(f) = \sum_{i=1}^{N_{\text{ISO}}} H_{\text{PK}}(f, F_i, G_i, Q_{\text{ISO}}) + \sum_{k=1}^{M_{\text{PEQ}}} H_k(f, F_k, G_k, Q_k)$$
+Independent browser tests compare 4,842 frequency responses at 44.1, 48 and 96 kHz. Their maximum absolute difference is 0.000005715 dB outside exact notch nulls. This verifies digital calculations, not the correctness of a headphone measurement or preference target. The app's playback and workbench use 48 kHz.
 
 ---
 
@@ -402,8 +395,6 @@ Audhiophile-Hub/
 
 ---
 
-<div align="center">
+## 📄 License
 
-**Built with passion for the global audiophile and IEM community. Happy listening! 🎧**
-
-</div>
+This project is licensed under the MIT License.

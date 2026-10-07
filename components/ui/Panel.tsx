@@ -17,7 +17,7 @@ export const Panel: React.FC<PanelProps> = ({
   const variantClasses = {
     default: 'panel',
     interactive: 'panel-interactive cursor-pointer',
-    sunken: 'rounded-xl border border-audio-border/80 bg-[#120D0A] shadow-inner',
+    sunken: 'rounded-xl border border-audio-border/80 bg-[#171d19] shadow-inner',
     'brass-framed': 'panel border-audio-accent/40 shadow-glow-brass',
   }[variant];
 

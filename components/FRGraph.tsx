@@ -40,19 +40,19 @@ interface FRGraphProps {
 const STANDARD_TARGETS: IEMCurveData[] = [
   {
     name: 'Crinacle IEF 2025 Target',
-    color: '#6FC9A6', // Phosphor teal
+    color: '#83bfa5', // Phosphor teal
     points: CRINACLE_IEF_2025_POINTS,
     isReference: true,
   },
   {
     name: 'Harman In-Ear 2019',
-    color: '#E7B87A', // Warm amber
+    color: '#c9f3d0', // Warm amber
     points: HARMAN_IE_2019_POINTS,
     isReference: true,
   },
   {
     name: 'HD600 Benchmark',
-    color: '#C6934F', // Brushed brass
+    color: '#b4e4bd', // Brushed brass
     points: SENNHEISER_HD600_POINTS,
     isReference: true,
   },
@@ -76,7 +76,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
           ...inputCurves,
           {
             name: 'Crinacle IEF 2025 (Reference Target)',
-            color: '#6FC9A6',
+            color: '#83bfa5',
             points: CRINACLE_IEF_2025_POINTS,
             isReference: true,
           },
@@ -89,7 +89,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
       return [
         {
           name: gearName,
-          color: '#EDE6DA',
+          color: '#edf0ec',
           points,
         },
         STANDARD_TARGETS[0], // Crinacle IEF 2025
@@ -101,9 +101,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
   }, [inputCurves, points, gearName]);
 
   // Track visibility of each curve by index
-  const [visibleIndices, setVisibleIndices] = useState<Set<number>>(
-    new Set(activeCurves.map((_, i) => i))
-  );
+  const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set(activeCurves.map((_, i) => i)));
 
   // Primary curve index for crosshair tracking
   const [primaryIndex, setPrimaryIndex] = useState<number>(0);
@@ -128,22 +126,23 @@ export const FRGraph: React.FC<FRGraphProps> = ({
 
   // Collect active points for auto-ranging
   const allActivePoints = useMemo<CurvePoint[][]>(() => {
-    return activeCurves
-      .filter((_, i) => visibleIndices.has(i))
-      .map((c) => c.points);
+    return activeCurves.filter((_, i) => visibleIndices.has(i)).map((c) => c.points);
   }, [activeCurves, visibleIndices]);
 
   const { minY, maxY, yTicks } = useMemo(() => {
     return calculateAutoRangedYBounds(allActivePoints, true);
   }, [allActivePoints]);
 
-  const viewport: ViewportDimensions = useMemo(() => ({
-    width: 820,
-    height: 310,
-    padding: { top: 28, right: 28, bottom: 38, left: 54 },
-    minY,
-    maxY,
-  }), [minY, maxY]);
+  const viewport: ViewportDimensions = useMemo(
+    () => ({
+      width: 820,
+      height: 310,
+      padding: { top: 28, right: 28, bottom: 38, left: 54 },
+      minY,
+      maxY,
+    }),
+    [minY, maxY],
+  );
 
   // Generate SVG paths
   const renderedPaths = useMemo(() => {
@@ -164,10 +163,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
     const scaleX = viewport.width / rect.width;
     const clientX = (e.clientX - rect.left) * scaleX;
 
-    if (
-      clientX >= viewport.padding.left &&
-      clientX <= viewport.width - viewport.padding.right
-    ) {
+    if (clientX >= viewport.padding.left && clientX <= viewport.width - viewport.padding.right) {
       const freq = xToFreq(clientX, viewport);
       const values = activeCurves
         .map((c, i) => ({
@@ -186,20 +182,30 @@ export const FRGraph: React.FC<FRGraphProps> = ({
   };
 
   const primaryCurve = activeCurves[primaryIndex] || activeCurves[0];
-  const displayTitle = title || (
-    inputCurves && inputCurves.length > 0
-      ? `Acoustic Response Comparison: ${inputCurves.filter(c => !c.isReference).map(c => c.name).join(' vs ')}`
-      : 'Acoustic Reference Target Overlay'
-  );
+  const displayTitle =
+    title ||
+    (inputCurves && inputCurves.length > 0
+      ? `Acoustic Response Comparison: ${inputCurves
+          .filter((c) => !c.isReference)
+          .map((c) => c.name)
+          .join(' vs ')}`
+      : 'Acoustic Reference Target Overlay');
 
   return (
-    <div className={`panel p-4 md:p-5 rounded-2xl bg-[#120D0A] border border-audio-border shadow-panel select-none ${className}`}>
-
+    <div
+      className={`panel p-4 md:p-5 rounded-2xl bg-[#171d19] border border-audio-border shadow-panel select-none ${className}`}
+    >
       {/* ── Header Bar ─────────────────────────────────────────────────── */}
+      {activeCurves.some((c) => !c.isReference) && (
+        <p className="text-xs text-audio-muted mb-3">
+          AI-provided curve estimates. These are not verified acoustic measurements; upload measured data in
+          Graph lab for reliable EQ fitting.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5 border-b border-audio-border/60">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-audio-accent shadow-[0_0_8px_#C6934F]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-audio-accent shadow-[0_0_8px_#b4e4bd]" />
             <h4 className="font-display font-bold text-sm text-audio-text tracking-wide">{displayTitle}</h4>
           </div>
           <p className="text-[10px] font-mono text-audio-muted mt-0.5">
@@ -250,9 +256,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
                     Ref
                   </span>
                 )}
-                {isPrimary && isVisible && (
-                  <span className="text-[9px] opacity-90">●</span>
-                )}
+                {isPrimary && isVisible && <span className="text-[9px] opacity-90">●</span>}
               </button>
             );
           })}
@@ -286,13 +290,16 @@ export const FRGraph: React.FC<FRGraphProps> = ({
       </div>
 
       {/* ── SVG Canvas ─────────────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden bg-[#0A0806] rounded-xl border border-audio-border/80">
+      <div className="relative w-full overflow-hidden bg-[#111713] rounded-xl border border-audio-border/80">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${viewport.width} ${viewport.height}`}
           className="w-full h-auto block cursor-crosshair"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoveredPoint(null)}
+          onPointerMove={handleMouseMove}
+          onPointerDown={handleMouseMove}
+          onPointerLeave={(e) => {
+            if (e.pointerType === 'mouse') setHoveredPoint(null);
+          }}
         >
           {/* Sibilance risk zone (6kHz to 9kHz) */}
           {sibilanceAlert && (
@@ -302,7 +309,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
                 y={viewport.padding.top}
                 width={sibX2 - sibX1}
                 height={viewport.height - viewport.padding.top - viewport.padding.bottom}
-                fill="#E06A3F"
+                fill="#eb9689"
                 fillOpacity="0.08"
               />
               <line
@@ -310,7 +317,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
                 y1={viewport.padding.top}
                 x2={sibX1}
                 y2={viewport.height - viewport.padding.bottom}
-                stroke="#E06A3F"
+                stroke="#eb9689"
                 strokeWidth="1"
                 strokeDasharray="2 2"
                 opacity="0.4"
@@ -320,7 +327,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
                 y1={viewport.padding.top}
                 x2={sibX2}
                 y2={viewport.height - viewport.padding.bottom}
-                stroke="#E06A3F"
+                stroke="#eb9689"
                 strokeWidth="1"
                 strokeDasharray="2 2"
                 opacity="0.4"
@@ -328,7 +335,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
               <text
                 x={(sibX1 + sibX2) / 2}
                 y={viewport.padding.top + 14}
-                fill="#E06A3F"
+                fill="#eb9689"
                 fontSize="7.5"
                 fontFamily="monospace"
                 fontWeight="bold"
@@ -350,14 +357,14 @@ export const FRGraph: React.FC<FRGraphProps> = ({
                   y1={viewport.padding.top}
                   x2={x}
                   y2={viewport.height - viewport.padding.bottom}
-                  stroke={major ? '#2E2620' : '#1A1410'}
+                  stroke={major ? '#2E2620' : '#222b25'}
                   strokeWidth={major ? 1.0 : 0.6}
                   strokeDasharray={major ? undefined : '2 2'}
                 />
                 <text
                   x={x}
                   y={viewport.height - 15}
-                  fill={major ? '#EDE6DA' : '#6A5F52'}
+                  fill={major ? '#edf0ec' : '#6A5F52'}
                   fontSize={major ? 8.5 : 7.5}
                   fontWeight={major ? 'bold' : 'normal'}
                   fontFamily="monospace"
@@ -387,7 +394,7 @@ export const FRGraph: React.FC<FRGraphProps> = ({
                 <text
                   x={viewport.padding.left - 6}
                   y={y + 3}
-                  fill={isZero ? '#C6934F' : '#6A5F52'}
+                  fill={isZero ? '#b4e4bd' : '#6A5F52'}
                   fontSize="8"
                   fontFamily="monospace"
                   textAnchor="end"
@@ -438,89 +445,88 @@ export const FRGraph: React.FC<FRGraphProps> = ({
             })}
 
           {/* Multi-Curve Hover Crosshair */}
-          {hoveredPoint && (() => {
-            const freqLabel =
-              hoveredPoint.freq >= 1000
-                ? `${(hoveredPoint.freq / 1000).toFixed(1)}kHz`
-                : `${Math.round(hoveredPoint.freq)}Hz`;
+          {hoveredPoint &&
+            (() => {
+              const freqLabel =
+                hoveredPoint.freq >= 1000
+                  ? `${(hoveredPoint.freq / 1000).toFixed(1)}kHz`
+                  : `${Math.round(hoveredPoint.freq)}Hz`;
 
-            const pillW = 165;
-            const pillH = 16 + hoveredPoint.values.length * 14;
-            const pillX = Math.min(
-              hoveredPoint.x + 10,
-              viewport.width - viewport.padding.right - pillW - 4
-            );
-            const pillY = Math.max(viewport.padding.top + 4, 32);
+              const pillW = 165;
+              const pillH = 16 + hoveredPoint.values.length * 14;
+              const pillX = Math.min(
+                hoveredPoint.x + 10,
+                viewport.width - viewport.padding.right - pillW - 4,
+              );
+              const pillY = Math.max(viewport.padding.top + 4, 32);
 
-            return (
-              <g>
-                {/* Vertical tracking line */}
-                <line
-                  x1={hoveredPoint.x}
-                  y1={viewport.padding.top}
-                  x2={hoveredPoint.x}
-                  y2={viewport.height - viewport.padding.bottom}
-                  stroke="#EDE6DA"
-                  strokeWidth="0.8"
-                  strokeDasharray="3 3"
-                  opacity="0.45"
-                />
-
-                {/* Dot for each curve */}
-                {hoveredPoint.values.map((v, i) => (
-                  <circle
-                    key={i}
-                    cx={hoveredPoint.x}
-                    cy={dbToY(v.db, viewport, minY, maxY)}
-                    r={v.isRef ? 3.2 : 4.5}
-                    fill={v.color}
-                    stroke="#0A0806"
-                    strokeWidth="1.2"
+              return (
+                <g>
+                  {/* Vertical tracking line */}
+                  <line
+                    x1={hoveredPoint.x}
+                    y1={viewport.padding.top}
+                    x2={hoveredPoint.x}
+                    y2={viewport.height - viewport.padding.bottom}
+                    stroke="#edf0ec"
+                    strokeWidth="0.8"
+                    strokeDasharray="3 3"
+                    opacity="0.45"
                   />
-                ))}
 
-                {/* Tooltip Card */}
-                <rect
-                  x={pillX}
-                  y={pillY}
-                  width={pillW}
-                  height={pillH}
-                  rx="6"
-                  fill="#140F0C"
-                  stroke="#382D24"
-                  strokeWidth="1"
-                  filter="drop-shadow(0 4px 14px rgba(0,0,0,0.85))"
-                />
-                <text
-                  x={pillX + 9}
-                  y={pillY + 13}
-                  fill="#EDE6DA"
-                  fontSize="8.5"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                >
-                  FREQ: {freqLabel}
-                </text>
+                  {/* Dot for each curve */}
+                  {hoveredPoint.values.map((v, i) => (
+                    <circle
+                      key={i}
+                      cx={hoveredPoint.x}
+                      cy={dbToY(v.db, viewport, minY, maxY)}
+                      r={v.isRef ? 3.2 : 4.5}
+                      fill={v.color}
+                      stroke="#111713"
+                      strokeWidth="1.2"
+                    />
+                  ))}
 
-                {hoveredPoint.values.map((v, i) => (
+                  {/* Tooltip Card */}
+                  <rect
+                    x={pillX}
+                    y={pillY}
+                    width={pillW}
+                    height={pillH}
+                    rx="6"
+                    fill="#1a211c"
+                    stroke="#382D24"
+                    strokeWidth="1"
+                    filter="drop-shadow(0 4px 14px rgba(0,0,0,0.85))"
+                  />
                   <text
-                    key={i}
                     x={pillX + 9}
-                    y={pillY + 14 + (i + 1) * 14}
-                    fill={v.color}
+                    y={pillY + 13}
+                    fill="#edf0ec"
                     fontSize="8.5"
                     fontFamily="monospace"
-                    fontWeight="600"
+                    fontWeight="bold"
                   >
-                    <tspan>{v.name.split(' (')[0].slice(0, 16)}:</tspan>{' '}
-                    <tspan fontWeight="bold">
-                      {v.db > 0 ? `+${v.db}` : v.db} dB
-                    </tspan>
+                    FREQ: {freqLabel}
                   </text>
-                ))}
-              </g>
-            );
-          })()}
+
+                  {hoveredPoint.values.map((v, i) => (
+                    <text
+                      key={i}
+                      x={pillX + 9}
+                      y={pillY + 14 + (i + 1) * 14}
+                      fill={v.color}
+                      fontSize="8.5"
+                      fontFamily="monospace"
+                      fontWeight="600"
+                    >
+                      <tspan>{v.name.split(' (')[0].slice(0, 16)}:</tspan>{' '}
+                      <tspan fontWeight="bold">{v.db > 0 ? `+${v.db}` : v.db} dB</tspan>
+                    </text>
+                  ))}
+                </g>
+              );
+            })()}
         </svg>
       </div>
 

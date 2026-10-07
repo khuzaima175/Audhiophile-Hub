@@ -3,7 +3,12 @@ import { useLabStore, labStore } from '../store/labStore';
 import { LabToolbar } from './lab/LabToolbar';
 import { PerCurveRow } from './lab/PerCurveRow';
 import { BandLabels } from './lab/BandLabels';
-import { TARGET_CURVES, CRINGRAPH_FREQ_TICKS, getInterpolatedTargetGain, CurvePoint } from '../constants/targetCurves';
+import {
+  TARGET_CURVES,
+  CRINGRAPH_FREQ_TICKS,
+  getInterpolatedTargetGain,
+  CurvePoint,
+} from '../constants/targetCurves';
 import {
   calculateAutoRangedYBounds,
   freqToX,
@@ -14,7 +19,7 @@ import {
   SYNTHESIS_FREQUENCIES,
 } from '../utils/curveSynthesizer';
 import { synthesizeAutoPeq } from '../utils/autoPeqGenerator';
-import { parseMeasurementFile } from '../utils/measurementParser';
+import { parseMeasurementFile, smoothLogCurve } from '../utils/measurementParser';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useLiveTabCapture } from '../hooks/useLiveTabCapture';
 import { LabCurve, EQPreset } from '../types';
@@ -29,6 +34,12 @@ interface GraphLabProps {
 export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   const labState = useLabStore();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const resize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -55,8 +66,18 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     isBypassed,
   });
 
-  const { isCapturing, startTabCapture, stopTabCapture, isSupported: tabSupported } = useLiveTabCapture({
+  const {
+    isCapturing,
+    startTabCapture,
+    stopTabCapture,
+    showFeedbackGuard,
+    confirmFeedbackGuard,
+    dismissFeedbackGuard,
+    error: captureError,
+    isSupported: tabSupported,
+  } = useLiveTabCapture({
     audioContext: audioEngine.audioContext,
+    getAudioContext: audioEngine.getAudioContext,
     onStreamAvailable: (streamNode) => {
       audioEngine.playLiveTab(streamNode);
       showToast('Live Tab stream connected');
@@ -84,6 +105,12 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       : 0;
 
     return labState.curves.map((curve) => {
+      const smoothed = curve.isTarget
+        ? curve.points
+        : smoothLogCurve(
+            curve.points.map((p) => ({ ...p, rawSpl: p.gain })),
+            labState.smoothing,
+          );
       const isTargetCurve = curve.isTarget;
       const isFilter = curve.isFilterCurve;
 
@@ -100,15 +127,15 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       // Pre-compute raw reconstructed IEM curve at all frequencies if it's a filter curve:
       // IEM_raw(f) = SourceTarget(f) - FilterCut(f)
       // Datum at normHz:
-      const filterAtNormHz = getInterpolatedTargetGain(labState.normHz, curve.points);
+      const filterAtNormHz = getInterpolatedTargetGain(labState.normHz, smoothed);
       const srcTargetAtNormHz = getInterpolatedTargetGain(labState.normHz, sourceTarget.points);
       const reconstructedIemAtNormHz = srcTargetAtNormHz - filterAtNormHz;
 
       // Base anchor gain at normalization frequency for normal curves
-      const curveNormGain = getInterpolatedTargetGain(labState.normHz, curve.points);
+      const curveNormGain = getInterpolatedTargetGain(labState.normHz, smoothed);
 
       const transformedPoints: CurvePoint[] = SYNTHESIS_FREQUENCIES.map((f) => {
-        const rawGain = getInterpolatedTargetGain(f, curve.points);
+        const rawGain = getInterpolatedTargetGain(f, smoothed);
         let dispGain = rawGain;
 
         if (isTargetCurve) {
@@ -116,7 +143,6 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           // T_plot(f) = T(f) - T(normHz) + normDb
           const targetNorm = rawGain - activeTargetNormGain + labState.normDb;
           dispGain = labState.deltaMode ? 0 : targetNorm;
-
         } else if (labState.deltaMode && activeTarget) {
           // Global DELTA Mode: deviation from target
           if (isFilter) {
@@ -124,7 +150,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
             // then take delta against the *active* target (may differ from source target)
             const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-            const iemPlot = (srcTargetGain - rawGain) - reconstructedIemAtNormHz + labState.normDb;
+            const iemPlot = srcTargetGain - rawGain - reconstructedIemAtNormHz + labState.normDb;
             const targetPlot = targetGain - activeTargetNormGain + labState.normDb;
             dispGain = iemPlot - targetPlot + curve.offset;
           } else {
@@ -133,13 +159,12 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
             const curveNorm = rawGain - curveNormGain;
             dispGain = curveNorm - targetNorm + curve.offset;
           }
-
         } else if (curve.deltaCompensate && activeTarget) {
           // Individual Delta Compensate
           if (isFilter) {
             const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
             const targetGain = getInterpolatedTargetGain(f, activeTarget.points);
-            const iemPlot = (srcTargetGain - rawGain) - reconstructedIemAtNormHz + labState.normDb;
+            const iemPlot = srcTargetGain - rawGain - reconstructedIemAtNormHz + labState.normDb;
             const targetPlot = targetGain - activeTargetNormGain + labState.normDb;
             dispGain = iemPlot - targetPlot + curve.offset;
           } else {
@@ -148,7 +173,6 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
             const curveNorm = rawGain - curveNormGain;
             dispGain = curveNorm - targetNorm + curve.offset;
           }
-
         } else if (isFilter) {
           // GraphicEQ / AutoEQ Filter Curves:
           const srcTargetGain = getInterpolatedTargetGain(f, sourceTarget.points);
@@ -159,7 +183,6 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           if (labState.viewMode === 'rawFilter') {
             // "Filter Cuts" mode: shows raw cuts by default, flips to reconstructed if inverted
             dispGain = (curve.isInverted ? iemNormalized : rawGain) + curve.offset;
-
           } else if (labState.viewMode === 'netPostEq') {
             // "Post-EQ Net" mode: shows ideal equalized sound; if inverted, shows residual error vs active target
             const activeTargetGain = activeTarget
@@ -167,12 +190,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
               : netGain;
             const residualDelta = netGain - activeTargetGain;
             dispGain = (curve.isInverted ? residualDelta : netGain) + curve.offset;
-
           } else {
             // Default & "IEM vs Target": Reconstructs natural IEM response, flips to raw cuts if inverted
             dispGain = (curve.isInverted ? rawGain : iemNormalized) + curve.offset;
           }
-
         } else {
           // Standard Measured / AI-Estimate Curves:
           // Normalized to normDb at normHz (1000 Hz), inverts polarity if inverted
@@ -185,10 +206,20 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
 
       return {
         ...curve,
-        displayPoints: transformedPoints,
+        displayPoints: transformedPoints.filter(
+          (p) => p.freq >= curve.points[0].freq && p.freq <= curve.points.at(-1)!.freq,
+        ),
       };
     });
-  }, [labState.curves, labState.normDb, labState.normHz, labState.deltaMode, labState.viewMode, activeTarget]);
+  }, [
+    labState.curves,
+    labState.normDb,
+    labState.normHz,
+    labState.deltaMode,
+    labState.viewMode,
+    labState.smoothing,
+    activeTarget,
+  ]);
 
   const anySolo = useMemo(() => labState.curves.some((c) => c.solo), [labState.curves]);
 
@@ -209,21 +240,35 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
 
   // Viewport with responsive zoom range
   const viewport: ViewportDimensions = useMemo(() => {
+    const range = { full: [20, 20000], bass: [20, 250], mids: [250, 4000], treble: [4000, 20000] }[
+      labState.zoomRange
+    ] || [20, 20000];
     return {
-      width: 960,
-      height: 380,
-      padding: { top: 28, right: 28, bottom: 42, left: 54 },
+      width: Math.min(960, Math.max(300, screenWidth - (screenWidth > 980 ? 340 : 40))),
+      height: screenWidth < 768 ? 320 : 380,
+      padding: { top: 28, right: screenWidth < 768 ? 14 : 28, bottom: 42, left: screenWidth < 768 ? 38 : 54 },
+      minFreq: range[0],
+      maxFreq: range[1],
       minY,
       maxY,
     };
-  }, [minY, maxY]);
+  }, [minY, maxY, labState.zoomRange, screenWidth]);
 
   // Paths
   const renderedPaths = useMemo(() => {
-    return displayCurves.map((c) => ({
-      ...c,
-      path: generateSvgPathFromPoints(c.displayPoints, viewport, minY, maxY),
-    }));
+    return displayCurves.map((c) => {
+      const lower = Math.max(viewport.minFreq!, c.displayPoints[0]?.freq ?? Infinity);
+      const upper = Math.min(viewport.maxFreq!, c.displayPoints.at(-1)?.freq ?? -Infinity);
+      const points =
+        lower < upper
+          ? [
+              { freq: lower, gain: getInterpolatedTargetGain(lower, c.displayPoints) },
+              ...c.displayPoints.filter((p) => p.freq > lower && p.freq < upper),
+              { freq: upper, gain: getInterpolatedTargetGain(upper, c.displayPoints) },
+            ]
+          : [];
+      return { ...c, path: generateSvgPathFromPoints(points, viewport, minY, maxY) };
+    });
   }, [displayCurves, viewport, minY, maxY]);
 
   // Interactive Hover Point
@@ -243,7 +288,13 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     if (clientX >= viewport.padding.left && clientX <= viewport.width - viewport.padding.right) {
       const freq = xToFreq(clientX, viewport);
       const values = displayCurves
-        .filter((c) => c.visible && (!anySolo || c.solo || c.isTarget))
+        .filter(
+          (c) =>
+            c.visible &&
+            (!anySolo || c.solo || c.isTarget) &&
+            freq >= c.points[0].freq &&
+            freq <= c.points.at(-1)!.freq,
+        )
         .map((c) => ({
           name: c.name,
           db: parseFloat(getInterpolatedTargetGain(freq, c.displayPoints).toFixed(1)),
@@ -265,8 +316,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   } | null>(null);
 
   const handleSynthesizeAndAuditionDelta = () => {
-    const curveA = labState.curves.find((c) => c.id === labState.auditionAId);
-    const curveB = labState.curves.find((c) => c.id === labState.auditionBId) || labState.curves.find((c) => c.isTarget);
+    const curveA = displayCurves.find((c) => c.id === labState.auditionAId);
+    const curveB =
+      displayCurves.find((c) => c.id === labState.auditionBId) || displayCurves.find((c) => c.isTarget);
 
     if (!curveA || !curveB) {
       showToast('Select Curve A and Curve B for Audition Delta');
@@ -274,7 +326,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
     }
 
     // Synthesize PEQ from Delta (Curve A to Curve B)
-    const peqResult = synthesizeAutoPeq(curveA.points, curveB.points, {
+    const peqResult = synthesizeAutoPeq(curveA.displayPoints, curveB.displayPoints, {
+      normalize: true,
       maxFilters: 10,
       targetCurveId: 'audition-delta',
     });
@@ -285,14 +338,18 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         rmsResidual: parseFloat(peqResult.finalRms.toFixed(2)),
         filterCount: peqResult.filters.length,
       });
-      showToast(`Audition Delta PEQ Loaded (${peqResult.filters.length} filters • RMS ${peqResult.finalRms}dB)`);
+      showToast(
+        `Audition Delta PEQ Loaded (${peqResult.filters.length} filters • RMS ${peqResult.finalRms}dB)`,
+      );
     }
   };
 
   // Auto-PEQ send to Workbench
   const handleSendAutoPeq = (curve: LabCurve) => {
     if (!activeTarget) return;
-    const peqResult = synthesizeAutoPeq(curve.points, activeTarget.points, {
+    const measured = displayCurves.find((c) => c.id === curve.id)?.displayPoints || curve.points;
+    const peqResult = synthesizeAutoPeq(measured, activeTarget.points, {
+      normalize: true,
       maxFilters: 10,
       targetCurveId: activeTarget.id,
     });
@@ -303,7 +360,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         hardware: curve.name,
         type: 'Parametric',
         mode: 'peq',
-        bands: peqResult.filters.map((f) => `Filter: ON ${f.type} Fc ${f.freq} Hz Gain ${f.gain} dB Q ${f.q}`).join('\n'),
+        bands: peqResult.filters
+          .map((f) => `Filter: ON ${f.type} Fc ${f.freq} Hz Gain ${f.gain} dB Q ${f.q}`)
+          .join('\n'),
         peqFilters: peqResult.filters,
         preamp: peqResult.preamp,
         targetCurveId: activeTarget.id,
@@ -326,8 +385,8 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       const text = await file.text();
       const parsed = parseMeasurementFile(text, file.name, labState.smoothing, labState.normHz);
       if (parsed && parsed.rawPoints.length > 0) {
-        const colors = ['#E7B87A', '#F06543', '#72B01D', '#3F88C5', '#D1495B', '#9D4EDD'];
-        const color = colors[(labState.curves.length - 1) % colors.length] || '#E7B87A';
+        const colors = ['#c9f3d0', '#F06543', '#72B01D', '#3F88C5', '#D1495B', '#9D4EDD'];
+        const color = colors[(labState.curves.length - 1) % colors.length] || '#c9f3d0';
         const isFilter = !!parsed.isGraphicEQ;
         const newCurve: LabCurve = {
           id: `measured-${Date.now()}`,
@@ -347,7 +406,9 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
         };
         labStore.addCurve(newCurve);
         labStore.setPrimaryCurve(newCurve.id);
-        showToast(`✓ Ingested ${newCurve.name} (${parsed.sampleCount} pts${isFilter ? ' • GraphicEQ filter' : ''})`);
+        showToast(
+          `✓ Ingested ${newCurve.name} (${parsed.sampleCount} pts${isFilter ? ' • GraphicEQ filter' : ''})`,
+        );
       } else {
         showToast('⚠️ Could not parse points. Supported: GraphicEQ, CSV, TSV, REW format.');
       }
@@ -360,24 +421,47 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
   if (!labState.isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#0A0705] flex flex-col text-audio-text overflow-hidden select-none animate-in fade-in duration-200">
+    <div
+      className="graph-lab fixed inset-0 z-50 flex flex-col text-audio-text overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Graph lab"
+    >
       {/* 1. TOP TOOLBAR */}
-      <LabToolbar onToast={showToast} />
+      <LabToolbar
+        onToast={showToast}
+        onExportCsv={() => {
+          const rows = ['curve,frequency_hz,gain_db'];
+          displayCurves
+            .filter((c) => c.visible)
+            .forEach((c) =>
+              c.displayPoints.forEach((p) =>
+                rows.push(`"${c.name.replaceAll('"', '""')}",${p.freq},${p.gain}`),
+              ),
+            );
+          const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'audiosage-graph.csv';
+          link.click();
+          URL.revokeObjectURL(url);
+        }}
+      />
 
       {/* 2. MAIN WORKSPACE */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="lab-workspace">
         {/* LEFT RAIL: Curve Manager & Audition Delta Engine */}
-        <aside className="w-full lg:w-80 bg-[#120D0A] border-r border-audio-border p-3.5 flex flex-col gap-3 overflow-y-auto shrink-0 shadow-panel">
+        <aside className="lab-sidebar flex flex-col gap-3">
           <div className="flex items-center justify-between pb-2 border-b border-audio-border/60">
             <Engraved size="xs" glow>
-              ACOUSTIC CURVE STACK ({labState.curves.length})
+              Your curves ({labState.curves.length})
             </Engraved>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="px-2 py-1 rounded bg-audio-surface border border-audio-border text-[9.5px] font-mono text-audio-accent hover:border-audio-accent transition-all"
             >
-              + Ingest CSV
+              + Import file
             </button>
             <input
               ref={fileInputRef}
@@ -398,7 +482,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleFileDrop}
-            className="p-3 rounded-xl border border-dashed border-audio-border/70 bg-[#0E0A08] text-center hover:border-audio-accent/60 transition-colors"
+            className="p-3 rounded-xl border border-dashed border-audio-border/70 bg-[#151c17] text-center hover:border-audio-accent/60 transition-colors"
           >
             <p className="text-[10px] font-mono text-audio-muted">
               Drop squig.link / REW measurement CSV here
@@ -406,133 +490,147 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
           </div>
 
           {/* AUDITION DELTA PANEL (The Kill Shot) */}
-          <div className="p-3 bg-[#18120E] rounded-xl border border-audio-border/80 space-y-2.5">
-            <div className="flex items-center gap-1.5">
-              <Led color="amber" pulse size="sm" />
-              <span className="text-[10px] font-mono font-bold text-audio-accent uppercase tracking-wider">
-                Audition Delta Engine
-              </span>
-            </div>
-            <p className="text-[9px] font-mono text-audio-muted">
-              Synthesizes the acoustic difference between Curve A & Curve B into a live biquad filter.
-            </p>
+          <details className="section-disclosure space-y-2.5">
+            <summary>Listen to the difference</summary>
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5">
+                <Led color="amber" pulse size="sm" />
+                <span className="text-[10px] font-mono font-bold text-audio-accent uppercase tracking-wider">
+                  Compare two curves
+                </span>
+              </div>
+              <p className="text-[9px] font-mono text-audio-muted">
+                Choose a starting curve and a destination, then try the EQ that matches them.
+              </p>
 
-            <div className="grid grid-cols-2 gap-1.5 text-[9.5px] font-mono">
-              <div>
-                <label className="text-audio-muted/70 block mb-0.5">CURVE A:</label>
-                <select
-                  value={labState.auditionAId || ''}
-                  onChange={(e) => labStore.setAuditionPair(e.target.value, labState.auditionBId)}
-                  className="w-full bg-[#0D0907] border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
+              <div className="grid grid-cols-2 gap-1.5 text-[9.5px] font-mono">
+                <div>
+                  <label className="text-audio-muted/70 block mb-0.5">CURVE A:</label>
+                  <select
+                    value={labState.auditionAId || ''}
+                    onChange={(e) => labStore.setAuditionPair(e.target.value, labState.auditionBId)}
+                    className="w-full bg-[#161d18] border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
+                  >
+                    <option value="">Select Curve A</option>
+                    {labState.curves.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-audio-muted/70 block mb-0.5">CURVE B:</label>
+                  <select
+                    value={labState.auditionBId || ''}
+                    onChange={(e) => labStore.setAuditionPair(labState.auditionAId, e.target.value)}
+                    className="w-full bg-[#161d18] border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
+                  >
+                    <option value="">Target / Baseline</option>
+                    {labState.curves.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSynthesizeAndAuditionDelta}
+                className="w-full py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright transition-all shadow-glow-brass"
+              >
+                Generate comparison EQ
+              </button>
+
+              {auditionResult && (
+                <div className="px-2 py-1 bg-[#151c17] rounded border border-audio-signal/40 text-[9px] font-mono text-audio-signal flex items-center justify-between">
+                  <span>RMS: {auditionResult.rmsResidual} dB</span>
+                  <span>{auditionResult.filterCount} FILTERS ACTIVE</span>
+                </div>
+              )}
+
+              {/* Audition Playback Buttons */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCapturing) stopTabCapture();
+                    void audioEngine.playPinkNoise();
+                  }}
+                  className={`px-2 py-1 rounded text-[9.5px] font-mono font-semibold border ${
+                    audioEngine.isPlaying && audioEngine.activeSource === 'pink-noise'
+                      ? 'bg-audio-signal text-black font-bold'
+                      : 'bg-audio-surface border-audio-border text-audio-muted'
+                  }`}
                 >
-                  <option value="">Select Curve A</option>
-                  {labState.curves.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-audio-muted/70 block mb-0.5">CURVE B:</label>
-                <select
-                  value={labState.auditionBId || ''}
-                  onChange={(e) => labStore.setAuditionPair(labState.auditionAId, e.target.value)}
-                  className="w-full bg-[#0D0907] border border-audio-border/60 rounded px-1.5 py-1 text-audio-text focus:outline-none"
+                  ▶ Pink Noise
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCapturing) stopTabCapture();
+                    void audioEngine.playSineSweep();
+                  }}
+                  className={`px-2 py-1 rounded text-[9.5px] font-mono font-semibold border ${
+                    audioEngine.isPlaying && audioEngine.activeSource === 'sweep'
+                      ? 'bg-audio-warn text-black font-bold'
+                      : 'bg-audio-surface border-audio-border text-audio-muted'
+                  }`}
                 >
-                  <option value="">Target / Baseline</option>
-                  {labState.curves.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  ▶ Sweep
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (isCapturing ? stopTabCapture() : startTabCapture())}
+                  disabled={!tabSupported}
+                  className={`px-2 py-1 rounded text-[9.5px] font-mono font-semibold border ${
+                    isCapturing
+                      ? 'bg-audio-warn text-black font-bold'
+                      : 'bg-audio-surface border-audio-border text-audio-muted'
+                  }`}
+                >
+                  {isCapturing ? '■ Stop Tab' : '● Live Tab'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsBypassed(!isBypassed)}
+                  className={`px-2 py-1 rounded text-[9.5px] font-mono font-bold border ${
+                    isBypassed
+                      ? 'bg-audio-warn text-black'
+                      : 'bg-audio-surface border-audio-signal text-audio-signal'
+                  }`}
+                >
+                  {isBypassed ? 'BYPASS' : 'A/B ON'}
+                </button>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleSynthesizeAndAuditionDelta}
-              className="w-full py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright transition-all shadow-glow-brass"
-            >
-              Synthesize &amp; Load Delta PEQ
-            </button>
-
-            {auditionResult && (
-              <div className="px-2 py-1 bg-[#100C09] rounded border border-audio-signal/40 text-[9px] font-mono text-audio-signal flex items-center justify-between">
-                <span>RMS: {auditionResult.rmsResidual} dB</span>
-                <span>{auditionResult.filterCount} FILTERS ACTIVE</span>
-              </div>
-            )}
-
-            {/* Audition Playback Buttons */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <button
-                type="button"
-                onClick={audioEngine.playPinkNoise}
-                className={`px-2 py-1 rounded text-[9.5px] font-mono font-semibold border ${
-                  audioEngine.isPlaying && audioEngine.activeSource === 'pink-noise'
-                    ? 'bg-audio-signal text-black font-bold'
-                    : 'bg-audio-surface border-audio-border text-audio-muted'
-                }`}
-              >
-                ▶ Pink Noise
-              </button>
-              <button
-                type="button"
-                onClick={audioEngine.playSineSweep}
-                className={`px-2 py-1 rounded text-[9.5px] font-mono font-semibold border ${
-                  audioEngine.isPlaying && audioEngine.activeSource === 'sweep'
-                    ? 'bg-audio-warn text-black font-bold'
-                    : 'bg-audio-surface border-audio-border text-audio-muted'
-                }`}
-              >
-                ▶ Sweep
-              </button>
-              <button
-                type="button"
-                onClick={isCapturing ? stopTabCapture : startTabCapture}
-                disabled={!tabSupported}
-                className={`px-2 py-1 rounded text-[9.5px] font-mono font-semibold border ${
-                  isCapturing ? 'bg-audio-warn text-black font-bold' : 'bg-audio-surface border-audio-border text-audio-muted'
-                }`}
-              >
-                {isCapturing ? '■ Stop Tab' : '● Live Tab'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsBypassed(!isBypassed)}
-                className={`px-2 py-1 rounded text-[9.5px] font-mono font-bold border ${
-                  isBypassed ? 'bg-audio-warn text-black' : 'bg-audio-surface border-audio-signal text-audio-signal'
-                }`}
-              >
-                {isBypassed ? 'BYPASS' : 'A/B ON'}
-              </button>
-            </div>
-          </div>
+          </details>
         </aside>
 
         {/* CENTER & BOTTOM: SVG Canvas & Per-Curve Rows */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[#0A0705] p-3 md:p-5 gap-3">
+        <main className="flex-1 flex flex-col overflow-hidden bg-[#101512] p-3 md:p-5 gap-3">
           {/* 3. MEASUREMENT-GRADE SVG CANVAS */}
-          <div className="relative flex-1 min-h-[300px] w-full bg-[#0E0A08] rounded-2xl border border-audio-border/90 shadow-panel overflow-hidden flex flex-col justify-center">
-            {/* Subtle Watermark */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04]">
-              <span className="font-display font-black text-7xl tracking-widest text-audio-text">
-                AUDIOSAGE LAB
-              </span>
-            </div>
-
+          <div className="relative flex-1 min-h-[300px] w-full bg-[#151c17] rounded-2xl border border-audio-border/90 shadow-panel overflow-hidden flex flex-col justify-center">
             <svg
               ref={svgRef}
               viewBox={`0 0 ${viewport.width} ${viewport.height}`}
               className="w-full h-full block cursor-crosshair"
-              onMouseMove={handleMouseMove}
-              onMouseLeave={() => setHoveredPoint(null)}
+              onPointerMove={handleMouseMove}
+              onPointerDown={handleMouseMove}
+              onPointerLeave={(e) => {
+                if (e.pointerType === 'mouse') setHoveredPoint(null);
+              }}
             >
               {/* Decade Freq Grid */}
-              {CRINGRAPH_FREQ_TICKS.map(({ freq, label, major }) => {
+              {CRINGRAPH_FREQ_TICKS.filter(
+                (t) =>
+                  t.freq >= viewport.minFreq! &&
+                  t.freq <= viewport.maxFreq! &&
+                  (screenWidth >= 768 || t.major || labState.zoomRange !== 'full'),
+              ).map(({ freq, label, major }) => {
                 const x = freqToX(freq, viewport);
                 return (
                   <g key={freq}>
@@ -541,14 +639,14 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
                       y1={viewport.padding.top}
                       x2={x}
                       y2={viewport.height - viewport.padding.bottom}
-                      stroke={major ? '#2A221B' : '#18120E'}
+                      stroke={major ? '#2A221B' : '#202a23'}
                       strokeWidth={major ? 1.0 : 0.6}
                       strokeDasharray={major ? undefined : '2 2'}
                     />
                     <text
                       x={x}
                       y={viewport.height - 22}
-                      fill={major ? '#EDE6DA' : '#6A5F52'}
+                      fill={major ? '#edf0ec' : '#6A5F52'}
                       fontSize={major ? 8.5 : 7.5}
                       fontWeight={major ? 'bold' : 'normal'}
                       fontFamily="monospace"
@@ -571,14 +669,14 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
                       y1={y}
                       x2={viewport.width - viewport.padding.right}
                       y2={y}
-                      stroke={isZero ? '#4A3E33' : '#1A1410'}
+                      stroke={isZero ? '#4A3E33' : '#222b25'}
                       strokeWidth={isZero ? 1.2 : 0.6}
                       strokeDasharray={isZero ? undefined : '2 2'}
                     />
                     <text
                       x={viewport.padding.left - 6}
                       y={y + 3}
-                      fill={isZero ? '#C6934F' : '#6A5F52'}
+                      fill={isZero ? '#b4e4bd' : '#6A5F52'}
                       fontSize="8"
                       fontFamily="monospace"
                       textAnchor="end"
@@ -614,72 +712,73 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
                 })}
 
               {/* Multi-Curve Hover Tooltip */}
-              {hoveredPoint && (() => {
-                const freqLabel =
-                  hoveredPoint.freq >= 1000
-                    ? `${(hoveredPoint.freq / 1000).toFixed(1)}kHz`
-                    : `${Math.round(hoveredPoint.freq)}Hz`;
+              {hoveredPoint &&
+                (() => {
+                  const freqLabel =
+                    hoveredPoint.freq >= 1000
+                      ? `${(hoveredPoint.freq / 1000).toFixed(1)}kHz`
+                      : `${Math.round(hoveredPoint.freq)}Hz`;
 
-                const pillW = 175;
-                const pillH = 18 + hoveredPoint.values.length * 14;
-                const pillX = Math.min(
-                  hoveredPoint.x + 10,
-                  viewport.width - viewport.padding.right - pillW - 4
-                );
-                const pillY = Math.max(viewport.padding.top + 4, 32);
+                  const pillW = 175;
+                  const pillH = 18 + hoveredPoint.values.length * 14;
+                  const pillX = Math.min(
+                    hoveredPoint.x + 10,
+                    viewport.width - viewport.padding.right - pillW - 4,
+                  );
+                  const pillY = Math.max(viewport.padding.top + 4, 32);
 
-                return (
-                  <g>
-                    <line
-                      x1={hoveredPoint.x}
-                      y1={viewport.padding.top}
-                      x2={hoveredPoint.x}
-                      y2={viewport.height - viewport.padding.bottom}
-                      stroke="#EDE6DA"
-                      strokeWidth="0.8"
-                      strokeDasharray="3 3"
-                      opacity="0.45"
-                    />
+                  return (
+                    <g data-testid="graph-crosshair">
+                      <line
+                        x1={hoveredPoint.x}
+                        y1={viewport.padding.top}
+                        x2={hoveredPoint.x}
+                        y2={viewport.height - viewport.padding.bottom}
+                        stroke="#edf0ec"
+                        strokeWidth="0.8"
+                        strokeDasharray="3 3"
+                        opacity="0.45"
+                      />
 
-                    <rect
-                      x={pillX}
-                      y={pillY}
-                      width={pillW}
-                      height={pillH}
-                      rx="6"
-                      fill="#140F0C"
-                      stroke="#382D24"
-                      strokeWidth="1"
-                      filter="drop-shadow(0 4px 14px rgba(0,0,0,0.85))"
-                    />
-                    <text
-                      x={pillX + 9}
-                      y={pillY + 13}
-                      fill="#EDE6DA"
-                      fontSize="8.5"
-                      fontFamily="monospace"
-                      fontWeight="bold"
-                    >
-                      FREQ: {freqLabel}
-                    </text>
-
-                    {hoveredPoint.values.map((v, i) => (
+                      <rect
+                        x={pillX}
+                        y={pillY}
+                        width={pillW}
+                        height={pillH}
+                        rx="6"
+                        fill="#1a211c"
+                        stroke="#382D24"
+                        strokeWidth="1"
+                        filter="drop-shadow(0 4px 14px rgba(0,0,0,0.85))"
+                      />
                       <text
-                        key={i}
                         x={pillX + 9}
-                        y={pillY + 14 + (i + 1) * 14}
-                        fill={v.color}
+                        y={pillY + 13}
+                        fill="#edf0ec"
                         fontSize="8.5"
                         fontFamily="monospace"
-                        fontWeight={v.isPrimary ? 'bold' : '600'}
+                        fontWeight="bold"
                       >
-                        <tspan>{v.name.slice(0, 16)}:</tspan>{' '}
-                        <tspan fontWeight="bold">{v.db > 0 ? `+${v.db}` : v.db} dB</tspan>
+                        FREQ: {freqLabel}
                       </text>
-                    ))}
-                  </g>
-                );
-              })()}
+
+                      {hoveredPoint.values.map((v, i) => (
+                        <text
+                          key={i}
+                          x={pillX + 9}
+                          y={pillY + 14 + (i + 1) * 14}
+                          fill={v.color}
+                          fontSize="8.5"
+                          fontFamily="monospace"
+                          fontWeight={v.isPrimary ? 'bold' : '600'}
+                        >
+                          <tspan>{v.name.slice(0, 16)}:</tspan>{' '}
+                          <tspan fontWeight="bold">{v.db > 0 ? `+${v.db}` : v.db} dB</tspan>
+                        </text>
+                      ))}
+                    </g>
+                  );
+                })()}
             </svg>
           </div>
 
@@ -699,8 +798,37 @@ export const GraphLab: React.FC<GraphLabProps> = ({ onSavePreset }) => {
       </div>
 
       {/* Toast */}
+      {captureError && (
+        <div className="storage-notice" role="alert">
+          {captureError}
+        </div>
+      )}
+      {showFeedbackGuard && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-5">
+          <div
+            className="panel p-6 max-w-md space-y-4"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Capture browser audio"
+          >
+            <h2 className="text-xl">Capture browser audio</h2>
+            <p className="text-sm text-audio-muted">
+              Choose a music or video tab and enable “Share tab audio”. Select a different tab from AudioSage
+              to avoid audio feedback.
+            </p>
+            <div className="flex gap-3">
+              <button className="secondary-button" onClick={dismissFeedbackGuard}>
+                Cancel
+              </button>
+              <button className="primary-button" onClick={confirmFeedbackGuard}>
+                Choose a tab
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {toastMessage && (
-        <div className="fixed bottom-4 right-4 z-50 px-3.5 py-2 bg-[#1C1410] border border-audio-accent text-audio-text text-xs font-mono rounded-xl shadow-2xl animate-in slide-in-from-bottom-2">
+        <div className="fixed bottom-4 right-4 z-50 px-3.5 py-2 bg-[#232d25] border border-audio-accent text-audio-text text-xs font-mono rounded-xl shadow-2xl animate-in slide-in-from-bottom-2">
           {toastMessage}
         </div>
       )}

@@ -13,7 +13,7 @@ const DEFAULT_STATE: LabState = {
       color: '#6FC9A6',
       points: CRINACLE_IEF_2025_POINTS,
       provenance: 'target',
-      provenanceDetails: 'squig.link • B&K 5128 • 400 pts verbatim',
+      provenanceDetails: 'Bundled target approximation; numerical source not independently verified',
       pointsCount: 400,
       offset: 0,
       visible: true,
@@ -154,9 +154,7 @@ export const labStore = {
   toggleDeltaCompensate: (id: string) => {
     state = {
       ...state,
-      curves: state.curves.map((c) =>
-        c.id === id ? { ...c, deltaCompensate: !c.deltaCompensate } : c
-      ),
+      curves: state.curves.map((c) => (c.id === id ? { ...c, deltaCompensate: !c.deltaCompensate } : c)),
     };
     notify();
   },
@@ -164,9 +162,7 @@ export const labStore = {
   toggleInvertCurve: (id: string) => {
     state = {
       ...state,
-      curves: state.curves.map((c) =>
-        c.id === id ? { ...c, isInverted: !c.isInverted } : c
-      ),
+      curves: state.curves.map((c) => (c.id === id ? { ...c, isInverted: !c.isInverted } : c)),
     };
     notify();
   },
@@ -245,7 +241,9 @@ export const labStore = {
 
   loadState: (newState: Partial<LabState>) => {
     state = { ...state, ...newState, isOpen: true };
-    notify();
+    if (!state.curves.some((c) => c.id === state.primaryCurveId))
+      state = { ...state, primaryCurveId: state.curves.find((c) => !c.isTarget)?.id || null };
+    labStore.setTargetCurveId(state.targetCurveId);
   },
 
   resetAll: () => {

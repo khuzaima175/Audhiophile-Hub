@@ -6,6 +6,12 @@ interface EncodedCurve {
   p: string; // provenance
   pts: [number, number][]; // [freq, gain]
   off?: number; // offset
+  filter?: boolean;
+  sourceTarget?: string;
+  inverted?: boolean;
+  deltaCompensate?: boolean;
+  visible?: boolean;
+  solo?: boolean;
 }
 
 interface EncodedLabPayload {
@@ -15,6 +21,8 @@ interface EncodedLabPayload {
   targetId: string;
   delta: boolean;
   curves: EncodedCurve[];
+  view?: LabState['viewMode'];
+  smoothing?: LabState['smoothing'];
 }
 
 /**
@@ -45,10 +53,9 @@ export const encodeLabStateToUrl = (state: LabState): string => {
   const customCurves = state.curves.filter((c) => !c.isTarget);
 
   const encodedCurves: EncodedCurve[] = customCurves.map((c) => {
-    let pts = c.points.map((p) => [
-      Math.round(p.freq * 10) / 10,
-      Math.round(p.gain * 10) / 10,
-    ] as [number, number]);
+    let pts = c.points.map(
+      (p) => [Math.round(p.freq * 10) / 10, Math.round(p.gain * 10) / 10] as [number, number],
+    );
 
     // Stride downsample if points exceed 120
     if (pts.length > 120) {
@@ -61,6 +68,12 @@ export const encodeLabStateToUrl = (state: LabState): string => {
       c: c.color,
       p: c.provenance,
       off: c.offset !== 0 ? c.offset : undefined,
+      filter: c.isFilterCurve,
+      sourceTarget: c.sourceTargetId,
+      inverted: c.isInverted,
+      deltaCompensate: c.deltaCompensate,
+      visible: c.visible,
+      solo: c.solo,
       pts,
     };
   });
@@ -72,6 +85,8 @@ export const encodeLabStateToUrl = (state: LabState): string => {
     targetId: state.targetCurveId,
     delta: state.deltaMode,
     curves: encodedCurves,
+    view: state.viewMode,
+    smoothing: state.smoothing,
   };
 
   const jsonStr = JSON.stringify(payload);
@@ -92,7 +107,19 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
     const jsonStr = fromBase64Url(match[1]);
     const payload: EncodedLabPayload = JSON.parse(jsonStr);
 
-    if (!payload || payload.v !== 1) return null;
+    if (!payload || payload.v !== 1 || !Array.isArray(payload.curves)) return null;
+    if (
+      payload.curves.some(
+        (c) =>
+          typeof c.n !== 'string' ||
+          !Array.isArray(c.pts) ||
+          c.pts.length < 2 ||
+          c.pts.some(
+            (p) => !Array.isArray(p) || !Number.isFinite(p[0]) || p[0] <= 0 || !Number.isFinite(p[1]),
+          ),
+      )
+    )
+      return null;
 
     const restoredCurves: LabCurve[] = (payload.curves || []).map((ec, i) => ({
       id: `shared-curve-${i}-${Date.now()}`,
@@ -103,8 +130,12 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
       provenanceDetails: 'Imported via AudioSage Share URL',
       pointsCount: ec.pts.length,
       offset: ec.off || 0,
-      visible: true,
-      solo: false,
+      visible: ec.visible !== false,
+      solo: !!ec.solo,
+      isFilterCurve: !!ec.filter,
+      sourceTargetId: ec.sourceTarget,
+      isInverted: !!ec.inverted,
+      deltaCompensate: !!ec.deltaCompensate,
     }));
 
     return {
@@ -113,6 +144,8 @@ export const decodeUrlToLabState = (hash: string): Partial<LabState> | null => {
       zoomRange: (payload.zoom as any) || 'full',
       targetCurveId: payload.targetId || 'crinacle-ief-2025',
       deltaMode: !!payload.delta,
+      viewMode: payload.view,
+      smoothing: payload.smoothing || 'RAW',
       curves: restoredCurves,
       isOpen: true,
     };

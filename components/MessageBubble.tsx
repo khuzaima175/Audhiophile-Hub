@@ -63,7 +63,24 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       try {
         const parsed = JSON.parse(match[1]);
         if (parsed && Array.isArray(parsed.curves) && parsed.curves.length > 0) {
-          return parsed as { title?: string; curves: { name: string; color: string; points: { freq: number; gain: number }[] }[] };
+          parsed.curves = parsed.curves
+            .filter(
+              (c: any) =>
+                typeof c.name === 'string' &&
+                Array.isArray(c.points) &&
+                c.points.length >= 2 &&
+                c.points.every((p: any) => Number.isFinite(p.freq) && p.freq > 0 && Number.isFinite(p.gain)),
+            )
+            .map((c: any) => ({
+              ...c,
+              color: /^#[a-f0-9]{6}$/i.test(c.color) ? c.color : '#83bfa5',
+              points: [...c.points].sort((a: any, b: any) => a.freq - b.freq),
+            }));
+          if (!parsed.curves.length) return null;
+          return parsed as {
+            title?: string;
+            curves: { name: string; color: string; points: { freq: number; gain: number }[] }[];
+          };
         }
       } catch (e) {
         console.warn('Failed to parse fr_data JSON block:', e);
@@ -79,12 +96,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   }, [rawText]);
 
   // Check if message has frequency response data or comparison shootout
-  const hasFrequencyData =
-    !isUser &&
-    !message.isThinking &&
-    (parsedFrData !== null ||
-      rawText.includes('GraphicEQ:') ||
-      rawText.includes('Auto-EQ'));
+  const hasFrequencyData = !isUser && !message.isThinking && parsedFrData !== null;
 
   // Check if message is an error response
   const isErrorMessage =
@@ -96,13 +108,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       rawText.startsWith('Connection Error:'));
 
   if (isErrorMessage) {
-    return (
-      <ErrorCard
-        errorText={rawText}
-        onRetry={onRetry}
-        onOpenSettings={onOpenSettings}
-      />
-    );
+    return <ErrorCard errorText={rawText} onRetry={onRetry} onOpenSettings={onOpenSettings} />;
   }
 
   const formatBold = (text?: string): React.ReactNode => {
@@ -176,7 +182,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       r
         .split('|')
         .map((c) => c.trim())
-        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1),
     );
 
     const firstHeaderLower = (allHeaders[0] || '').toLowerCase();
@@ -202,13 +208,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     return (
       <div key={key} className="my-4 w-full max-w-full">
         <div className="flex items-center gap-2 mb-1.5 text-audio-accent">
-          <span className="text-[9px] font-mono uppercase tracking-widest font-bold">
-            Spec Sheet Matrix
-          </span>
+          <span className="text-[9px] font-mono uppercase tracking-widest font-bold">Spec Sheet Matrix</span>
           <span className="flex-1 h-px bg-audio-border" />
         </div>
         <div
-          className="w-full overflow-x-auto rounded-xl border border-audio-border shadow-panel bg-[#140F0C] scrollbar-thin"
+          className="w-full overflow-x-auto rounded-xl border border-audio-border shadow-panel bg-[#1a211c] scrollbar-thin"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}
         >
           <table
@@ -229,7 +233,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {headers.map((h, i) => (
                   <th
                     key={i}
-                    className="bg-[#1A1410] text-audio-accent font-semibold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3.5 py-2.5 text-[11px] font-mono"
+                    className="bg-[#222b25] text-audio-accent font-semibold uppercase tracking-wider text-left border-b-2 border-audio-accent px-3.5 py-2.5 text-[11px] font-mono"
                     style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                   >
                     {h || `Product ${i + 1}`}
@@ -244,7 +248,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <tr>
                       <td
                         colSpan={colCount}
-                        className="px-3.5 pt-2.5 pb-0.5 text-[9.5px] font-bold uppercase tracking-widest text-audio-accent/90 border-t border-audio-border/60 font-mono bg-[#110D0A]"
+                        className="px-3.5 pt-2.5 pb-0.5 text-[9.5px] font-bold uppercase tracking-widest text-audio-accent/90 border-t border-audio-border/60 font-mono bg-[#151a17]"
                         style={{ letterSpacing: '0.12em' }}
                       >
                         {rowLabels[rI]}
@@ -333,7 +337,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         nodes.push(
           <div key={`${blockIdx}-line-${i}`} className="min-h-[1.5rem] mb-1 break-words">
             {formatInlineMarkdown(line)}
-          </div>
+          </div>,
         );
       }
 
@@ -356,11 +360,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         <div className="w-full max-w-[90%] sm:max-w-[80%] ml-auto rounded-2xl rounded-br-sm p-4 bg-[#1F1813] border border-audio-border text-audio-text shadow-md">
           {message.image && (
             <div className="mb-3 rounded-xl overflow-hidden border border-audio-accent/50 shadow-lg max-w-sm bg-black">
-              <img
-                src={message.image}
-                alt="User upload"
-                className="w-full h-auto object-cover max-h-56"
-              />
+              <img src={message.image} alt="User upload" className="w-full h-auto object-cover max-h-56" />
             </div>
           )}
           {message.audio && (
@@ -377,9 +377,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
           )}
           <div className="leading-relaxed text-[14px] md:text-[15px] font-normal tracking-wide break-words w-full min-w-0 text-audio-text">
-            {renderContent(
-              rawText || (message.audio && !rawText ? '*Voice Query Transmitted*' : '')
-            )}
+            {renderContent(rawText || (message.audio && !rawText ? '*Voice question*' : ''))}
           </div>
           <div className="text-right mt-2 text-[9px] font-mono text-audio-muted/70">
             {formatTimestamp(message.timestamp)}
@@ -392,7 +390,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   // ASSISTANT MESSAGE
   return (
     <div className="flex w-full max-w-full mb-6 justify-start">
-      <div className="w-full max-w-7xl panel border-l-4 border-l-audio-accent bg-[#15100D] p-4 md:p-6 rounded-2xl shadow-panel">
+      <div className="assistant-response w-full max-w-7xl panel p-4 md:p-6 rounded-2xl shadow-panel">
         {/* HEADER ROW */}
         <div className="flex items-center justify-between pb-3 mb-3 border-b border-audio-border/60">
           <div className="flex items-center gap-2.5">
@@ -400,40 +398,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <WaveformIcon />
             </div>
             <div className="flex items-center gap-2 text-[10px] font-mono text-audio-muted">
-              <span className="text-audio-accent font-bold tracking-wider uppercase">
-                {activeModel}
-              </span>
-              <span>•</span>
-              <span>{formatTimestamp(message.timestamp)}</span>
-              <span>•</span>
-              <span className="text-audio-signal">
-                {Math.max(1, Math.round((rawText.length || 0) / 3.8))} tok
-              </span>
+              <span className="text-audio-accent font-bold tracking-wider uppercase">{activeModel}</span>
+              <span className="text-audio-muted">· {formatTimestamp(message.timestamp)}</span>
             </div>
           </div>
 
-          {/* STREAMING SIGNAL-CHAIN TIMELINE CHIPS */}
-          {message.isThinking ? (
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-audio-surface border border-audio-signal/40 text-[9px] font-mono text-audio-signal">
-                <Led color="teal" size="sm" />
-                <span>SEARCH ✓</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-audio-surface border border-audio-accent/40 text-[9px] font-mono text-audio-accent">
-                <Led color="brass" pulse size="sm" />
-                <span>RAG …</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-audio-surface border border-audio-border text-[9px] font-mono text-audio-muted">
-                <span className="w-1.5 h-1.5 rounded-full bg-audio-muted/40" />
-                <span>VERIFY</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 text-[9px] font-mono text-audio-signal bg-[#111A15] px-2 py-0.5 rounded border border-audio-signal/30">
-              <Led color="green" size="sm" />
-              <span>SIGNAL VERIFIED</span>
-            </div>
-          )}
+          <span className="text-[11px] text-audio-muted">
+            {message.isThinking
+              ? 'Researching…'
+              : message.groundingSources?.length
+                ? 'Sources included'
+                : 'AI response'}
+          </span>
         </div>
 
         {/* BODY CONTENT */}
@@ -448,7 +424,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 <span />
               </span>
               <Engraved size="sm" glow>
-                ANALYZING ACOUSTIC SIGNAL &amp; SYNTHESIZING RESPONSE…
+                Looking into your question…
               </Engraved>
             </div>
           ) : (
@@ -459,7 +435,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <FRGraph
                     title={parsedFrData?.title}
                     curves={parsedFrData?.curves}
-                    sibilanceAlert={rawText.toLowerCase().includes('8khz') || rawText.toLowerCase().includes('sibilan')}
+                    sibilanceAlert={
+                      rawText.toLowerCase().includes('8khz') || rawText.toLowerCase().includes('sibilan')
+                    }
                   />
                 </div>
               )}
@@ -502,7 +480,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <button
                 onClick={() =>
                   onVerify(
-                    'Verify the acoustic specifications, driver configurations, and pricing for the gear discussed above against trusted measurement sources (Crinacle, Rtings, AudioScienceReview).'
+                    'Verify the acoustic specifications, driver configurations, and pricing for the gear discussed above against trusted measurement sources (Crinacle, Rtings, AudioScienceReview).',
                   )
                 }
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-audio-surface border border-audio-border rounded-lg text-xs font-mono text-audio-muted hover:text-audio-signal hover:border-audio-signal/60 transition-colors select-none"
@@ -516,7 +494,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <button
                 onClick={() =>
                   onVerify(
-                    'Provide deeper technical measurements (Impulse Response, THD harmonic distortion, Group Delay, and Soundstage 3D imaging specifics) for this setup.'
+                    'Provide deeper technical measurements (Impulse Response, THD harmonic distortion, Group Delay, and Soundstage 3D imaging specifics) for this setup.',
                   )
                 }
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-audio-surface border border-audio-border rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text hover:border-audio-muted transition-colors select-none"

@@ -42,7 +42,7 @@ export const Fader: React.FC<FaderProps> = ({
           </div>
 
           {/* Fader Slot (Brushed sunken rail) */}
-          <div className="w-1.5 h-full rounded-full bg-[#0B0908] border border-[#332B23] shadow-inner relative mx-auto">
+          <div className="w-1.5 h-full rounded-full bg-[#151c17] border border-[#303833] shadow-inner relative mx-auto">
             {/* Center Zero line mark */}
             <div className="absolute top-1/2 left-[-4px] right-[-4px] h-[1px] bg-audio-accent/50" />
           </div>
@@ -94,7 +94,7 @@ export const Fader: React.FC<FaderProps> = ({
 
       <div className="relative py-2 flex items-center">
         {/* Fader Slot (Sunken track) */}
-        <div className="w-full h-2 rounded-full bg-[#0B0908] border border-[#332B23] shadow-inner relative">
+        <div className="w-full h-2 rounded-full bg-[#151c17] border border-[#303833] shadow-inner relative">
           {/* Active fill up to thumb */}
           <div
             className="h-full bg-gradient-to-r from-audio-accent/40 to-audio-accent rounded-full opacity-60"

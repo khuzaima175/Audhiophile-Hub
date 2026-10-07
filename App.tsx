@@ -1,21 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Sidebar from './components/Sidebar';
+import Sidebar, { WorkspacePage } from './components/Sidebar';
 import Header from './components/Header';
 import HomeConsole from './components/HomeConsole';
 import InputConsole from './components/InputConsole';
 import MessageBubble from './components/MessageBubble';
-import SettingsModal from './components/SettingsModal';
 import CommandPalette from './components/CommandPalette';
-import GraphLab from './components/GraphLab';
-import { labStore } from './store/labStore';
+import { labStore, useLabStore } from './store/labStore';
 import { decodeUrlToLabState } from './utils/shareCodec';
-import { ChatSession, Message, AudioProfile, DEFAULT_PROFILE, GroundingSource, KnowledgeEntry } from './types';
+import { validateProfile, validateChats, validateKnowledge } from './utils/dataValidation';
+import {
+  ChatSession,
+  Message,
+  AudioProfile,
+  DEFAULT_PROFILE,
+  GroundingSource,
+  KnowledgeEntry,
+} from './types';
 import { generateStreamResponse, generateSessionSummary } from './services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY_CHATS = 'audiosage_chats_v1';
 const STORAGE_KEY_PROFILE = 'audiosage_profile_v1';
 const STORAGE_KEY_KNOWLEDGE = 'audiosage_knowledge_v1';
+const SettingsModal = React.lazy(() => import('./components/SettingsModal'));
+const GraphLab = React.lazy(() => import('./components/GraphLab'));
 
 const App: React.FC = () => {
   // State
@@ -27,19 +35,47 @@ const App: React.FC = () => {
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntry[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'eq' | 'gear' | 'memory' | 'knowledge'>('profile');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'eq' | 'gear' | 'memory' | 'knowledge'>(
+    'profile',
+  );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [activePage, setActivePage] = useState<WorkspacePage>('home');
+  const [storageReady, setStorageReady] = useState(false);
+  const [storageError, setStorageError] = useState('');
+  const graphState = useLabStore();
 
   // Global ⌘K / Ctrl+K listener
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        if (labStore.getSnapshot().isOpen) return;
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
       }
+      if (e.key === 'Escape') {
+        setIsMobileSidebarOpen(false);
+        document
+          .querySelectorAll(
+            '.session-menu[open], .composer-more[open], .curve-options[open], .lab-advanced[open]',
+          )
+          .forEach((element) => element.removeAttribute('open'));
+      }
+    };
+    const closeMenus = (event: MouseEvent) => {
+      document
+        .querySelectorAll(
+          '.session-menu[open], .composer-more[open], .curve-options[open], .lab-advanced[open]',
+        )
+        .forEach((element) => {
+          if (!element.contains(event.target as Node)) element.removeAttribute('open');
+        });
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('click', closeMenus);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('click', closeMenus);
+    };
   }, []);
 
   // Analysis & Model State
@@ -53,6 +89,19 @@ const App: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingRecorderRef = useRef<MediaRecorder | null>(null);
+  useEffect(
+    () => () => {
+      const recorder = recordingRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.onstop = null;
+        recorder.stop();
+      }
+      recordingStreamRef.current?.getTracks().forEach((t) => t.stop());
+    },
+    [],
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -60,26 +109,39 @@ const App: React.FC = () => {
 
   // Load data on mount
   useEffect(() => {
-    const storedChats = localStorage.getItem(STORAGE_KEY_CHATS);
-    const storedProfile = localStorage.getItem(STORAGE_KEY_PROFILE);
-    const storedKnowledge = localStorage.getItem(STORAGE_KEY_KNOWLEDGE);
-
-    if (storedChats) {
-      setSessions(JSON.parse(storedChats));
-    }
-    if (storedProfile) {
-      const parsed = JSON.parse(storedProfile);
-      if (parsed.savedMemories?.length === 0 && parsed.name === 'Audiophile') {
-        setProfile(DEFAULT_PROFILE);
-      } else {
-        setProfile({ ...DEFAULT_PROFILE, ...parsed });
-      }
-    } else {
-      setProfile(DEFAULT_PROFILE);
-    }
-
-    if (storedKnowledge) {
-      setKnowledgeBase(JSON.parse(storedKnowledge));
+    try {
+      const storedChats = localStorage.getItem(STORAGE_KEY_CHATS);
+      const storedProfile = localStorage.getItem(STORAGE_KEY_PROFILE);
+      const storedKnowledge = localStorage.getItem(STORAGE_KEY_KNOWLEDGE);
+      const chats = storedChats ? JSON.parse(storedChats) : [];
+      const parsed = storedProfile ? JSON.parse(storedProfile) : DEFAULT_PROFILE;
+      const notes = storedKnowledge ? JSON.parse(storedKnowledge) : [];
+      if (!validateProfile(parsed) || !validateChats(chats) || !validateKnowledge(notes))
+        throw new Error('Invalid saved data structure');
+      if (
+        !Array.isArray(chats) ||
+        !chats.every(
+          (s) => typeof s.id === 'string' && typeof s.title === 'string' && Array.isArray(s.messages),
+        ) ||
+        !parsed ||
+        typeof parsed !== 'object' ||
+        !Array.isArray(notes)
+      )
+        throw new Error('Invalid saved data');
+      setSessions(chats);
+      setProfile({
+        ...DEFAULT_PROFILE,
+        ...parsed,
+        savedMemories: Array.isArray(parsed.savedMemories) ? parsed.savedMemories : [],
+        eqLibrary: Array.isArray(parsed.eqLibrary) ? parsed.eqLibrary : [],
+        gearLibrary: Array.isArray(parsed.gearLibrary) ? parsed.gearLibrary : [],
+      });
+      setKnowledgeBase(notes);
+      setStorageReady(true);
+    } catch {
+      setStorageError(
+        'Some saved data could not be loaded. Your original data is preserved. Restore a valid JSON backup in Settings & data.',
+      );
     }
 
     // Auto-hydrate shared Graph Lab URLs (e.g. #/lab?c=...)
@@ -92,6 +154,8 @@ const App: React.FC = () => {
         } else {
           labStore.setIsOpen(true);
         }
+      } else {
+        labStore.setIsOpen(false);
       }
     };
 
@@ -102,19 +166,35 @@ const App: React.FC = () => {
 
   // Persist data
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_CHATS, JSON.stringify(sessions));
-  }, [sessions]);
+    if (storageReady)
+      try {
+        localStorage.setItem(STORAGE_KEY_CHATS, JSON.stringify(sessions));
+      } catch {
+        setStorageError('Browser storage is full or unavailable. Export a backup from Settings & data.');
+      }
+  }, [sessions, storageReady]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
-  }, [profile]);
+    if (storageReady)
+      try {
+        localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+      } catch {
+        setStorageError('Browser storage is full or unavailable. Export a backup from Settings & data.');
+      }
+  }, [profile, storageReady]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_KNOWLEDGE, JSON.stringify(knowledgeBase));
-  }, [knowledgeBase]);
+    if (storageReady)
+      try {
+        localStorage.setItem(STORAGE_KEY_KNOWLEDGE, JSON.stringify(knowledgeBase));
+      } catch {
+        setStorageError('Browser storage is full or unavailable. Export a backup from Settings & data.');
+      }
+  }, [knowledgeBase, storageReady]);
 
   // Scroll logic
   const scrollToBottom = (force = false) => {
+    if (activePage !== 'research') return;
     const container = scrollContainerRef.current;
     if (!container) return;
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
@@ -135,8 +215,12 @@ const App: React.FC = () => {
   }, [sessions, currentSessionId]);
 
   useEffect(() => {
-    scrollToBottom(true);
-  }, [currentSessionId]);
+    if (activePage === 'research') scrollToBottom(true);
+  }, [currentSessionId, activePage]);
+
+  useEffect(() => {
+    if (activePage !== 'research' && scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+  }, [activePage]);
 
   // Knowledge Base Actions
   const handleSummarizeHistory = async () => {
@@ -187,19 +271,17 @@ const App: React.FC = () => {
   };
 
   const starSession = (id: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isStarred: !s.isStarred } : s))
-    );
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, isStarred: !s.isStarred } : s)));
   };
 
   const renameSession = (id: string, newTitle: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, title: newTitle } : s))
-    );
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, title: newTitle } : s)));
   };
 
   const handleSelectSession = (id: string) => {
     setCurrentSessionId(id);
+    setActivePage('research');
+    setIsSettingsOpen(false);
     setIsMobileSidebarOpen(false);
   };
 
@@ -225,24 +307,43 @@ const App: React.FC = () => {
   };
 
   const handleAutoEQFromGraph = () => {
+    setActivePage('research');
+    setIsSettingsOpen(false);
     fileInputRef.current?.click();
     setInput('Generate Auto-EQ settings from this frequency response graph. Target Crinacle IEF 2025.');
   };
 
   const openKnowledgeBase = (tab: 'profile' | 'eq' | 'gear' | 'memory' | 'knowledge' = 'profile') => {
     setSettingsTab(tab);
+    setActivePage(tab);
     setIsSettingsOpen(true);
+  };
+
+  const navigate = (page: WorkspacePage) => {
+    setActivePage(page);
+    setIsMobileSidebarOpen(false);
+    if (page === 'home' || page === 'research') setIsSettingsOpen(false);
+    else openKnowledgeBase(page);
+  };
+
+  const restoreBackup = (data: {
+    profile?: AudioProfile;
+    chats?: ChatSession[];
+    knowledgeBase?: KnowledgeEntry[];
+  }) => {
+    if (data.profile) setProfile(data.profile);
+    if (data.chats) {
+      setSessions(data.chats);
+      setCurrentSessionId(null);
+    }
+    if (data.knowledgeBase) setKnowledgeBase(data.knowledgeBase);
+    setStorageError('');
+    setStorageReady(true);
   };
 
   // Recording Logic
   const getSupportedMimeType = () => {
-    const types = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/mp4',
-      'audio/ogg;codecs=opus',
-      'audio/aac',
-    ];
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/aac'];
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) return type;
     }
@@ -256,10 +357,12 @@ const App: React.FC = () => {
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
       const mimeType = getSupportedMimeType();
 
       const options = mimeType ? { mimeType } : undefined;
       const recorder = new MediaRecorder(stream, options);
+      recordingRecorderRef.current = recorder;
       audioChunks.current = [];
 
       recorder.ondataavailable = (event) => {
@@ -284,6 +387,7 @@ const App: React.FC = () => {
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (err: any) {
+      recordingStreamRef.current?.getTracks().forEach((t) => t.stop());
       console.error('Error accessing microphone:', err);
       let message = 'Could not access microphone. Please check permissions.';
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -310,6 +414,11 @@ const App: React.FC = () => {
     const audioToSend = audioOverride;
 
     if ((!textToSend.trim() && !attachedImage && !audioToSend) || isGenerating) return;
+    if (!hasApiKey) {
+      openKnowledgeBase('memory');
+      return;
+    }
+    setActivePage('research');
 
     let activeSessionId = currentSessionId;
     if (!activeSessionId) {
@@ -350,7 +459,7 @@ const App: React.FC = () => {
           };
         }
         return s;
-      })
+      }),
     );
 
     const imageToSend = attachedImage;
@@ -375,7 +484,7 @@ const App: React.FC = () => {
           return { ...s, messages: [...s.messages, placeholderBotMessage] };
         }
         return s;
-      })
+      }),
     );
 
     try {
@@ -413,12 +522,12 @@ const App: React.FC = () => {
             prev.map((s) => {
               if (s.id === activeSessionId) {
                 const updatedMessages = s.messages.map((m) =>
-                  m.id === botMessageId ? { ...m, text: streamText, isThinking: false } : m
+                  m.id === botMessageId ? { ...m, text: streamText, isThinking: false } : m,
                 );
                 return { ...s, messages: updatedMessages };
               }
               return s;
-            })
+            }),
           );
         },
         (sources) => {
@@ -427,7 +536,7 @@ const App: React.FC = () => {
         (model) => {
           setActiveModel(model);
         },
-        activeModel
+        activeModel,
       );
 
       if (collectedSources.length > 0) {
@@ -435,12 +544,12 @@ const App: React.FC = () => {
           prev.map((s) => {
             if (s.id === activeSessionId) {
               const updatedMessages = s.messages.map((m) =>
-                m.id === botMessageId ? { ...m, groundingSources: collectedSources } : m
+                m.id === botMessageId ? { ...m, groundingSources: collectedSources } : m,
               );
               return { ...s, messages: updatedMessages };
             }
             return s;
-          })
+          }),
         );
       }
     } catch (error: any) {
@@ -457,12 +566,12 @@ const App: React.FC = () => {
                     text: `**Connection Error**: ${errorMessage}\n\nPlease check your API Key and ensure it is valid for Gemini models.`,
                     isThinking: false,
                   }
-                : m
+                : m,
             );
             return { ...s, messages: updatedMessages };
           }
           return s;
-        })
+        }),
       );
     } finally {
       setIsGenerating(false);
@@ -475,19 +584,28 @@ const App: React.FC = () => {
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   const activeMessages = currentSession?.messages || [];
-  const hasApiKey = Boolean(process.env.GEMINI_API_KEY || (typeof window !== 'undefined' && localStorage.getItem('audiosage_api_key')));
+  const hasApiKey = Boolean(
+    process.env.GEMINI_API_KEY ||
+    import.meta.env.VITE_GEMINI_API_KEY ||
+    (typeof window !== 'undefined' && localStorage.getItem('audiosage_api_key')),
+  );
 
   return (
-    <div className="flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">
+    <div className="app-shell flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">
       {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden md:block" inert={graphState.isOpen || isCommandPaletteOpen}>
         <Sidebar
           sessions={sessions}
           currentSessionId={currentSessionId}
           profile={profile}
           activeModel={activeModel}
           onSelectSession={handleSelectSession}
-          onNewChat={createNewSession}
+          onNewChat={() => {
+            createNewSession();
+            navigate('research');
+          }}
+          activePage={activePage}
+          onNavigate={navigate}
           onDeleteSession={deleteSession}
           onStarSession={starSession}
           onRenameSession={renameSession}
@@ -511,8 +629,11 @@ const App: React.FC = () => {
               onSelectSession={handleSelectSession}
               onNewChat={() => {
                 createNewSession();
+                navigate('research');
                 setIsMobileSidebarOpen(false);
               }}
+              activePage={activePage}
+              onNavigate={navigate}
               onDeleteSession={deleteSession}
               onStarSession={starSession}
               onRenameSession={renameSession}
@@ -526,12 +647,27 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col h-full relative min-w-0 overflow-hidden">
+      <div
+        className="flex-1 flex flex-col h-full relative min-w-0 overflow-hidden"
+        inert={graphState.isOpen || isCommandPaletteOpen || isMobileSidebarOpen}
+      >
         {/* Header — hardware readout strip */}
         <Header
           activeModel={activeModel}
           onSelectModel={setActiveModel}
-          onOpenKnowledgeBase={() => openKnowledgeBase('profile')}
+          onOpenKnowledgeBase={() => openKnowledgeBase('memory')}
+          pageTitle={
+            {
+              home: 'Overview',
+              research: 'Research',
+              eq: 'Equalizer',
+              gear: 'My gear',
+              profile: 'Listening profile',
+              memory: 'Settings & data',
+              knowledge: 'Research notes',
+            }[activePage]
+          }
+          hasApiKey={hasApiKey}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           currentSessionTitle={currentSession?.title}
@@ -540,30 +676,78 @@ const App: React.FC = () => {
           isStreaming={isGenerating}
         />
 
+        {storageError && (
+          <div className="storage-notice" role="alert">
+            {storageError}
+          </div>
+        )}
         {/* Main View Area */}
         <div
           ref={scrollContainerRef}
           onScroll={handleMessagesScroll}
-          className="messages-container flex-1 overflow-y-auto p-3 md:p-6 pb-16 md:pb-20 space-y-4 scroll-smooth bg-audio-base w-full min-w-0"
+          className={`messages-container flex-1 overflow-y-auto bg-audio-base w-full min-w-0 ${activePage === 'research' ? 'research-content' : ''}`}
           style={{
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain',
             contain: 'inline-size',
           }}
         >
-          {activeMessages.length === 0 ? (
+          {isSettingsOpen ? (
+            <React.Suspense
+              fallback={<div className="workspace-page text-audio-muted">Opening workspace…</div>}
+            >
+              <SettingsModal
+                embedded
+                isOpen={true}
+                onClose={() => navigate('home')}
+                profile={profile}
+                knowledgeBase={knowledgeBase}
+                onSave={setProfile}
+                onRestore={restoreBackup}
+                onSummarizeHistory={handleSummarizeHistory}
+                isSummarizing={isSummarizing}
+                initialTab={settingsTab}
+              />
+            </React.Suspense>
+          ) : activePage === 'home' ? (
             /* Home Console Hardware Rack (replaces empty void) */
             <HomeConsole
               profile={profile}
               sessions={sessions}
               hasApiKey={hasApiKey}
               onSelectPrompt={(promptText) => {
+                navigate('research');
                 setInput(promptText);
-                handleSendMessage(promptText);
               }}
+              onSelectSession={handleSelectSession}
               onAutoEQClick={handleAutoEQFromGraph}
               onOpenKnowledgeBase={openKnowledgeBase}
             />
+          ) : activeMessages.length === 0 ? (
+            <div className="research-welcome">
+              <span className="research-emblem">✦</span>
+              <p className="eyebrow">Your personal audio assistant</p>
+              <h1>What sounds good to you?</h1>
+              <p>Ask a question. Compare your options. Find a sound you'll love.</p>
+              <div className="research-suggestions">
+                {[
+                  'Help me choose an IEM for my budget',
+                  'Compare two headphones',
+                  'How can I reduce harsh treble?',
+                  'Explain soundstage and imaging',
+                ].map((prompt) => (
+                  <button key={prompt} onClick={() => setInput(prompt)}>
+                    {prompt}
+                    <span>↗</span>
+                  </button>
+                ))}
+              </div>
+              {!hasApiKey && (
+                <button className="text-button" onClick={() => openKnowledgeBase('memory')}>
+                  Connect your AI assistant to get started →
+                </button>
+              )}
+            </div>
           ) : (
             /* Message Stream */
             activeMessages.map((msg) => (
@@ -584,21 +768,23 @@ const App: React.FC = () => {
         </div>
 
         {/* Input Console */}
-        <InputConsole
-          input={input}
-          isGenerating={isGenerating}
-          isRecording={isRecording}
-          isAdvancedAnalysis={isAdvancedAnalysis}
-          attachedImage={attachedImage}
-          onInputChange={setInput}
-          onSend={handleSendMessage}
-          onToggleAdvanced={() => setIsAdvancedAnalysis(!isAdvancedAnalysis)}
-          onAutoEQClick={handleAutoEQFromGraph}
-          onImageUpload={handleImageUpload}
-          onRemoveImage={() => setAttachedImage(undefined)}
-          onStartRecording={startRecording}
-          onStopRecording={stopRecording}
-        />
+        {activePage === 'research' && (
+          <InputConsole
+            input={input}
+            isGenerating={isGenerating}
+            isRecording={isRecording}
+            isAdvancedAnalysis={isAdvancedAnalysis}
+            attachedImage={attachedImage}
+            onInputChange={setInput}
+            onSend={handleSendMessage}
+            onToggleAdvanced={() => setIsAdvancedAnalysis(!isAdvancedAnalysis)}
+            onAutoEQClick={handleAutoEQFromGraph}
+            onImageUpload={handleImageUpload}
+            onRemoveImage={() => setAttachedImage(undefined)}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+          />
+        )}
       </div>
 
       {/* Hidden File Input */}
@@ -619,6 +805,7 @@ const App: React.FC = () => {
         onSelectSession={handleSelectSession}
         onNewChat={() => {
           createNewSession();
+          navigate('research');
           setIsCommandPaletteOpen(false);
         }}
         onOpenKnowledgeBase={(tab) => {
@@ -630,24 +817,24 @@ const App: React.FC = () => {
       />
 
       {/* Settings / Knowledge Base Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        profile={profile}
-        knowledgeBase={knowledgeBase}
-        onSave={setProfile}
-        onSummarizeHistory={handleSummarizeHistory}
-        isSummarizing={isSummarizing}
-        initialTab={settingsTab}
-      />
 
       {/* Full-Screen Graph Lab Modal / Route */}
-      <GraphLab
-        onSavePreset={(newPreset) => {
-          const updatedEqLib = [...(profile.eqLibrary || []), newPreset];
-          setProfile((prev) => ({ ...prev, eqLibrary: updatedEqLib }));
-        }}
-      />
+      {graphState.isOpen && (
+        <React.Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 bg-audio-base grid place-items-center text-audio-muted">
+              Opening graph lab…
+            </div>
+          }
+        >
+          <GraphLab
+            onSavePreset={(newPreset) => {
+              const updatedEqLib = [...(profile.eqLibrary || []), newPreset];
+              setProfile((prev) => ({ ...prev, eqLibrary: updatedEqLib }));
+            }}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 };

@@ -15,18 +15,18 @@ export const Engraved: React.FC<EngravedProps> = ({
   ...props
 }) => {
   const sizeClasses = {
-    xs: 'text-[9px] tracking-[0.14em]',
-    sm: 'text-[10px] tracking-[0.18em]',
-    md: 'text-[11px] tracking-[0.20em]',
+    xs: 'text-[11px]',
+    sm: 'text-xs',
+    md: 'text-sm',
   }[size];
 
   return (
     <span
-      className={`font-mono uppercase select-none text-[#9C8F7D] ${sizeClasses} ${
-        glow ? 'text-audio-accent text-shadow-[0_0_8px_rgba(198,147,79,0.4)]' : ''
+      className={`engraved font-sans select-none text-audio-muted ${sizeClasses} ${
+        glow ? 'text-audio-accent' : ''
       } ${className}`}
       style={{
-        textShadow: glow ? '0 0 8px rgba(198,147,79,0.4)' : '0 1px 0 rgba(0,0,0,0.8)',
+        textShadow: 'none',
       }}
       {...props}
     >

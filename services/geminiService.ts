@@ -1,25 +1,23 @@
-import { GoogleGenAI, Content, Part, Tool } from "@google/genai";
-import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from "../types";
+import { GoogleGenAI, Content, Part, Tool } from '@google/genai';
+import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 // Model fallback configuration — gemini-3.6-flash is the primary API identifier
-const MODELS = [
-  'gemini-3.6-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash'
-] as const;
+const MODELS = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-3.5-flash-lite'] as const;
 
-type ModelName = typeof MODELS[number];
+type ModelName = (typeof MODELS)[number];
 
 const createClient = () => {
   const localKey = typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key') : null;
-  const envKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const envKey =
+    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
+    (import.meta as any).env?.VITE_GEMINI_API_KEY;
   const apiKey = localKey || envKey;
 
   if (!apiKey) {
     throw new Error(
-      "API Key is missing. Please add GEMINI_API_KEY in Settings or .env.local file.\n" +
-      "Get your free key from: https://aistudio.google.com/app/apikey"
+      'API Key is missing. Please add GEMINI_API_KEY in Settings or .env.local file.\n' +
+        'Get your free key from: https://aistudio.google.com/app/apikey',
     );
   }
   return new GoogleGenAI({ apiKey });
@@ -81,17 +79,24 @@ Frequency,Target_dB
 
 // Helper: Naive RAG to find relevant history from raw sessions
 const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: string): string => {
-  if (!allSessions || !allSessions.length || !currentPrompt) return "";
+  if (!allSessions || !allSessions.length || !currentPrompt) return '';
 
-  const keywords = currentPrompt.toLowerCase().split(' ').filter(w => w.length > 3);
-  if (keywords.length === 0) return "";
+  const keywords = currentPrompt
+    .toLowerCase()
+    .split(' ')
+    .filter((w) => w.length > 3);
+  if (keywords.length === 0) return '';
 
   // Score sessions based on keyword matches
-  const scoredSessions = allSessions.map(session => {
+  const scoredSessions = allSessions.map((session) => {
     let score = 0;
-    const sessionText = (session.title + " " + session.messages.map(m => m.text || "").join(" ")).toLowerCase();
+    const sessionText = (
+      session.title +
+      ' ' +
+      session.messages.map((m) => m.text || '').join(' ')
+    ).toLowerCase();
 
-    keywords.forEach(kw => {
+    keywords.forEach((kw) => {
       if (sessionText.includes(kw)) score++;
     });
 
@@ -99,18 +104,21 @@ const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: st
   });
 
   const relevantSessions = scoredSessions
-    .filter(s => s.score > 0)
+    .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
-    .map(s => s.session);
+    .map((s) => s.session);
 
-  if (relevantSessions.length === 0) return "";
+  if (relevantSessions.length === 0) return '';
 
-  let contextString = "\nRELEVANT PAST CONVERSATIONS (Use these to maintain continuity):\n";
+  let contextString = '\nRELEVANT PAST CONVERSATIONS (Use these to maintain continuity):\n';
   relevantSessions.forEach((session) => {
     const summary = session.messages
       .slice(-4)
-      .map(m => `${m.role.toUpperCase()}: ${(m.text || (m.audio ? '[Voice transmission]' : '[Image analysis]')).substring(0, 300)}...`)
+      .map(
+        (m) =>
+          `${m.role.toUpperCase()}: ${(m.text || (m.audio ? '[Voice transmission]' : '[Image analysis]')).substring(0, 300)}...`,
+      )
       .join('\n');
     contextString += `\n[Session: ${session.title || 'Audio Research'}]\n${summary}\n`;
   });
@@ -120,26 +128,29 @@ const getRelevantHistoryContext = (allSessions: ChatSession[], currentPrompt: st
 
 // Helper: RAG for Knowledge Base (Summarized Facts)
 const getKnowledgeBaseContext = (knowledgeBase: KnowledgeEntry[], currentPrompt: string): string => {
-  if (!knowledgeBase || knowledgeBase.length === 0 || !currentPrompt) return "";
+  if (!knowledgeBase || knowledgeBase.length === 0 || !currentPrompt) return '';
 
-  const keywords = currentPrompt.toLowerCase().split(' ').filter(w => w.length > 3);
-  if (keywords.length === 0) return "";
+  const keywords = currentPrompt
+    .toLowerCase()
+    .split(' ')
+    .filter((w) => w.length > 3);
+  if (keywords.length === 0) return '';
 
   // Filter entries that match keywords in the prompt
-  const matches = knowledgeBase.filter(entry => {
-    const keyFactsStr = Array.isArray(entry.keyFacts) ? entry.keyFacts.join(" ") : "";
-    const text = ((entry.topic || "") + " " + (entry.summary || "") + " " + keyFactsStr).toLowerCase();
-    return keywords.some(kw => text.includes(kw));
+  const matches = knowledgeBase.filter((entry) => {
+    const keyFactsStr = Array.isArray(entry.keyFacts) ? entry.keyFacts.join(' ') : '';
+    const text = ((entry.topic || '') + ' ' + (entry.summary || '') + ' ' + keyFactsStr).toLowerCase();
+    return keywords.some((kw) => text.includes(kw));
   });
 
-  if (matches.length === 0) return "";
+  if (matches.length === 0) return '';
 
   // Sort by relevance (match count) - top 5 matches
   const topMatches = matches.slice(0, 5);
 
-  let kbString = "\n*** CONSOLIDATED KNOWLEDGE BASE (Verified Facts from Past Studies) ***\n";
-  topMatches.forEach(entry => {
-    const keyFactsStr = Array.isArray(entry.keyFacts) ? entry.keyFacts.join("; ") : "";
+  let kbString = '\n*** CONSOLIDATED KNOWLEDGE BASE (Verified Facts from Past Studies) ***\n';
+  topMatches.forEach((entry) => {
+    const keyFactsStr = Array.isArray(entry.keyFacts) ? entry.keyFacts.join('; ') : '';
     kbString += `\nTopic: ${entry.topic || 'Acoustic Study'}\nSummary: ${entry.summary || ''}\nKey Findings: ${keyFactsStr}\n`;
   });
 
@@ -150,7 +161,7 @@ const getKnowledgeBaseContext = (knowledgeBase: KnowledgeEntry[], currentPrompt:
 export const generateSessionSummary = async (session: ChatSession): Promise<KnowledgeEntry> => {
   const ai = createClient();
 
-  const transcript = session.messages.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n');
+  const transcript = session.messages.map((m) => `${m.role.toUpperCase()}: ${m.text}`).join('\n');
 
   const prompt = `
     Analyze this audiophile research conversation. 
@@ -179,20 +190,20 @@ export const generateSessionSummary = async (session: ChatSession): Promise<Know
       const response = await ai.models.generateContent({
         model: currentModel,
         contents: prompt,
-        config: { responseMimeType: "application/json" }
+        config: { responseMimeType: 'application/json' },
       });
 
       // Safely parse JSON with fallback
       let data: { topic?: string; summary?: string; keyFacts?: string[] } = {};
       try {
-        data = JSON.parse(response.text || "{}");
+        data = JSON.parse(response.text || '{}');
       } catch (parseError) {
-        console.warn("Failed to parse JSON response, using defaults:", parseError);
+        console.warn('Failed to parse JSON response, using defaults:', parseError);
         // Try to extract info from raw text if JSON parsing fails
         data = {
           topic: session.title,
-          summary: response.text?.substring(0, 200) || "Summary generation failed.",
-          keyFacts: []
+          summary: response.text?.substring(0, 200) || 'Summary generation failed.',
+          keyFacts: [],
         };
       }
 
@@ -200,17 +211,17 @@ export const generateSessionSummary = async (session: ChatSession): Promise<Know
         id: uuidv4(),
         sourceSessionId: session.id,
         topic: data.topic || session.title,
-        summary: data.summary || "No summary generated.",
-        keyFacts: data.keyFacts || [],
-        timestamp: Date.now()
+        summary: data.summary || 'No summary generated.',
+        keyFacts: Array.isArray(data.keyFacts) ? data.keyFacts.filter((f) => typeof f === 'string') : [],
+        timestamp: Date.now(),
       };
-
     } catch (error: any) {
       console.error(`Model ${currentModel} failed for session summary:`, error);
       lastError = error;
 
       const errorMessage = error.message || String(error);
-      const isQuotaError = errorMessage.includes('429') ||
+      const isQuotaError =
+        errorMessage.includes('429') ||
         errorMessage.includes('quota') ||
         errorMessage.includes('RESOURCE_EXHAUSTED');
 
@@ -229,7 +240,7 @@ export const generateSessionSummary = async (session: ChatSession): Promise<Know
   }
 
   // If all models failed, throw the error so the caller can handle it
-  throw new Error(`Failed to summarize session: ${lastError?.message || "Unknown error"}`);
+  throw new Error(`Failed to summarize session: ${lastError?.message || 'Unknown error'}`);
 };
 
 export const generateStreamResponse = async (
@@ -245,7 +256,7 @@ export const generateStreamResponse = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void,
   onActiveModel?: (model: string) => void,
-  requestedModel?: string
+  requestedModel?: string,
 ): Promise<string> => {
   const ai = createClient();
 
@@ -254,12 +265,13 @@ export const generateStreamResponse = async (
   const kbContext = getKnowledgeBaseContext(knowledgeBase, currentPrompt);
 
   // 2. Build Memories String
-  const memoriesContext = profile.savedMemories.length > 0
-    ? `\nPERMANENT MEMORIES/FACTS (Verified User Knowledge):\n${profile.savedMemories.map(m => `- ${m}`).join('\n')}`
-    : "";
+  const memoriesContext =
+    profile.savedMemories.length > 0
+      ? `\nPERMANENT MEMORIES/FACTS (Verified User Knowledge):\n${profile.savedMemories.map((m) => `- ${m}`).join('\n')}`
+      : '';
 
   // 3. Construct System Instruction
-  let advancedInstructions = "";
+  let advancedInstructions = '';
   if (isAdvancedAnalysis) {
     advancedInstructions = `
     *** ADVANCED TECHNICAL ANALYSIS MODE: ENABLED ***
@@ -321,7 +333,7 @@ export const generateStreamResponse = async (
     | **Price & Value (Approx)** | [e.g. 9.5/10 — ~$89 USD (Exceptional value for full DLC driver)] | [e.g. 8.8/10 — ~$129 USD (Competitive price for hybrid setup)] |
 
     *** FREQUENCY RESPONSE CURVE DATA GENERATION FOR COMPARISONS ***
-    Whenever comparing 2 or more audio products, you MUST include a \`\`\`json:fr_data code block at the very end of your response containing high-density estimated frequency response points (~35–45 log-spaced points across 20Hz–20000Hz, normalized to 0.0dB at 1kHz).
+    Only when actual sourced numerical frequency-response measurements are available, you MAY include a \`\`\`json:fr_data code block at the very end of your response containing source-backed frequency response points (~35–45 log-spaced points across 20Hz–20000Hz, normalized to 0.0dB at 1kHz).
     TEXTURE & REALISM RULES:
     - Include the standard 31 ISO center points plus key acoustic inflection points (5.5k, 6.5k, 7.5k, 9k, 11k, 13k, 18k).
     - Between 4kHz and 12kHz, include realistic resonance ripples of ±0.5dB to ±2dB (pinna combing / ear canal resonance).
@@ -437,8 +449,8 @@ export const generateStreamResponse = async (
 
   // 4. Build Contents - Sanitized
   // We filter out any empty messages or potential duplicates to prevent 400 Bad Request
-  const validHistory = history.filter(msg =>
-    (msg.text && msg.text.trim().length > 0) || msg.image || msg.audio
+  const validHistory = history.filter(
+    (msg) => (msg.text && msg.text.trim().length > 0) || msg.image || msg.audio,
   );
 
   const contents: Content[] = validHistory.map((msg) => {
@@ -460,9 +472,11 @@ export const generateStreamResponse = async (
   });
 
   // 5. Config
-  const tools: Tool[] = [{
-    googleSearch: {}
-  }];
+  const tools: Tool[] = [
+    {
+      googleSearch: {},
+    },
+  ];
 
   interface GenerateConfig {
     systemInstruction: string;
@@ -490,6 +504,7 @@ export const generateStreamResponse = async (
     const currentModel = modelCandidates[modelIndex];
     const currentConfig = { ...baseConfig };
 
+    let emitted = false;
     try {
       if (onActiveModel) {
         onActiveModel(currentModel);
@@ -500,13 +515,14 @@ export const generateStreamResponse = async (
         config: currentConfig,
       });
 
-      let fullText = "";
+      let fullText = '';
       const collectedSources: GroundingSource[] = [];
 
       for await (const chunk of responseStream) {
         const textChunk = chunk.text;
         if (textChunk) {
           fullText += textChunk;
+          emitted = true;
           onChunk(textChunk);
         }
 
@@ -515,9 +531,9 @@ export const generateStreamResponse = async (
           groundingChunks.forEach((c: any) => {
             if (c.web) {
               collectedSources.push({
-                title: c.web.title || "Web Source",
-                uri: c.web.uri || "#",
-                type: 'web'
+                title: c.web.title || 'Web Source',
+                uri: c.web.uri || '#',
+                type: 'web',
               });
             }
           });
@@ -529,10 +545,10 @@ export const generateStreamResponse = async (
       }
 
       return fullText;
-
     } catch (error: any) {
       console.warn(`Model ${currentModel} failed:`, error);
       lastError = error;
+      if (emitted) throw new Error('The response was interrupted. Please retry.');
 
       const errorMessage = error.message || String(error);
 
@@ -549,16 +565,20 @@ export const generateStreamResponse = async (
   }
 
   // If we get here, all models failed
-  const errorMessage = lastError?.message || "Unknown error";
+  const errorMessage = lastError?.message || 'Unknown error';
 
-  if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+  if (
+    errorMessage.includes('429') ||
+    errorMessage.includes('quota') ||
+    errorMessage.includes('RESOURCE_EXHAUSTED')
+  ) {
     throw new Error(
-      "All Gemini models have exceeded their quota. Please try again later or check your API quota at: https://aistudio.google.com/app/apikey"
+      'All Gemini models have exceeded their quota. Please try again later or check your API quota at: https://aistudio.google.com/app/apikey',
     );
   } else if (errorMessage.includes('API key')) {
     throw new Error(
-      "Invalid API Key. Please check your GEMINI_API_KEY in .env.local file.\\n" +
-      "Get a new key from: https://aistudio.google.com/app/apikey"
+      'Invalid API Key. Please check your GEMINI_API_KEY in .env.local file.\\n' +
+        'Get a new key from: https://aistudio.google.com/app/apikey',
     );
   } else {
     throw new Error(`Failed to generate response: ${errorMessage}`);
@@ -567,21 +587,31 @@ export const generateStreamResponse = async (
 
 // Battle Mode: AI-Powered Gear Comparison
 export const generateBattleComparison = async (
-  selectedGear: { name: string; type: string; status: string; rating?: number; notes?: string; price?: string }[],
+  selectedGear: {
+    name: string;
+    type: string;
+    status: string;
+    rating?: number;
+    notes?: string;
+    price?: string;
+  }[],
   profile: AudioProfile,
   onChunk: (text: string) => void,
-  onActiveModel?: (model: string) => void
+  onActiveModel?: (model: string) => void,
 ): Promise<string> => {
   const ai = createClient();
 
-  const gearNames = selectedGear.map((g, i) => `${i + 1}. **${g.name}** ${g.notes ? `(User notes: "${g.notes}")` : ''}`).join('\n');
+  const gearNames = selectedGear
+    .map((g, i) => `${i + 1}. **${g.name}** ${g.notes ? `(User notes: "${g.notes}")` : ''}`)
+    .join('\n');
 
-  const memoriesContext = profile.savedMemories.length > 0
-    ? `\nUSER'S AUDIO SENSITIVITIES & RULES:\n${profile.savedMemories.map(m => `- ${m}`).join('\n')}`
-    : "";
+  const memoriesContext =
+    profile.savedMemories.length > 0
+      ? `\nUSER'S AUDIO SENSITIVITIES & RULES:\n${profile.savedMemories.map((m) => `- ${m}`).join('\n')}`
+      : '';
 
   const prompt = `
-You are AudioSage Battle Analyst. Compare these audio products for this specific user.
+You are AudioSage Battle Analyst. Compare these audio products for this specific user. Do not invent numerical frequency response curves. Omit graph data unless actual numeric measurements can be cited. Subjective sound ratings are opinions, not measurements.
 
 *** USER PROFILE ***
 - Name: ${profile.name}
@@ -601,7 +631,7 @@ Use Google Search to find accurate specs, measurements, and reviews for each pro
 
 *** OUTPUT FORMAT (FOLLOW EXACTLY) ***
 
-## ⚔️ BATTLE: ${selectedGear.map(g => g.name).join(' vs ')}
+## ⚔️ BATTLE: ${selectedGear.map((g) => g.name).join(' vs ')}
 
 ### 🏆 WINNER FOR YOU
 > [One bold sentence declaring the winner based on the user's specific taste profile]
@@ -610,7 +640,7 @@ Use Google Search to find accurate specs, measurements, and reviews for each pro
 
 ### 📊 Comprehensive Spec & Acoustic Matrix
  
-| Specification & Metric | ${selectedGear.map(g => g.name).join(' | ')} |
+| Specification & Metric | ${selectedGear.map((g) => g.name).join(' | ')} |
 |:---|${selectedGear.map(() => ':---:').join('|')}|
 | **Driver Tech & Config** | [research] | [research] |
 | **Tonality** | [research] | [research] |
@@ -647,28 +677,12 @@ Based on the user's profile:
 
 **Bottom Line**: [One punchy sentence]
 
-\`\`\`json:fr_data
-{
-  "title": "Shootout: ${selectedGear.map(g => g.name).join(' vs ')}",
-  "curves": [
-    ${selectedGear.map((g, i) => `{
-      "name": "${g.name}",
-      "color": "${i === 0 ? '#F06543' : i === 1 ? '#E7B87A' : '#72B01D'}",
-      "points": [
-        {"freq": 20, "gain": 7.5}, {"freq": 40, "gain": 7.0}, {"freq": 80, "gain": 5.5},
-        {"freq": 150, "gain": 3.5}, {"freq": 200, "gain": 2.0}, {"freq": 500, "gain": 0.5},
-        {"freq": 1000, "gain": 0.0}, {"freq": 2000, "gain": 5.0}, {"freq": 2800, "gain": 8.5},
-        {"freq": 3500, "gain": 7.0}, {"freq": 5000, "gain": 4.5}, {"freq": 8000, "gain": 7.5},
-        {"freq": 10000, "gain": 3.0}, {"freq": 15000, "gain": -1.5}, {"freq": 20000, "gain": -5.5}
-      ]
-    }`).join(',\n    ')}
-  ]
-}
-\`\`\`
+
 `;
 
   const config = {
-    systemInstruction: "You are an elite audiophile analyst. Always research real specs via Google Search. Create beautiful, well-formatted comparison tables. Be specific with numbers and ratings.",
+    systemInstruction:
+      'You are an elite audiophile analyst. Always research real specs via Google Search. Create beautiful, well-formatted comparison tables. Be specific with numbers and ratings.',
     tools: [{ googleSearch: {} }] as Tool[],
     temperature: 0.2,
   };
@@ -683,7 +697,7 @@ Based on the user's profile:
       config: config,
     });
 
-    let fullText = "";
+    let fullText = '';
     for await (const chunk of responseStream) {
       const textChunk = chunk.text;
       if (textChunk) {
@@ -692,9 +706,8 @@ Based on the user's profile:
       }
     }
     return fullText;
-
   } catch (error: any) {
-    console.error("Battle comparison failed with primary model, trying fallback:", error);
+    console.error('Battle comparison failed with primary model, trying fallback:', error);
     try {
       if (onActiveModel) {
         onActiveModel('gemini-2.5-flash');
@@ -702,9 +715,9 @@ Based on the user's profile:
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: { temperature: 0.2, tools: [{ googleSearch: {} }] as Tool[] }
+        config: { temperature: 0.2, tools: [{ googleSearch: {} }] as Tool[] },
       });
-      const text = response.text || "Comparison failed.";
+      const text = response.text || 'Comparison failed.';
       onChunk(text);
       return text;
     } catch (fallbackError: any) {

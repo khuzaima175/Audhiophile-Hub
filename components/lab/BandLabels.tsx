@@ -8,12 +8,12 @@ interface BandLabelsProps {
 }
 
 const BANDS = [
-  { name: 'SUB BASS', min: 20, max: 60, color: '#C6934F' },
+  { name: 'SUB BASS', min: 20, max: 60, color: '#b4e4bd' },
   { name: 'MID BASS', min: 60, max: 250, color: '#D4A366' },
   { name: 'LOWER MID', min: 250, max: 500, color: '#A89988' },
-  { name: 'UPPER MID', min: 500, max: 2000, color: '#6FC9A6' },
+  { name: 'UPPER MID', min: 500, max: 2000, color: '#83bfa5' },
   { name: 'PRESENCE', min: 2000, max: 6000, color: '#4FB38B' },
-  { name: 'MID TREBLE', min: 6000, max: 10000, color: '#E06A3F' },
+  { name: 'MID TREBLE', min: 6000, max: 10000, color: '#eb9689' },
   { name: 'AIR', min: 10000, max: 20000, color: '#7AA2E3' },
 ] as const;
 

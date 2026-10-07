@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PEQFilter, PEQFilterType } from '../types';
+import { createDSPNode, graphicFilters, safePreamp, DSP_SAMPLE_RATE, filterTypeMap } from '../utils/biquad';
 
 export type AuditionSourceType = 'none' | 'pink-noise' | 'sweep' | 'file' | 'liveTab';
 
@@ -10,32 +11,32 @@ interface UseAudioEngineProps {
   isBypassed: boolean;
 }
 
-export const useAudioEngine = ({
-  isoBands,
-  isoGains,
-  peqFilters,
-  isBypassed,
-}: UseAudioEngineProps) => {
+export const useAudioEngine = ({ isoBands, isoGains, peqFilters, isBypassed }: UseAudioEngineProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeSource, setActiveSource] = useState<AuditionSourceType>('none');
   const [fileName, setFileName] = useState<string | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [volume, setVolume] = useState(0.7);
+  const [error, setError] = useState<string | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioNode | null>(null);
   const sweepOscRef = useRef<OscillatorNode | null>(null);
-  const filterNodesRef = useRef<BiquadFilterNode[]>([]);
+  const filterNodesRef = useRef<AudioNode[]>([]);
+  const chainInputRef = useRef<AudioNode | null>(null);
   const wetGainRef = useRef<GainNode | null>(null);
   const dryGainRef = useRef<GainNode | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const customAudioBufferRef = useRef<AudioBuffer | null>(null);
+  const preampGainRef = useRef<GainNode | null>(null);
+  const externalFiltersRef = useRef<PEQFilter[] | null>(null);
+  const externalPreampRef = useRef(0);
 
   // Lazy initialize AudioContext with browser autoplay policy compliance
   const getAudioContext = useCallback(async (): Promise<AudioContext> => {
     if (!audioCtxRef.current) {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioCtxClass();
+      const ctx = new AudioCtxClass({ sampleRate: DSP_SAMPLE_RATE });
       audioCtxRef.current = ctx;
 
       // Master output gain
@@ -54,6 +55,9 @@ export const useAudioEngine = ({
       dry.connect(master);
       wetGainRef.current = wet;
       dryGainRef.current = dry;
+      const preamp = ctx.createGain();
+      preamp.connect(wet);
+      preampGainRef.current = preamp;
 
       setIsEngineReady(true);
     }
@@ -71,15 +75,21 @@ export const useAudioEngine = ({
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
 
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    let b0 = 0,
+      b1 = 0,
+      b2 = 0,
+      b3 = 0,
+      b4 = 0,
+      b5 = 0,
+      b6 = 0;
     for (let i = 0; i < bufferSize; i++) {
       const white = Math.random() * 2 - 1;
       b0 = 0.99886 * b0 + white * 0.0555179;
       b1 = 0.99332 * b1 + white * 0.0750759;
-      b2 = 0.96900 * b2 + white * 0.1538520;
-      b3 = 0.86650 * b3 + white * 0.3104856;
-      b4 = 0.55000 * b4 + white * 0.5329522;
-      b5 = -0.7616 * b5 - white * 0.0168980;
+      b2 = 0.969 * b2 + white * 0.153852;
+      b3 = 0.8665 * b3 + white * 0.3104856;
+      b4 = 0.55 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.016898;
       data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
       b6 = white * 0.115926;
     }
@@ -87,103 +97,101 @@ export const useAudioEngine = ({
   };
 
   // Build filter chain in AudioContext
-  const rebuildFilterChain = useCallback((ctx: AudioContext, inputNode: AudioNode) => {
-    // Disconnect old filter chain
-    filterNodesRef.current.forEach((n) => {
-      try {
-        n.disconnect();
-      } catch (e) {}
-    });
-    filterNodesRef.current = [];
-
-    const nodes: BiquadFilterNode[] = [];
-
-    // 1. Add ISO Graphic EQ Filters
-    const isoQ = isoBands.length === 31 ? 4.3 : isoBands.length === 15 ? 2.0 : 1.41;
-    isoBands.forEach((freq, idx) => {
-      const gain = isoGains[idx] || 0;
-      const bq = ctx.createBiquadFilter();
-      bq.type = 'peaking';
-      bq.frequency.setValueAtTime(freq, ctx.currentTime);
-      bq.Q.setValueAtTime(isoQ, ctx.currentTime);
-      bq.gain.setValueAtTime(gain, ctx.currentTime);
-      nodes.push(bq);
-    });
-
-    // 2. Add Parametric EQ Filters
-    peqFilters.forEach((f) => {
-      if (f.enabled !== false) {
-        const bq = ctx.createBiquadFilter();
-        const typeMap: Record<PEQFilterType, BiquadFilterType> = {
-          PK: 'peaking',
-          LS: 'lowshelf',
-          HS: 'highshelf',
-          HP: 'highpass',
-          LP: 'lowpass',
-          NOTCH: 'notch',
-        };
-        bq.type = typeMap[f.type] || 'peaking';
-        bq.frequency.setValueAtTime(f.freq, ctx.currentTime);
-        bq.gain.setValueAtTime(f.gain || 0, ctx.currentTime);
-        bq.Q.setValueAtTime(f.q || 1.41, ctx.currentTime);
-        nodes.push(bq);
+  const rebuildFilterChain = useCallback(
+    (ctx: AudioContext, inputNode: AudioNode) => {
+      const nextFilters = [
+        ...graphicFilters(isoBands, isoGains),
+        ...(externalFiltersRef.current ?? peqFilters),
+      ].filter((f) => f.enabled !== false);
+      const existing = filterNodesRef.current;
+      if (
+        existing.length === nextFilters.length &&
+        existing.length > 0 &&
+        existing.every(
+          (node, i) => node instanceof BiquadFilterNode && node.type === filterTypeMap[nextFilters[i].type],
+        )
+      ) {
+        existing.forEach((audioNode, i) => {
+          const node = audioNode as BiquadFilterNode,
+            f = nextFilters[i];
+          node.frequency.setTargetAtTime(f.freq, ctx.currentTime, 0.015);
+          node.gain.setTargetAtTime(f.gain, ctx.currentTime, 0.015);
+          node.Q.setTargetAtTime(
+            f.type === 'HP' || f.type === 'LP' ? 20 * Math.log10(f.q) : f.q,
+            ctx.currentTime,
+            0.015,
+          );
+        });
+        preampGainRef.current?.gain.setTargetAtTime(
+          10 **
+            (Math.min(
+              safePreamp(nextFilters, ctx.sampleRate),
+              externalFiltersRef.current ? externalPreampRef.current : 0,
+            ) /
+              20),
+          ctx.currentTime,
+          0.015,
+        );
+        // Only reuse the chain when this is the same active source.
+        if (chainInputRef.current === inputNode) return;
       }
-    });
+      inputNode.disconnect();
+      chainInputRef.current = inputNode;
+      // Disconnect old filter chain
+      filterNodesRef.current.forEach((n) => {
+        try {
+          n.disconnect();
+        } catch (e) {}
+      });
+      filterNodesRef.current = [];
 
-    // Connect cascade: inputNode -> Node1 -> Node2 ... -> wetGain
-    if (nodes.length > 0) {
-      inputNode.connect(nodes[0]);
-      for (let i = 0; i < nodes.length - 1; i++) {
-        nodes[i].connect(nodes[i + 1]);
+      const activeFilters = externalFiltersRef.current ?? peqFilters;
+      const allFilters = [...graphicFilters(isoBands, isoGains), ...activeFilters].filter(
+        (f) => f.enabled !== false,
+      );
+      const nodes = allFilters.map((f) => createDSPNode(ctx, f));
+
+      // Connect cascade: inputNode -> Node1 -> Node2 ... -> wetGain
+      if (nodes.length > 0) {
+        inputNode.connect(nodes[0]);
+        for (let i = 0; i < nodes.length - 1; i++) {
+          nodes[i].connect(nodes[i + 1]);
+        }
+        if (preampGainRef.current) {
+          nodes[nodes.length - 1].connect(preampGainRef.current);
+        }
+      } else {
+        if (preampGainRef.current) {
+          inputNode.connect(preampGainRef.current);
+        }
       }
-      if (wetGainRef.current) {
-        nodes[nodes.length - 1].connect(wetGainRef.current);
+
+      // Direct connection to dry gain for zero-pop A/B bypass
+      if (dryGainRef.current) {
+        inputNode.connect(dryGainRef.current);
       }
-    } else {
-      if (wetGainRef.current) {
-        inputNode.connect(wetGainRef.current);
-      }
-    }
 
-    // Direct connection to dry gain for zero-pop A/B bypass
-    if (dryGainRef.current) {
-      inputNode.connect(dryGainRef.current);
-    }
+      filterNodesRef.current = nodes;
+      const headroom = Math.min(
+        safePreamp(allFilters, ctx.sampleRate),
+        externalFiltersRef.current ? externalPreampRef.current : 0,
+      );
+      preampGainRef.current?.gain.setTargetAtTime(Math.pow(10, headroom / 20), ctx.currentTime, 0.015);
+    },
+    [isoBands, isoGains, peqFilters],
+  );
 
-    filterNodesRef.current = nodes;
-  }, [isoBands, isoGains, peqFilters]);
-
-  // Real-time parameter sync without audio glitching
+  // Rebuild when the number, enabled state, or type of filters changes too.
+  const filterSignature = JSON.stringify({ isoBands, isoGains, peqFilters });
   useEffect(() => {
-    if (!audioCtxRef.current) return;
-    const ctx = audioCtxRef.current;
+    if (audioCtxRef.current && sourceNodeRef.current)
+      rebuildFilterChain(audioCtxRef.current, sourceNodeRef.current);
+  }, [filterSignature]);
 
-    // Update ISO bands
-    const isoQ = isoBands.length === 31 ? 4.3 : isoBands.length === 15 ? 2.0 : 1.41;
-    isoBands.forEach((_, idx) => {
-      if (filterNodesRef.current[idx]) {
-        const targetGain = isoGains[idx] || 0;
-        filterNodesRef.current[idx].gain.setTargetAtTime(targetGain, ctx.currentTime, 0.015);
-        filterNodesRef.current[idx].Q.setTargetAtTime(isoQ, ctx.currentTime, 0.015);
-      }
-    });
-  }, [isoGains, isoBands]);
-
-  // Real-time update for PEQ filter nodes
   useEffect(() => {
-    if (!audioCtxRef.current || filterNodesRef.current.length === 0) return;
-    const ctx = audioCtxRef.current;
-    const offset = isoBands.length;
-
-    peqFilters.forEach((filter, idx) => {
-      const node = filterNodesRef.current[offset + idx];
-      if (node && filter.enabled !== false) {
-        node.frequency.setTargetAtTime(filter.freq, ctx.currentTime, 0.015);
-        node.gain.setTargetAtTime(filter.gain || 0, ctx.currentTime, 0.015);
-        node.Q.setTargetAtTime(filter.q || 1.41, ctx.currentTime, 0.015);
-      }
-    });
-  }, [peqFilters, isoBands]);
+    if (audioCtxRef.current && masterGainRef.current)
+      masterGainRef.current.gain.setTargetAtTime(volume, audioCtxRef.current.currentTime, 0.015);
+  }, [volume]);
 
   // Smooth A/B bypass crossfade
   useEffect(() => {
@@ -222,14 +230,17 @@ export const useAudioEngine = ({
   }, []);
 
   // Play live tab audio stream
-  const playLiveTab = useCallback(async (sourceNode: MediaStreamAudioSourceNode) => {
-    stopAudio();
-    const ctx = await getAudioContext();
-    sourceNodeRef.current = sourceNode;
-    rebuildFilterChain(ctx, sourceNode);
-    setIsPlaying(true);
-    setActiveSource('liveTab');
-  }, [getAudioContext, rebuildFilterChain, stopAudio]);
+  const playLiveTab = useCallback(
+    async (sourceNode: MediaStreamAudioSourceNode) => {
+      stopAudio();
+      const ctx = await getAudioContext();
+      sourceNodeRef.current = sourceNode;
+      rebuildFilterChain(ctx, sourceNode);
+      setIsPlaying(true);
+      setActiveSource('liveTab');
+    },
+    [getAudioContext, rebuildFilterChain, stopAudio],
+  );
 
   // Play pink noise
   const playPinkNoise = useCallback(async () => {
@@ -278,6 +289,8 @@ export const useAudioEngine = ({
     osc.start(now);
     osc.stop(now + duration);
     osc.onended = () => {
+      if (sweepOscRef.current !== osc) return;
+      sweepOscRef.current = null;
       setIsPlaying(false);
       setActiveSource('none');
     };
@@ -289,24 +302,33 @@ export const useAudioEngine = ({
   }, [isPlaying, activeSource, getAudioContext, rebuildFilterChain, stopAudio]);
 
   // Handle local track upload and playback
-  const handleFileUpload = useCallback(async (file: File) => {
-    stopAudio();
-    const ctx = await getAudioContext();
-    const arrayBuffer = await file.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    customAudioBufferRef.current = audioBuffer;
-    setFileName(file.name);
+  const handleFileUpload = useCallback(
+    async (file: File) => {
+      setError(null);
+      try {
+        stopAudio();
+        const ctx = await getAudioContext();
+        const arrayBuffer = await file.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        customAudioBufferRef.current = audioBuffer;
+        setFileName(file.name);
 
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.loop = true;
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.loop = true;
 
-    rebuildFilterChain(ctx, source);
-    source.start();
-    sourceNodeRef.current = source;
-    setIsPlaying(true);
-    setActiveSource('file');
-  }, [getAudioContext, rebuildFilterChain, stopAudio]);
+        rebuildFilterChain(ctx, source);
+        source.start();
+        sourceNodeRef.current = source;
+        setIsPlaying(true);
+        setActiveSource('file');
+      } catch {
+        stopAudio();
+        setError('This audio file could not be decoded. Try a supported WAV, MP3 or OGG file.');
+      }
+    },
+    [getAudioContext, rebuildFilterChain, stopAudio],
+  );
 
   const toggleFilePlayback = useCallback(async () => {
     if (!customAudioBufferRef.current) return;
@@ -328,20 +350,15 @@ export const useAudioEngine = ({
   }, [isPlaying, activeSource, getAudioContext, rebuildFilterChain, stopAudio]);
 
   // Load external PEQ filters dynamically (e.g. from Graph Lab Audition Delta)
-  const loadExternalPeq = useCallback(async (filters: PEQFilter[], preamp?: number) => {
-    const ctx = await getAudioContext();
-    if (preamp !== undefined && wetGainRef.current) {
-      const linearPreamp = Math.pow(10, preamp / 20);
-      wetGainRef.current.gain.setValueAtTime(linearPreamp, ctx.currentTime);
-    }
-    // Rebuild active filter nodes on the fly
-    if (filterNodesRef.current.length > 0) {
-      filterNodesRef.current.forEach((node) => {
-        try { node.disconnect(); } catch (e) {}
-      });
-      filterNodesRef.current = [];
-    }
-  }, [getAudioContext]);
+  const loadExternalPeq = useCallback(
+    async (filters: PEQFilter[], preamp?: number) => {
+      const ctx = await getAudioContext();
+      externalFiltersRef.current = filters;
+      externalPreampRef.current = preamp ?? 0;
+      if (sourceNodeRef.current) rebuildFilterChain(ctx, sourceNodeRef.current);
+    },
+    [getAudioContext, rebuildFilterChain],
+  );
 
   // Cleanup on component unmount
   useEffect(() => {
@@ -354,6 +371,7 @@ export const useAudioEngine = ({
   }, [stopAudio]);
 
   return {
+    error,
     isPlaying,
     activeSource,
     fileName,
@@ -371,5 +389,3 @@ export const useAudioEngine = ({
     audioContext: audioCtxRef.current,
   };
 };
-
-

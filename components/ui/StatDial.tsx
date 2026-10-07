@@ -54,7 +54,7 @@ export const StatDial: React.FC<StatDialProps> = ({
   // Rule: numbers cream at zero, brass when non-zero; teal reserved strictly for LEDs
   const isZero = displayValue === 0;
   const numberColorClass = isZero
-    ? 'text-[#EDE6DA]/70 font-semibold'
+    ? 'text-[#edf0ec]/70 font-semibold'
     : accent === 'warn'
     ? 'text-audio-warn text-shadow-[0_0_12px_rgba(217,119,72,0.35)] font-bold'
     : 'text-audio-accent text-shadow-[0_0_12px_rgba(198,147,79,0.35)] font-bold';
@@ -62,7 +62,7 @@ export const StatDial: React.FC<StatDialProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`panel-interactive p-3.5 rounded-xl border border-audio-border bg-gradient-to-b from-[#1C1713] to-[#14100D] flex flex-col justify-between select-none transition-all ${
+      className={`panel-interactive p-3.5 rounded-xl border border-audio-border bg-gradient-to-b from-[#252d27] to-[#14100D] flex flex-col justify-between select-none transition-all ${
         onClick ? 'cursor-pointer hover:border-audio-accent/60' : ''
       } ${className}`}
     >
@@ -72,7 +72,7 @@ export const StatDial: React.FC<StatDialProps> = ({
         </span>
         <span
           className={`w-1.5 h-1.5 rounded-full transition-colors ${
-            isZero ? 'bg-audio-muted/30' : 'bg-audio-accent shadow-[0_0_6px_#C6934F]'
+            isZero ? 'bg-audio-muted/30' : 'bg-audio-accent shadow-[0_0_6px_#b4e4bd]'
           }`}
         />
       </div>

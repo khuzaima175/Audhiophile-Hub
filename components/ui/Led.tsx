@@ -21,24 +21,24 @@ export const Led: React.FC<LedProps> = ({
 }) => {
   const colorStyles: Record<LedColor, { text: string; shadow: string }> = {
     green: {
-      text: 'text-[#7FD8B4]',
-      shadow: 'shadow-[0_0_10px_rgba(127,216,180,0.8),0_0_2px_#7FD8B4]',
+      text: 'text-[#a1d8b1]',
+      shadow: 'shadow-[0_0_10px_rgba(127,216,180,0.8),0_0_2px_#a1d8b1]',
     },
     teal: {
-      text: 'text-[#6FC9A6]',
-      shadow: 'shadow-[0_0_10px_rgba(111,201,166,0.8),0_0_2px_#6FC9A6]',
+      text: 'text-[#83bfa5]',
+      shadow: 'shadow-[0_0_10px_rgba(111,201,166,0.8),0_0_2px_#83bfa5]',
     },
     red: {
-      text: 'text-[#E06A3F]',
-      shadow: 'shadow-[0_0_10px_rgba(224,106,63,0.8),0_0_2px_#E06A3F]',
+      text: 'text-[#eb9689]',
+      shadow: 'shadow-[0_0_10px_rgba(224,106,63,0.8),0_0_2px_#eb9689]',
     },
     amber: {
-      text: 'text-[#D97748]',
-      shadow: 'shadow-[0_0_10px_rgba(217,119,72,0.8),0_0_2px_#D97748]',
+      text: 'text-[#e6a18b]',
+      shadow: 'shadow-[0_0_10px_rgba(217,119,72,0.8),0_0_2px_#e6a18b]',
     },
     brass: {
-      text: 'text-[#C6934F]',
-      shadow: 'shadow-[0_0_10px_rgba(198,147,79,0.8),0_0_2px_#C6934F]',
+      text: 'text-[#b4e4bd]',
+      shadow: 'shadow-[0_0_10px_rgba(198,147,79,0.8),0_0_2px_#b4e4bd]',
     },
     muted: {
       text: 'text-[#4A3E33]',

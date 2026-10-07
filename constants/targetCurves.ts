@@ -1039,22 +1039,22 @@ export const FLAT_REFERENCE_POINTS: CurvePoint[] = [
 export const TARGET_CURVES: TargetCurveDefinition[] = [
   {
     id: 'crinacle-ief-2025',
-    name: 'Crinacle IEF Preference 2025 (B&K 5128)',
+    name: 'IEF 2025-style reference (bundled approximation)',
     shortName: 'IEF 2025',
     description: 'Natural tilt with clean 200Hz tuck, smooth 8kHz notch & deep sub-bass extension',
     points: CRINACLE_IEF_2025_POINTS,
     color: '#6FC9A6', // Phosphor teal
-    provenance: 'SRC: squig.link • Crinacle B&K 5128 • 400 pts verbatim • norm 1 kHz',
+    provenance: 'Bundled approximation. Numeric source and calibration rig not independently verified.',
     pointsCount: 400,
   },
   {
     id: 'harman-ie-2019',
-    name: 'Harman In-Ear 2019 Target (Verbatim 301 pts)',
+    name: 'Harman-style in-ear reference (bundled approximation)',
     shortName: 'Harman 2019',
     description: 'Punchy +8.1dB sub-bass, -1.24dB 300Hz dip, +9.9dB 3.2kHz ear gain & -20.1dB treble cliff',
     points: HARMAN_IE_2019_POINTS,
     color: '#E7B87A', // Warm amber
-    provenance: 'SRC: squig.link • 301 pts • norm 1 kHz',
+    provenance: 'Bundled approximation. Numeric source not independently verified.',
     pointsCount: 301,
   },
   {
@@ -1064,7 +1064,7 @@ export const TARGET_CURVES: TargetCurveDefinition[] = [
     description: 'Organic vocal timbre, realistic transient decay & gentle sub-bass roll-off',
     points: SENNHEISER_HD600_POINTS,
     color: '#C6934F', // Brushed brass
-    provenance: 'SRC: squig.link • IEC 711 clone • norm 1 kHz',
+    provenance: 'Illustrative HD600-style reference, not a certified measurement.',
     pointsCount: 17,
   },
   {

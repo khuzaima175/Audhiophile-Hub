@@ -171,6 +171,8 @@ export interface MeasurementData {
 }
 
 export interface AutoPeqFitOptions {
+  sampleRate?: number;
+  normalize?: boolean;
   maxFilters: number; // 5 to 20 filters
   targetCurveId: string;
   minGain?: number; // default -12 dB

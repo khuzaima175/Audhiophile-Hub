@@ -3,7 +3,7 @@ import { SYNTHESIS_FREQUENCIES } from './curveSynthesizer';
 
 /**
  * Lenient Measurement Parser for REW, Squiglink, and generic acoustic CSV/TSV/TXT exports.
- * 
+ *
  * Features:
  * - Automatically skips non-numeric header lines (*, Measurement:, Date:, Frequency, #, //, etc.)
  * - Detects delimiter (comma, tab, semicolon, or whitespace)
@@ -15,7 +15,7 @@ import { SYNTHESIS_FREQUENCIES } from './curveSynthesizer';
 // Logarithmic interpolation helper between two points
 export const interpolateSplAtFreq = (
   targetFreq: number,
-  points: { freq: number; gain: number }[]
+  points: { freq: number; gain: number }[],
 ): number => {
   if (!points || points.length === 0) return 0;
   if (targetFreq <= points[0].freq) return points[0].gain;
@@ -40,10 +40,7 @@ export const interpolateSplAtFreq = (
 /**
  * Apply fractional-octave moving average smoothing in log-frequency space
  */
-export const smoothLogCurve = (
-  points: MeasurementPoint[],
-  smoothing: SmoothingType
-): MeasurementPoint[] => {
+export const smoothLogCurve = (points: MeasurementPoint[], smoothing: SmoothingType): MeasurementPoint[] => {
   if (smoothing === 'RAW' || points.length < 3) {
     return points.map((p) => ({ ...p }));
   }
@@ -87,15 +84,13 @@ export const smoothLogCurve = (
 /**
  * Resample points onto standard synthesis frequencies for ultra-smooth 60 FPS SVG rendering
  */
-export const resampleToSynthesisFrequencies = (
-  points: MeasurementPoint[]
-): MeasurementPoint[] => {
+export const resampleToSynthesisFrequencies = (points: MeasurementPoint[]): MeasurementPoint[] => {
   if (!points || points.length === 0) return [];
 
   const pointsForInterp = points.map((p) => ({ freq: p.freq, gain: p.gain }));
   const rawForInterp = points.map((p) => ({ freq: p.freq, gain: p.rawSpl }));
 
-  return SYNTHESIS_FREQUENCIES.map((f) => ({
+  return SYNTHESIS_FREQUENCIES.filter((f) => f >= points[0].freq && f <= points.at(-1)!.freq).map((f) => ({
     freq: f,
     gain: parseFloat(interpolateSplAtFreq(f, pointsForInterp).toFixed(2)),
     rawSpl: parseFloat(interpolateSplAtFreq(f, rawForInterp).toFixed(2)),
@@ -109,17 +104,23 @@ export const parseMeasurementFile = (
   textContent: string,
   fileName: string = 'Measurement',
   smoothing: SmoothingType = '1/3 OCT',
-  normDatumFreq: number = 1000
+  normDatumFreq: number = 1000,
 ): MeasurementData | null => {
   if (!textContent || !textContent.trim()) return null;
 
   const headerComments: string[] = [];
   const rawReadings: { freq: number; spl: number }[] = [];
   let isGraphicEQ = false;
+  // A third column is commonly REW phase, not a second acoustic channel.
+  const stereoColumns = textContent
+    .split(/\r?\n/)
+    .some((line) => /(?:left|\bL\b)/i.test(line) && /(?:right|\bR\b)/i.test(line) && /freq/i.test(line));
 
   // 1. Check if the content is explicitly in GraphicEQ format (e.g. "GraphicEQ: 20 -4.8; 25 -4.2; ...")
   const isExplicitGraphicEQ = textContent.toLowerCase().includes('graphiceq:');
-  const nonCommentLines = textContent.split(/\r?\n/).filter((l) => l.trim().length > 0 && !l.trim().startsWith('#') && !l.trim().startsWith('*'));
+  const nonCommentLines = textContent
+    .split(/\r?\n/)
+    .filter((l) => l.trim().length > 0 && !l.trim().startsWith('#') && !l.trim().startsWith('*'));
 
   // Semicolon stream detection: explicitly prefixed OR single/two-line semicolon stream
   if (isExplicitGraphicEQ || (textContent.includes(';') && nonCommentLines.length <= 2)) {
@@ -135,7 +136,7 @@ export const parseMeasurementFile = (
         const freq = parseFloat(tokens[0]);
         const spl = parseFloat(tokens[1]);
 
-        if (!isNaN(freq) && !isNaN(spl) && freq >= 5 && freq <= 96000) {
+        if (Number.isFinite(freq) && Number.isFinite(spl) && freq >= 5 && freq <= 96000) {
           rawReadings.push({ freq, spl });
         }
       }
@@ -160,11 +161,14 @@ export const parseMeasurementFile = (
         isGraphicEQ = true;
         const subPairs = trimmed.replace(/graphiceq\s*:/i, '').split(';');
         for (let pair of subPairs) {
-          const tokens = pair.trim().split(/[\s,]+/).filter((t) => t.length > 0);
+          const tokens = pair
+            .trim()
+            .split(/[\s,]+/)
+            .filter((t) => t.length > 0);
           if (tokens.length >= 2) {
             const freq = parseFloat(tokens[0]);
             const spl = parseFloat(tokens[1]);
-            if (!isNaN(freq) && !isNaN(spl) && freq >= 5 && freq <= 96000) {
+            if (Number.isFinite(freq) && Number.isFinite(spl) && freq >= 5 && freq <= 96000) {
               rawReadings.push({ freq, spl });
             }
           }
@@ -202,7 +206,7 @@ export const parseMeasurementFile = (
       const num3 = parts.length >= 3 ? parseFloat(parts[2]) : NaN;
 
       // Validate that at least first two tokens are numbers
-      if (isNaN(num1) || isNaN(num2)) {
+      if (!Number.isFinite(num1) || !Number.isFinite(num2)) {
         headerComments.push(trimmed);
         continue;
       }
@@ -212,7 +216,7 @@ export const parseMeasurementFile = (
 
       // If 3 columns (e.g. Left and Right channel SPLs), average them
       let spl = num2;
-      if (!isNaN(num3) && Math.abs(num3) < 200 && Math.abs(num2) < 200) {
+      if (stereoColumns && Number.isFinite(num3)) {
         spl = (num2 + num3) / 2;
       }
 
@@ -226,6 +230,20 @@ export const parseMeasurementFile = (
 
   // Sort chronologically by frequency
   rawReadings.sort((a, b) => a.freq - b.freq);
+  const unique = new Map<number, { sum: number; count: number }>();
+  rawReadings.forEach((p) => {
+    const v = unique.get(p.freq) || { sum: 0, count: 0 };
+    v.sum += p.spl;
+    v.count++;
+    unique.set(p.freq, v);
+  });
+  rawReadings.splice(
+    0,
+    rawReadings.length,
+    ...[...unique].map(([freq, v]) => ({ freq, spl: v.sum / v.count })),
+  );
+  if (rawReadings.length < 3) return null;
+  if (rawReadings[0].freq > 20000 || rawReadings.at(-1)!.freq < 20) return null;
 
   // For GraphicEQ / AutoEQ filter files: DO NOT normalize.
   // These values are absolute correction gains — normalizing them would distort the filter shape.
@@ -252,7 +270,7 @@ export const parseMeasurementFile = (
   // Standard measurement normalization (1 kHz datum)
   const normOffset = interpolateSplAtFreq(
     normDatumFreq,
-    rawReadings.map((r) => ({ freq: r.freq, gain: r.spl }))
+    rawReadings.map((r) => ({ freq: r.freq, gain: r.spl })),
   );
 
   const rawPoints: MeasurementPoint[] = rawReadings.map((r) => ({

@@ -51,7 +51,7 @@ export const CompositeSineCanvas: React.FC<CompositeSineCanvasProps> = ({
       // Draw composite sine waves (harmonics)
       // Fundamental 1kHz, 3kHz harmonic, 5kHz harmonic
       ctx.lineWidth = 1.8;
-      ctx.strokeStyle = isStreaming ? '#7FD8B4' : '#C6934F';
+      ctx.strokeStyle = isStreaming ? '#a1d8b1' : '#b4e4bd';
       ctx.shadowColor = isStreaming ? 'rgba(127, 216, 180, 0.6)' : 'rgba(198, 147, 79, 0.5)';
       ctx.shadowBlur = 8;
 
@@ -82,7 +82,7 @@ export const CompositeSineCanvas: React.FC<CompositeSineCanvasProps> = ({
       ctx.shadowBlur = 0;
 
       // Frequency tag
-      ctx.fillStyle = '#9C8F7D';
+      ctx.fillStyle = '#9ca5a6';
       ctx.font = '8px "JetBrains Mono", monospace';
       ctx.fillText(isStreaming ? 'LIVE FFT SIGNAL' : 'FR TRACE REF', 6, height - 6);
 
@@ -97,7 +97,7 @@ export const CompositeSineCanvas: React.FC<CompositeSineCanvasProps> = ({
   }, [isStreaming]);
 
   return (
-    <div className={`relative rounded-xl border border-audio-border bg-[#100C09] overflow-hidden ${className}`}>
+    <div className={`relative rounded-xl border border-audio-border bg-[#151c17] overflow-hidden ${className}`}>
       <canvas
         ref={canvasRef}
         width={240}

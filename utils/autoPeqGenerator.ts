@@ -1,6 +1,13 @@
-import { PEQFilter, PEQFilterType, AutoPeqFitResult, AutoPeqFitOptions, MeasurementPoint, CurvePoint } from '../types';
+import {
+  PEQFilter,
+  PEQFilterType,
+  AutoPeqFitResult,
+  AutoPeqFitOptions,
+  MeasurementPoint,
+  CurvePoint,
+} from '../types';
 import { SYNTHESIS_FREQUENCIES, calculateFilterGainAtFreq } from './curveSynthesizer';
-import { calculatePreampHeadroom } from './importExportParser';
+import { biquadCoefficients, coefficientGain, safePreamp, DSP_SAMPLE_RATE } from './biquad';
 import { getInterpolatedTargetGain } from '../constants/targetCurves';
 
 /**
@@ -40,32 +47,40 @@ export const calculateRmsError = (residuals: number[]): number => {
 
 /**
  * Greedy Residual PEQ Synthesizer
- * 
+ *
  * Fits corrective biquad filters to minimize the RMS deviation between a measured curve
  * and a chosen target curve (e.g. Crinacle IEF 2025).
  */
 export const synthesizeAutoPeq = (
   measuredPoints: (MeasurementPoint | CurvePoint)[],
   targetPoints: { freq: number; gain: number }[],
-  options: AutoPeqFitOptions
+  options: AutoPeqFitOptions,
 ): AutoPeqFitResult => {
-  const { maxFilters = 10, minGain = -12, maxGain = 12 } = options;
+  const { minGain = -12, maxGain = 12, sampleRate = DSP_SAMPLE_RATE } = options;
+  const maxFilters = Math.max(1, Math.min(20, Math.floor(options.maxFilters || 10)));
+  if (measuredPoints.length < 2 || targetPoints.length < 2)
+    throw new Error('At least two measured and target points are required');
+  const lower = Math.max(20, measuredPoints[0].freq, targetPoints[0].freq);
+  const upper = Math.min(20000, sampleRate / 2 - 1, measuredPoints.at(-1).freq, targetPoints.at(-1).freq);
+  if (lower >= upper) throw new Error('Measurement and target have no overlapping frequency range');
+  const measurementDatum = options.normalize ? getInterpolatedTargetGain(1000, measuredPoints) : 0;
+  const targetDatum = options.normalize ? getInterpolatedTargetGain(1000, targetPoints) : 0;
 
   // 1. Evaluate measurement and target on the standard 180-point synthesis grid
-  const evalFreqs = SYNTHESIS_FREQUENCIES;
+  const evalFreqs = SYNTHESIS_FREQUENCIES.filter((f) => f >= lower && f <= upper);
   const measuredGainOnGrid = evalFreqs.map((f) => {
-    return getInterpolatedTargetGain(f, measuredPoints);
+    return getInterpolatedTargetGain(f, measuredPoints) - measurementDatum;
   });
 
   const targetGainOnGrid = evalFreqs.map((f) => {
-    return getInterpolatedTargetGain(f, targetPoints);
+    return getInterpolatedTargetGain(f, targetPoints) - targetDatum;
   });
 
   // Initial Residual = Target(f) - Measurement(f)
   let currentResidual = evalFreqs.map((_, i) => targetGainOnGrid[i] - measuredGainOnGrid[i]);
   const initialRms = parseFloat(calculateRmsError(currentResidual).toFixed(2));
 
-  const candidateFreqs = generate48StepsPerDecadeGrid();
+  const candidateFreqs = generate48StepsPerDecadeGrid().filter((f) => f >= lower && f <= upper);
   const committedFilters: PEQFilter[] = [];
 
   // Track the cumulative filter response curve
@@ -110,9 +125,10 @@ export const synthesizeAutoPeq = (
     }
 
     // Evaluate each candidate
+    const residualOnGrid = evalFreqs.map((freq, i) => ({ freq, gain: currentResidual[i] }));
     for (const cand of candidateTests) {
       // Find residual at candidate center frequency
-      const resAtFc = getInterpolatedTargetGain(cand.freq, evalFreqs.map((f, i) => ({ freq: f, gain: currentResidual[i] })));
+      const resAtFc = getInterpolatedTargetGain(cand.freq, residualOnGrid);
 
       // Clamp gain to [-12, +12] and snap to 0.5 dB
       let rawGain = Math.max(minGain, Math.min(maxGain, resAtFc));
@@ -122,9 +138,10 @@ export const synthesizeAutoPeq = (
       if (Math.abs(snappedGain) < 0.5) continue;
 
       // Calculate transfer function response on eval grid
-      const filterResponse = evalFreqs.map((f) =>
-        calculateFilterGainAtFreq(f, cand.type, cand.freq, snappedGain, cand.q)
-      );
+      const center = Math.round(cand.freq);
+      if (center < lower || center > upper) continue;
+      const coefficients = biquadCoefficients(cand.type, center, snappedGain, cand.q, sampleRate);
+      const filterResponse = evalFreqs.map((f) => coefficientGain(f, coefficients, sampleRate));
 
       // New residual = currentResidual - filterResponse
       const newResidual = currentResidual.map((r, i) => r - filterResponse[i]);
@@ -162,13 +179,14 @@ export const synthesizeAutoPeq = (
         bestFilter!.type,
         bestFilter!.freq,
         bestFilter!.gain,
-        bestFilter!.q
+        bestFilter!.q,
+        sampleRate,
       );
     });
   }
 
   const finalRms = parseFloat(calculateRmsError(currentResidual).toFixed(2));
-  const preamp = calculatePreampHeadroom(committedFilters.map((f) => f.gain));
+  const preamp = safePreamp(committedFilters, sampleRate);
 
   // Corrected response = Measured(f) + FilterCascade(f)
   const correctedPoints = evalFreqs.map((f, i) => ({
@@ -182,9 +200,7 @@ export const synthesizeAutoPeq = (
   }));
 
   // Match percentage: normalized improvement metric
-  const matchPct = initialRms > 0
-    ? Math.max(0, Math.min(99.5, ((initialRms - finalRms) / initialRms) * 100 + 40))
-    : 100;
+  const matchPct = initialRms > 0 ? Math.max(0, Math.min(100, 100 * (1 - finalRms / initialRms))) : 100;
 
   return {
     filters: committedFilters,

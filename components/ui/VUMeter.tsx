@@ -37,20 +37,20 @@ export const VUMeter: React.FC<VUMeterProps> = ({
 
   return (
     <div
-      className={`relative rounded-xl border border-audio-border bg-[#130E0B] p-2.5 shadow-panel overflow-hidden flex flex-col items-center ${className}`}
+      className={`relative rounded-xl border border-audio-border bg-[#191f1b] p-2.5 shadow-panel overflow-hidden flex flex-col items-center ${className}`}
       style={{
         backgroundImage: 'radial-gradient(ellipse at 50% 120%, rgba(198,147,79,0.18) 0%, rgba(20,16,13,0.95) 75%)',
       }}
     >
       {/* Screw dots in corners for authentic hardware aesthetic */}
-      <div className="absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-[#332B23] border border-[#1A1512] shadow-inner" />
-      <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#332B23] border border-[#1A1512] shadow-inner" />
+      <div className="absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-[#303833] border border-[#1b1e21] shadow-inner" />
+      <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#303833] border border-[#1b1e21] shadow-inner" />
 
       {/* Header labels */}
       <div className="w-full flex justify-between items-center px-1 text-[8px] font-mono text-audio-muted tracking-widest uppercase">
-        <span className="text-[#C6934F]/80 font-bold">{label}</span>
-        <span className="text-[7px] text-[#7FD8B4] flex items-center gap-1">
-          <span className="w-1 h-1 rounded-full bg-[#7FD8B4] animate-pulse" />
+        <span className="text-[#b4e4bd]/80 font-bold">{label}</span>
+        <span className="text-[7px] text-[#a1d8b1] flex items-center gap-1">
+          <span className="w-1 h-1 rounded-full bg-[#a1d8b1] animate-pulse" />
           -20dB → +3dB
         </span>
       </div>
@@ -64,9 +64,9 @@ export const VUMeter: React.FC<VUMeterProps> = ({
       >
         <defs>
           <linearGradient id={`vu-arc-grad-${size}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#7FD8B4" />
-            <stop offset="70%" stopColor="#C6934F" />
-            <stop offset="100%" stopColor="#E06A3F" />
+            <stop offset="0%" stopColor="#a1d8b1" />
+            <stop offset="70%" stopColor="#b4e4bd" />
+            <stop offset="100%" stopColor="#eb9689" />
           </linearGradient>
           <filter id={`needle-glow-${size}`} x1="-20%" y1="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#000" floodOpacity="0.8" />
@@ -103,7 +103,7 @@ export const VUMeter: React.FC<VUMeterProps> = ({
               y1={y1}
               x2={x2}
               y2={y2}
-              stroke={isRed ? '#E06A3F' : '#9C8F7D'}
+              stroke={isRed ? '#eb9689' : '#9ca5a6'}
               strokeWidth={i % 2 === 0 ? '1.5' : '1'}
               opacity={i % 2 === 0 ? 0.9 : 0.6}
             />
@@ -111,11 +111,11 @@ export const VUMeter: React.FC<VUMeterProps> = ({
         })}
 
         {/* dB scale markings */}
-        <text x={dimensions.width * 0.18} y={dimensions.height * 0.6} fill="#7FD8B4" fontSize="7" fontFamily="monospace" textAnchor="middle">-20</text>
-        <text x={dimensions.width * 0.35} y={dimensions.height * 0.42} fill="#9C8F7D" fontSize="7" fontFamily="monospace" textAnchor="middle">-7</text>
-        <text x={dimensions.width * 0.5} y={dimensions.height * 0.36} fill="#C6934F" fontSize="7.5" fontWeight="bold" fontFamily="monospace" textAnchor="middle">0</text>
-        <text x={dimensions.width * 0.65} y={dimensions.height * 0.42} fill="#D97748" fontSize="7" fontFamily="monospace" textAnchor="middle">+2</text>
-        <text x={dimensions.width * 0.82} y={dimensions.height * 0.6} fill="#E06A3F" fontSize="7" fontWeight="bold" fontFamily="monospace" textAnchor="middle">+3</text>
+        <text x={dimensions.width * 0.18} y={dimensions.height * 0.6} fill="#a1d8b1" fontSize="7" fontFamily="monospace" textAnchor="middle">-20</text>
+        <text x={dimensions.width * 0.35} y={dimensions.height * 0.42} fill="#9ca5a6" fontSize="7" fontFamily="monospace" textAnchor="middle">-7</text>
+        <text x={dimensions.width * 0.5} y={dimensions.height * 0.36} fill="#b4e4bd" fontSize="7.5" fontWeight="bold" fontFamily="monospace" textAnchor="middle">0</text>
+        <text x={dimensions.width * 0.65} y={dimensions.height * 0.42} fill="#e6a18b" fontSize="7" fontFamily="monospace" textAnchor="middle">+2</text>
+        <text x={dimensions.width * 0.82} y={dimensions.height * 0.6} fill="#eb9689" fontSize="7" fontWeight="bold" fontFamily="monospace" textAnchor="middle">+3</text>
 
         {/* Needle Line */}
         <g
@@ -134,7 +134,7 @@ export const VUMeter: React.FC<VUMeterProps> = ({
             y1={dimensions.height * 0.92}
             x2={dimensions.width / 2}
             y2={dimensions.height * 0.15}
-            stroke="#EDE6DA"
+            stroke="#edf0ec"
             strokeWidth="1.5"
             strokeLinecap="round"
             filter={`url(#needle-glow-${size})`}
@@ -145,7 +145,7 @@ export const VUMeter: React.FC<VUMeterProps> = ({
             y1={dimensions.height * 0.28}
             x2={dimensions.width / 2}
             y2={dimensions.height * 0.15}
-            stroke="#E06A3F"
+            stroke="#eb9689"
             strokeWidth="1.8"
             strokeLinecap="round"
           />
@@ -157,14 +157,14 @@ export const VUMeter: React.FC<VUMeterProps> = ({
           cy={dimensions.height * 0.92}
           r="6"
           fill="#241E19"
-          stroke="#C6934F"
+          stroke="#b4e4bd"
           strokeWidth="1.5"
         />
         <circle
           cx={dimensions.width / 2}
           cy={dimensions.height * 0.92}
           r="2.5"
-          fill="#C6934F"
+          fill="#b4e4bd"
         />
       </svg>
 

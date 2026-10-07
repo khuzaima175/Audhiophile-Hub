@@ -1,3 +1,4 @@
+import { biquadCoefficients, coefficientGain, graphicFilters, DSP_SAMPLE_RATE } from './biquad';
 import { PEQFilter } from '../types';
 import { CurvePoint } from '../constants/targetCurves';
 
@@ -7,6 +8,8 @@ export interface ViewportDimensions {
   padding: { top: number; right: number; bottom: number; left: number };
   minY?: number;
   maxY?: number;
+  minFreq?: number;
+  maxFreq?: number;
 }
 
 export const DEFAULT_VIEWPORT: ViewportDimensions = {
@@ -31,7 +34,7 @@ export const DEFAULT_MAX_DB = 18;
  */
 export const calculateAutoRangedYBounds = (
   curvePointSets: (CurvePoint[] | undefined)[],
-  isTargetVisible = true
+  isTargetVisible = true,
 ): { minY: number; maxY: number; yTicks: number[] } => {
   let minGain = Infinity;
   let maxGain = -Infinity;
@@ -81,9 +84,11 @@ export const calculateAutoRangedYBounds = (
 export const freqToX = (freq: number, viewport: ViewportDimensions = DEFAULT_VIEWPORT): number => {
   const { width, padding } = viewport;
   const graphWidth = width - padding.left - padding.right;
-  const minLog = Math.log10(MIN_FREQ);
-  const maxLog = Math.log10(MAX_FREQ);
-  const freqLog = Math.log10(Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq)));
+  const minFreq = viewport.minFreq ?? MIN_FREQ;
+  const maxFreq = viewport.maxFreq ?? MAX_FREQ;
+  const minLog = Math.log10(minFreq);
+  const maxLog = Math.log10(maxFreq);
+  const freqLog = Math.log10(Math.max(minFreq, Math.min(maxFreq, freq)));
   return padding.left + ((freqLog - minLog) / (maxLog - minLog)) * graphWidth;
 };
 
@@ -91,8 +96,8 @@ export const freqToX = (freq: number, viewport: ViewportDimensions = DEFAULT_VIE
 export const xToFreq = (x: number, viewport: ViewportDimensions = DEFAULT_VIEWPORT): number => {
   const { width, padding } = viewport;
   const graphWidth = width - padding.left - padding.right;
-  const minLog = Math.log10(MIN_FREQ);
-  const maxLog = Math.log10(MAX_FREQ);
+  const minLog = Math.log10(viewport.minFreq ?? MIN_FREQ);
+  const maxLog = Math.log10(viewport.maxFreq ?? MAX_FREQ);
   const ratio = Math.max(0, Math.min(1, (x - padding.left) / graphWidth));
   const freqLog = minLog + ratio * (maxLog - minLog);
   return Math.round(Math.pow(10, freqLog));
@@ -103,7 +108,7 @@ export const dbToY = (
   db: number,
   viewport: ViewportDimensions = DEFAULT_VIEWPORT,
   customMinY?: number,
-  customMaxY?: number
+  customMaxY?: number,
 ): number => {
   const { height, padding } = viewport;
   const graphHeight = height - padding.top - padding.bottom;
@@ -118,7 +123,7 @@ export const yToDb = (
   y: number,
   viewport: ViewportDimensions = DEFAULT_VIEWPORT,
   customMinY?: number,
-  customMaxY?: number
+  customMaxY?: number,
 ): number => {
   const { height, padding } = viewport;
   const graphHeight = height - padding.top - padding.bottom;
@@ -134,57 +139,12 @@ export const calculateFilterGainAtFreq = (
   type: string,
   fc: number,
   gain: number,
-  q: number
-): number => {
-  if (gain === 0 && type !== 'HP' && type !== 'LP' && type !== 'NOTCH') return 0;
-  const safeQ = Math.max(0.1, q || 1.41);
-  const fRatio = f / fc;
-
-  switch (type) {
-    case 'PK': // Peaking Bell
-    case 'peaking': {
-      const bw = Math.abs(fRatio - 1 / fRatio) * safeQ;
-      return gain / (1 + bw * bw);
-    }
-    case 'LS': // Low Shelf
-    case 'lowshelf': {
-      // 2nd order low shelf response approximation
-      const denom = 1 + Math.pow(fRatio, 2);
-      return gain / denom;
-    }
-    case 'HS': // High Shelf
-    case 'highshelf': {
-      const denom = 1 + Math.pow(1 / fRatio, 2);
-      return gain / denom;
-    }
-    case 'HP': // High Pass (12dB/octave Butterworth)
-    case 'highpass': {
-      if (f >= fc * 4) return 0;
-      const atten = -10 * Math.log10(1 + Math.pow(fc / f, 4));
-      return Math.max(-36, atten);
-    }
-    case 'LP': // Low Pass (12dB/octave Butterworth)
-    case 'lowpass': {
-      if (f <= fc / 4) return 0;
-      const atten = -10 * Math.log10(1 + Math.pow(f / fc, 4));
-      return Math.max(-36, atten);
-    }
-    case 'NOTCH': // Band Stop
-    case 'notch': {
-      const bw = Math.abs(fRatio - 1 / fRatio) * safeQ;
-      return -24 / (1 + bw * bw);
-    }
-    default:
-      return 0;
-  }
-};
+  q: number,
+  sampleRate = DSP_SAMPLE_RATE,
+): number => coefficientGain(f, biquadCoefficients(type, fc, gain, q, sampleRate), sampleRate);
 
 // Monotonic Cubic Hermite / Catmull-Rom interpolation in log10(frequency) space (matching squig.link / AutoEQ)
-export const interpolateGraphicBandsSmooth = (
-  f: number,
-  isoBands: number[],
-  isoGains: number[]
-): number => {
+export const interpolateGraphicBandsSmooth = (f: number, isoBands: number[], isoGains: number[]): number => {
   if (!isoBands || isoBands.length === 0) return 0;
   if (f <= isoBands[0]) return isoGains[0] || 0;
   if (f >= isoBands[isoBands.length - 1]) return isoGains[isoGains.length - 1] || 0;
@@ -205,8 +165,8 @@ export const interpolateGraphicBandsSmooth = (
       const y1 = isoGains[i + 1] || 0;
 
       // Estimate tangents using centered finite differences with monotonic clamping (Fritsch-Carlson)
-      const ym1 = i > 0 ? (isoGains[i - 1] || 0) : y0;
-      const yp2 = i < isoBands.length - 2 ? (isoGains[i + 2] || 0) : y1;
+      const ym1 = i > 0 ? isoGains[i - 1] || 0 : y0;
+      const yp2 = i < isoBands.length - 2 ? isoGains[i + 2] || 0 : y1;
 
       let m0 = (y1 - ym1) / 2;
       let m1 = (yp2 - y0) / 2;
@@ -243,28 +203,15 @@ export const evaluateCompositeCurve = (
   frequencies: number[],
   isoBands: number[],
   isoGains: number[],
-  peqFilters: PEQFilter[] = []
+  peqFilters: PEQFilter[] = [],
+  sampleRate = DSP_SAMPLE_RATE,
 ): CurvePoint[] => {
-  const hasGraphic = isoBands && isoBands.length > 0 && isoGains.some((g) => g !== 0);
-
-  return frequencies.map((f) => {
-    let totalDb = 0;
-
-    // Smooth GraphicEQ interpolation across ISO bands (squig.link / AutoEQ smooth curve)
-    if (hasGraphic) {
-      totalDb += interpolateGraphicBandsSmooth(f, isoBands, isoGains);
-    }
-
-    // Sum active Parametric EQ filters (if any)
-    for (let i = 0; i < peqFilters.length; i++) {
-      const filter = peqFilters[i];
-      if (filter.enabled !== false && filter.gain !== undefined && filter.gain !== 0) {
-        totalDb += calculateFilterGainAtFreq(f, filter.type, filter.freq, filter.gain, filter.q);
-      }
-    }
-
-    return { freq: f, gain: parseFloat(totalDb.toFixed(2)) };
-  });
+  const filters = [...graphicFilters(isoBands, isoGains), ...peqFilters].filter((f) => f.enabled !== false);
+  const coefficients = filters.map((f) => biquadCoefficients(f.type, f.freq, f.gain, f.q, sampleRate));
+  return frequencies.map((freq) => ({
+    freq,
+    gain: coefficients.reduce((sum, c) => sum + coefficientGain(freq, c, sampleRate), 0),
+  }));
 };
 
 // Generate SVG Path data string with dynamic Y Auto-Ranging
@@ -272,7 +219,7 @@ export const generateSvgPathFromPoints = (
   points: CurvePoint[],
   viewport: ViewportDimensions = DEFAULT_VIEWPORT,
   minY?: number,
-  maxY?: number
+  maxY?: number,
 ): string => {
   if (!points || points.length === 0) return '';
   return points.reduce((acc, pt, i) => {

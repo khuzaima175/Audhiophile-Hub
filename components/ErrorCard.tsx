@@ -29,17 +29,17 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
 
   return (
     <div className="w-full my-3 animate-in fade-in duration-200">
-      <div className="panel border-l-4 border-l-[#E06A3F] border-audio-border bg-[#160E0B] p-4 md:p-5 rounded-xl shadow-panel">
+      <div className="panel border-l-4 border-l-[#eb9689] border-audio-border bg-[#160E0B] p-4 md:p-5 rounded-xl shadow-panel">
         {/* Header with Red LED */}
         <div className="flex items-center justify-between mb-3 border-b border-audio-border/60 pb-2.5">
           <div className="flex items-center gap-2">
             <Led color="red" pulse size="md" />
-            <Engraved size="xs" className="text-[#E06A3F] font-bold tracking-wider">
-              {isApiKeyIssue ? 'SIGNAL FAULT — GEMINI API KEY REQUIRED' : 'TRANSMISSION ERROR'}
+            <Engraved size="xs" className="text-[#eb9689] font-bold tracking-wider">
+              {isApiKeyIssue ? 'Check your AI connection' : 'Something went wrong'}
             </Engraved>
           </div>
-          <span className="font-mono text-[9px] text-[#E06A3F]/80 uppercase bg-[#E06A3F]/10 px-2 py-0.5 rounded border border-[#E06A3F]/30 font-bold">
-            ERROR CODE 401 / 429
+          <span className="font-mono text-[9px] text-[#eb9689]/80 uppercase bg-[#eb9689]/10 px-2 py-0.5 rounded border border-[#eb9689]/30 font-bold">
+            REQUEST FAILED
           </span>
         </div>
 
@@ -48,7 +48,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
           {isApiKeyIssue ? (
             <>
               <p>
-                The AudioSage neural engine could not connect to Gemini models. Your API key may be missing, expired, or quota-limited.
+                Your assistant could not connect to Gemini. Your API key may be missing, expired, or quota-limited.
               </p>
               <p className="text-audio-muted text-xs">
                 To fix this, open Settings below and paste a free Gemini API key from Google AI Studio, then test connection.
@@ -69,7 +69,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
               onClick={onRetry}
               className="px-3.5 py-1.5 rounded-lg bg-audio-accent hover:bg-audio-accent-bright active:scale-95 text-black font-semibold text-xs font-mono transition-all shadow-glow-brass"
             >
-              ⟳ Retry Transmission
+              ⟳ Try again
             </button>
           )}
 
