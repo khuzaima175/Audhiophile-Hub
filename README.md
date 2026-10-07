@@ -19,7 +19,7 @@ Open http://127.0.0.1:3000. Node 20+ is recommended. TypeScript, Vite, React 19 
 
 For hosted research, enter your personal Gemini key in Settings & data. It remains in this browser's localStorage and is excluded from backups. Local development also accepts `GEMINI_API_KEY` or `VITE_GEMINI_API_KEY` in `.env.local`; both are excluded from production assets. Do not embed shared credentials into a hosted app. Shared-key hosting would require a protected service with access and usage limits; this project currently uses personal-key mode.
 
-The centralized catalog offers Gemini 2.5 Flash, Pro and Flash-Lite. Availability depends on the account and API. Test Connection runs the streaming request with grounding used by research; it does not claim broad account/model availability. Credential, model, quota, request and network failures are distinguished. Only unavailable-model errors trigger research fallback. The model selector remains the requested model; each new response records the answering model.
+The centralized catalog uses this default priority: Gemini 3.8 Flash → Gemini 3.7 Flash → Gemini 3.5 Flash-Lite. Availability depends on the account and API. Test Connection runs the streaming request with grounding used by research; it does not claim broad account/model availability. Credential, model, quota, request and network failures are distinguished. Only unavailable-model errors trigger research fallback. The model selector remains the requested model; each new response records the answering model.
 
 ## Audio workflow
 

@@ -447,10 +447,8 @@ export const generateStreamResponse = async (
       lastError = error;
       if (emitted) throw new Error('The response was interrupted. Please retry.');
 
-      const errorMessage = error.message || String(error);
-
-      // Fallback Logic: Try next model on ANY error (Quota, Overloaded, Intervals, or Invalid Config)
-      // This ensures if gemini-3.8-flash fails, we fall back to gemini-3.7-flash, then gemini-3.5-flash-lite
+      // Try the next configured model when the current model is unavailable.
+      // Default priority: Gemini 3.8 Flash, 3.7 Flash, then 3.5 Flash-Lite.
       if (classifyAiError(error) === 'model' && modelIndex < modelCandidates.length - 1) {
         console.warn(`Falling back to ${modelCandidates[modelIndex + 1]}`);
         continue;

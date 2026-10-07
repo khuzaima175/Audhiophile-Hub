@@ -40,7 +40,7 @@ Passive notifications occupy an accessible, pointer-transparent area. Damaged sa
 
 ## Research and audio status
 
-The model catalog is Gemini 2.5 Flash, Pro and Flash-Lite. The selector displays the requested model; each answer records the model that actually answered. Only unavailable-model errors cause fallback. Connection testing checks the streaming/grounding request and distinguishes credential, model, quota, network and request failures. Actual availability depends on the user's account.
+The model catalog uses this default priority: Gemini 3.8 Flash → Gemini 3.7 Flash → Gemini 3.5 Flash-Lite. The selector displays the requested model; each answer records the model that actually answered. Only unavailable-model errors cause fallback. Connection testing checks the streaming/grounding request and distinguishes credential, model, quota, network and request failures. Actual availability depends on the user's account.
 
 Context supplied identifies local records made available to an answer. Sources cited lists web sources supported by grounding references. Supplied records need not be used by the model. Retrieved passages are quoted as untrusted data; this does not establish prompt-injection immunity.
 

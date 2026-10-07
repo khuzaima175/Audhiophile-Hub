@@ -1,6 +1,6 @@
 # AudioSage verification report
 
-Updated 2026-10-07 for implementation through `868c97d`. Documentation-only follow-up does not change the recorded test outcomes. Use [the manual testing guide](docs/MANUAL_TESTING.md) for real-account/device checks and [the UI guide](UI_REDESIGN.md) for current interaction behavior.
+Updated 2026-10-07 for implementation through `868c97d`. The documentation follow-up retained these outcomes; the model-priority correction below has its own rerun evidence. Use [the manual testing guide](docs/MANUAL_TESTING.md) for real-account/device checks and [the UI guide](UI_REDESIGN.md) for current interaction behavior.
 
 Implementation base: `bc96299a4e51b889cbbfda55f991dc187bcecef9`. Original working tree was clean. The uploaded plan and milestone evidence are in `docs/`. Each milestone has its own commit. Deployment is separate.
 
@@ -47,3 +47,9 @@ Run `npm ci`, then `npm run typecheck`, `npm run build`, `npm run test:core`, `n
 Browser suites use `/usr/bin/chromium` by default; set `PLAYWRIGHT_BROWSER_PATH` to an installed Chromium-compatible executable on another machine. `TEST_WEBKIT=1` additionally requests installed WebKit for mobile checks; it was not run here. Production AI requests are mocked and development UI requests are blocked. Browser screenshots are ignored under `artifacts/`.
 
 Manual results should record date, commit, browser/OS/device and the actual operation checked. Repository publication to GitHub is distinct from application deployment and does not establish live model availability or device compatibility.
+
+## Preferred model priority correction
+
+The catalog, default selection and connection test now use `gemini-3.8-flash` first, `gemini-3.7-flash` second and `gemini-3.5-flash-lite` third, as requested. The 2.5 catalog introduced during implementation was removed. Historical answer metadata remains unchanged.
+
+Typecheck and production build passed again. The production browser regression verifies the exact three dropdown values, the default connection-test model, 3.8 → 3.7 after a mocked unavailable-model failure, and 3.8 → 3.7 → 3.5 Flash-Lite when both higher-priority models fail. Requested selection remains 3.8 while answers record 3.7 or 3.5 as appropriate. Retrieval/source exclusion and production save/refresh/export checks also passed in that run. Actual account availability remains unverified; no live credential was used.

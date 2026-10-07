@@ -69,7 +69,7 @@ APO bridge testing requires the local development server on Windows with Equaliz
 ## Live research and retrieval
 
 1. In Settings & data, enter a personal Gemini key and use Test Connection. Confirm streaming/grounding capability succeeds for your account, or that the displayed failure accurately distinguishes credential, model, quota or network problems.
-2. Select a catalog model, add a distinctive research note, and ask a relevant question. Inspect Context supplied, the requested/answering model metadata and Sources cited. Supplied local context and cited web sources have different meanings.
+2. Confirm the default is Gemini 3.8 Flash and the other choices are Gemini 3.7 Flash and Gemini 3.5 Flash-Lite, in that priority order. Select a catalog model, add a distinctive research note, and ask a relevant question. Inspect Context supplied, the requested/answering model metadata and Sources cited. Supplied local context and cited web sources have different meanings.
 3. Disable the note and ask again; it should be absent from the next answer's supplied context. Repeat after deleting/editing a note. Older-conversation retrieval starts off; enable it explicitly to test prior-session passages. Stale summaries should remain excluded until regenerated.
 4. Adjust retrieval budget and check supplied-context metadata. Confirm current chat remains separate from older retrieved records. Test actual model availability/grounding; mocked automated responses do not establish these account capabilities.
 

@@ -67,3 +67,7 @@ Unrun: deployed asset inspection/rotation (no URL/credential), live account/mode
 ## Documentation consolidation
 
 All repository Markdown entry points now describe the current shared draft, linked measurements, direct graph editing, black responsive UI, retrieval/provenance and recovery behavior. The older root UI-fix plan is a compatibility status page; historical README/report snapshots carry explicit superseded notices. The manual guide includes clone/pull setup, a synthetic measurement fixture, four main acceptance journeys, physical/live checks and static production preview. No live/deployed verification result is upgraded by this documentation update.
+
+## Preferred model correction
+
+Restored the user's configured Gemini priority to 3.8 Flash → 3.7 Flash → 3.5 Flash-Lite through the shared catalog used by defaults, dropdowns, connection testing and AI services. README/UI guidance now matches this order. Typecheck, build and the extended production browser regression passed, including both mocked fallback steps and requested/answering model provenance. Existing conversation metadata is preserved; live account availability is still unrun.
