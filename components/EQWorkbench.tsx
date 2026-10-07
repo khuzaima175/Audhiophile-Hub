@@ -1,3 +1,4 @@
+import { audioWorkspace, useAudioWorkspace, useDraftField, draftFromPreset, getMeasurementRecords, storeMeasurement, freshDraft } from '../store/audioWorkspace';
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { EQPreset, PEQFilter, PEQFilterType, MeasurementData, SmoothingType } from '../types';
 import { labStore } from '../store/labStore';
@@ -53,38 +54,31 @@ interface EQWorkbenchProps {
 }
 
 export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePresets, className = '' }) => {
-  // State Machine: 'IDLE' | 'ADDING' | 'IMPORTING' | 'MEASUREMENT'
-  const [workbenchState, setWorkbenchState] = useState<'IDLE' | 'ADDING' | 'IMPORTING' | 'MEASUREMENT'>(
-    'IDLE',
-  );
-  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
-
-  // Active Mode: '10-band' | '15-band' | '31-band' | 'peq'
-  const [eqMode, setEqMode] = useState<'10-band' | '15-band' | '31-band' | 'peq'>('10-band');
-  const [selectedTargetId, setSelectedTargetId] = useState<string>('crinacle-ief-2025');
-
-  // Measurement Ingestion State
+  const { draft, error: draftError, undoCount, redoCount } = useAudioWorkspace();
+  const [workbenchState, setWorkbenchState] = useDraftField('workbenchState');
+  const [editingPresetId, setEditingPresetId] = useDraftField('editingPresetId');
+  const [eqMode, setEqMode] = useDraftField('eqMode');
+  const [selectedTargetId, setSelectedTargetId] = useDraftField('selectedTargetId');
+  const [smoothing, setSmoothing] = useDraftField('smoothing');
+  const [maxAutoFilters, setMaxAutoFilters] = useDraftField('maxAutoFilters');
+  const [presetName, setPresetName] = useDraftField('presetName');
+  const [hardwareAssigned, setHardwareAssigned] = useDraftField('hardwareAssigned');
+  const [gains10, setGains10] = useDraftField('gains10');
+  const [gains15, setGains15] = useDraftField('gains15');
+  const [gains31, setGains31] = useDraftField('gains31');
+  const [peqFilters, setPeqFilters] = useDraftField('peqFilters');
   const [measurement, setMeasurement] = useState<MeasurementData | null>(null);
-  const [smoothing, setSmoothing] = useState<SmoothingType>('1/3 OCT');
-  const [maxAutoFilters, setMaxAutoFilters] = useState<number>(10);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
-
-  // Form Fields
-  const [presetName, setPresetName] = useState('');
-  const [hardwareAssigned, setHardwareAssigned] = useState('');
-
-  // Slider Gains for 10, 15, and 31 bands
-  const [gains10, setGains10] = useState<number[]>(new Array(10).fill(0));
-  const [gains15, setGains15] = useState<number[]>(new Array(15).fill(0));
-  const [gains31, setGains31] = useState<number[]>(new Array(31).fill(0));
-
-  // Parametric Filter Rows
-  const [peqFilters, setPeqFilters] = useState<PEQFilter[]>([
-    { id: 'f-1', type: 'PK', freq: 1000, gain: 0, q: 1.41, enabled: true },
-    { id: 'f-2', type: 'LS', freq: 105, gain: 0, q: 0.71, enabled: true },
-    { id: 'f-3', type: 'HS', freq: 10000, gain: 0, q: 0.71, enabled: true },
-  ]);
-
+  useEffect(() => {
+    let active = true;
+    setMeasurement(null);
+    if (draft.measurementRef) getMeasurementRecords().then(records => {
+      const record = records.find(r => r.id === draft.measurementRef);
+      if (active) { if (record) setMeasurement(record.value); else setImportError('Linked measurement is missing. Restore a complete backup or clear the source to continue with manual EQ.'); }
+    }).catch(() => { if (active) setImportError('Measurement storage unavailable. Restore a backup or try again.'); });
+    return () => { active = false; };
+  }, [draft.measurementRef]);
+  const replaceAllowed = () => !audioWorkspace.getSnapshot().draft.dirty || window.confirm('Replace unfinished Audio work? Cancel keeps your draft.');
   // Import State
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -314,7 +308,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
   // Measurement File Drop & Parse Handler
   const handleProcessMeasurementText = useCallback(
-    (text: string, name: string) => {
+    async (text: string, name: string) => {
+      if (!replaceAllowed()) return;
       const parsed = parseMeasurementFile(text, name, smoothing, 1000);
       if (!parsed) {
         showToast('Error: Could not parse measurement file. Check CSV/TSV format.');
@@ -334,6 +329,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
         showToast(`Imported correction as PEQ. Approximation residual: ${fit.finalRms} dB RMS.`);
         return;
       }
+      try { const ref = await storeMeasurement(parsed); audioWorkspace.update({ measurementRef: ref }); }
+      catch { setImportError('Measurement could not be saved. Existing draft preserved. Retry or export a backup.'); return; }
       setMeasurement(parsed);
       setPresetName(parsed.name ? `${parsed.name} Auto-EQ` : 'Auto-PEQ Target');
       setHardwareAssigned(parsed.name || 'Custom IEM');
@@ -421,7 +418,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
   };
 
   // Save current EQ preset (with silent Equalizer APO bridge hot push if enabled)
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = async (copy = false) => {
     if (!presetName.trim()) return;
 
     let bandsString = '';
@@ -432,7 +429,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
     }
 
     const preset: EQPreset = {
-      id: editingPresetId || uuidv4(),
+      id: (!copy && editingPresetId) || uuidv4(),
       name: presetName.trim(),
       hardware: hardwareAssigned.trim() || 'All Hardware',
       type: eqMode === 'peq' ? 'Parametric' : 'Wavelet',
@@ -442,11 +439,17 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
       peqFilters: eqMode === 'peq' ? [...peqFilters] : undefined,
       targetCurveId: selectedTargetId,
       preamp: currentPreamp,
+      gearId: draft.gearId || undefined,
+      measurementRef: draft.measurementRef || undefined,
+      requestedPreamp: draft.requestedPreamp,
+      preampMode: draft.preampMode,
+      sampleRate: draft.sampleRate,
+      analysis: { smoothing, normalize: draft.normalize },
       timestamp: Date.now(),
     };
 
     let updatedPresets: EQPreset[];
-    if (editingPresetId) {
+    if (editingPresetId && !copy) {
       updatedPresets = presets.map((p) => (p.id === editingPresetId ? preset : p));
     } else {
       updatedPresets = [preset, ...presets];
@@ -476,54 +479,14 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
       showToast(`Saved "${preset.name}" to EQ Library`);
     }
 
-    setWorkbenchState('IDLE');
-    setEditingPresetId(null);
-    setPresetName('');
-    setHardwareAssigned('');
+    audioWorkspace.update({ editingPresetId: preset.id, dirty: false }, false);
   };
 
   // Load preset into workbench for editing / audition
   const handleLoadPreset = (preset: EQPreset) => {
-    setMeasurement(null);
-    setGains10(new Array(10).fill(0));
-    setGains15(new Array(15).fill(0));
-    setGains31(new Array(31).fill(0));
-    setPeqFilters([]);
-    setEditingPresetId(preset.id);
-    setPresetName(preset.name);
-    setHardwareAssigned(preset.hardware);
-
-    if (preset.mode) {
-      setEqMode(preset.mode);
-    } else if (preset.type === 'Parametric') {
-      setEqMode('peq');
-    } else {
-      setEqMode('10-band');
-    }
-
-    if (preset.targetCurveId) {
-      setSelectedTargetId(preset.targetCurveId);
-    }
-
-    if (preset.graphicGains && preset.graphicGains.length > 0) {
-      if (preset.graphicGains.length === 31) setGains31(preset.graphicGains);
-      else if (preset.graphicGains.length === 15) setGains15(preset.graphicGains);
-      else setGains10(preset.graphicGains);
-    } else if (preset.bands) {
-      const parsed = parseImportedEQText(preset.bands);
-      if (parsed?.graphicGains) {
-        if (parsed.mode === '31-band') setGains31(parsed.graphicGains);
-        else if (parsed.mode === '15-band') setGains15(parsed.graphicGains);
-        else setGains10(parsed.graphicGains);
-      }
-      if (parsed?.peqFilters) setPeqFilters(parsed.peqFilters);
-    }
-
-    if (preset.peqFilters && preset.peqFilters.length > 0) {
-      setPeqFilters(preset.peqFilters);
-    }
-
-    setWorkbenchState('ADDING');
+    if (!replaceAllowed()) return;
+    try { audioWorkspace.replace(draftFromPreset(preset)); }
+    catch (e) { setImportError((e as Error).message); }
   };
 
   // Delete preset
@@ -539,7 +502,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
   // Import text parser
   const handleExecuteImport = () => {
-    if (!importText.trim()) return;
+    if (!importText.trim() || !replaceAllowed()) return;
     const result = parseImportedEQText(importText);
     if (!result) {
       setImportError('Could not recognize format. Import EQ text, Equalizer APO, or GraphicEQ string.');
@@ -702,6 +665,15 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
   return (
     <div className={`eq-workspace space-y-5 max-w-5xl mx-auto select-none ${className}`}>
+      {draftError && <div role="alert" className="panel p-3">{draftError}<button onClick={() => audioWorkspace.retry()}>Retry write</button><button onClick={() => { if (window.confirm('Preserve damaged draft as recovery data and start fresh?')) audioWorkspace.recoverFresh(); }}>Start fresh</button></div>}
+      {importError && <div role="alert" className="panel p-3">{importError}<button onClick={() => { audioWorkspace.update({ measurementRef: null }); setImportError(null); }}>Continue manual EQ</button></div>}
+      <nav className="audio-view-tabs" aria-label="Audio workspace views">
+        <button className="secondary-button" onClick={() => setWorkbenchState('ADDING')}>Editor {draft.dirty ? '• Unsaved' : ''}</button>
+        <button className="secondary-button" onClick={() => labStore.openLab()}>Compare</button>
+        <button className="secondary-button" onClick={() => setWorkbenchState('IDLE')}>Presets</button>
+        <button className="secondary-button" disabled={!undoCount} onClick={() => audioWorkspace.undo()}>Undo</button>
+        <button className="secondary-button" disabled={!redoCount} onClick={() => audioWorkspace.redo()}>Redo</button>
+      </nav>
       {/* 1. TOP HEADER & WORKBENCH ACTIONS */}
       <div className="flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-audio-border/60">
         <div>
@@ -746,6 +718,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
               <button
                 type="button"
                 onClick={() => {
+                  if (!replaceAllowed()) return;
+                  audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING' });
                   setEditingPresetId(null);
                   setPresetName('');
                   setGains10(new Array(10).fill(0));
@@ -1202,7 +1176,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
             </div>
           )}
 
-          {/* Form-Level Save & Cancel Buttons */}
+          {/* Explicit draft save actions */}
           <div className="flex items-center justify-between pt-3 border-t border-audio-border/60">
             <div className="flex items-center gap-2">
               <button
@@ -1229,23 +1203,23 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
             </div>
 
             <div className="flex items-center gap-2.5">
+              <button className="secondary-button" disabled={!presetName.trim()} onClick={() => void handleSaveProfile(true)}>Save as copy</button>
               <button
                 type="button"
                 onClick={() => {
                   setWorkbenchState('IDLE');
-                  setEditingPresetId(null);
                 }}
                 className="px-3.5 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
               >
-                Cancel
+                Keep draft
               </button>
               <button
                 type="button"
-                onClick={handleSaveProfile}
+                onClick={() => void handleSaveProfile()}
                 disabled={!presetName.trim()}
                 className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass disabled:opacity-40"
               >
-                {editingPresetId ? 'Update Preset' : 'Save EQ Profile'}
+                Save
               </button>
             </div>
           </div>
@@ -1916,7 +1890,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], onSavePr
 
       {/* Toast Feedback */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 p-3 rounded-xl bg-audio-surface border border-audio-signal/40 text-audio-signal text-xs font-mono shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+        <div className="notification-area" role="status" aria-live="polite">
           <CheckIcon />
           <span>{toastMessage}</span>
         </div>

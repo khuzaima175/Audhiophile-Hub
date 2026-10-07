@@ -60,7 +60,13 @@ export interface EQPreset {
   graphicGains?: number[]; // Array of slider gains
   peqFilters?: PEQFilter[]; // Parametric filters
   targetCurveId?: string; // Target reference ID
-  preamp?: number; // Preamp attenuation in dB
+  gearId?: string;
+  measurementRef?: string;
+  requestedPreamp?: number;
+  preampMode?: 'automatic' | 'manual';
+  sampleRate?: number;
+  analysis?: { smoothing: SmoothingType; normalize: boolean };
+  preamp?: number; // Effective attenuation in dB
   timestamp: number;
 }
 
