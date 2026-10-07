@@ -2,8 +2,8 @@ import { GoogleGenAI, Content, Part, Tool } from '@google/genai';
 import { Message, AudioProfile, ChatSession, GroundingSource, KnowledgeEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-// Model fallback configuration — gemini-3.6-flash is the primary API identifier
-const MODELS = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-3.5-flash-lite'] as const;
+// Model fallback configuration — gemini-3.8-flash is the primary API identifier
+const MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
 
 type ModelName = (typeof MODELS)[number];
 
@@ -282,7 +282,7 @@ export const generateStreamResponse = async (
   }
 
   const systemInstruction = `
-    You are 'AudioSage', an elite Audiophile Research Assistant running on Gemini 3.6 Flash.
+    You are 'AudioSage', an elite Audiophile Research Assistant running on Gemini 3.8 Flash.
     
     USER PROFILE:
     - Name: ${profile.name}
@@ -553,7 +553,7 @@ export const generateStreamResponse = async (
       const errorMessage = error.message || String(error);
 
       // Fallback Logic: Try next model on ANY error (Quota, Overloaded, Intervals, or Invalid Config)
-      // This ensures if gemini-3.5 fails (e.g. doesn't support 'thinking' yet), we fall back to gemini-2.0-thinking
+      // This ensures if gemini-3.8-flash fails, we fall back to gemini-3.7-flash, then gemini-3.5-flash-lite
       if (modelIndex < modelCandidates.length - 1) {
         console.warn(`Falling back to ${modelCandidates[modelIndex + 1]}`);
         continue;
@@ -687,41 +687,31 @@ Based on the user's profile:
     temperature: 0.2,
   };
 
-  try {
-    if (onActiveModel) {
-      onActiveModel('gemini-3.6-flash');
-    }
-    const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3.6-flash',
-      contents: prompt,
-      config: config,
-    });
-
-    let fullText = '';
-    for await (const chunk of responseStream) {
-      const textChunk = chunk.text;
-      if (textChunk) {
-        fullText += textChunk;
-        onChunk(textChunk);
-      }
-    }
-    return fullText;
-  } catch (error: any) {
-    console.error('Battle comparison failed with primary model, trying fallback:', error);
+  let lastError: any = null;
+  for (const model of MODELS) {
     try {
       if (onActiveModel) {
-        onActiveModel('gemini-2.5-flash');
+        onActiveModel(model);
       }
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+      const responseStream = await ai.models.generateContentStream({
+        model,
         contents: prompt,
-        config: { temperature: 0.2, tools: [{ googleSearch: {} }] as Tool[] },
+        config: config,
       });
-      const text = response.text || 'Comparison failed.';
-      onChunk(text);
-      return text;
-    } catch (fallbackError: any) {
-      throw new Error(`Battle comparison failed: ${fallbackError.message}`);
+
+      let fullText = '';
+      for await (const chunk of responseStream) {
+        const textChunk = chunk.text;
+        if (textChunk) {
+          fullText += textChunk;
+          onChunk(textChunk);
+        }
+      }
+      return fullText;
+    } catch (error: any) {
+      console.warn(`Battle comparison failed with ${model}, trying fallback:`, error);
+      lastError = error;
     }
   }
+  throw new Error(`Battle comparison failed: ${lastError?.message || 'Unknown error'}`);
 };

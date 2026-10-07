@@ -29,6 +29,12 @@ The app now uses task-based navigation: Overview, Research assistant, My gear, E
 - New EQ presets start clean. Loading a preset clears previous editor state. Typed frequency, gain, and Q values are bounded.
 - Exported APO presets use their saved band layout, preserve disabled filters, and account for combined filter headroom. Parametric-to-Wavelet export samples the actual filter response. GraphicEQ exports avoid duplicate 20 Hz entries.
 - Shared graphs preserve filter provenance, source target, inversion, visibility, view mode, and smoothing; restored graphs include their reference target.
+- Squig.link 1000 Hz datum normalization is enforced across target curves, raw measurements, and reconstructed GraphicEQ curves to ensure accurate relative alignment.
+- Monotonic cubic Hermite interpolation (Fritsch-Carlson) prevents overshoot artifacts when synthesizing curves from sparse graphic equalizer bands.
+- Solo mode cleanly isolates a chosen curve against the target baseline and refocuses the dynamic Y-axis auto-ranging bounds.
+- Inverted post-EQ mode displays true residual delta error against the reference target.
+- Settings modal preserves the active tab when adding or editing gear, facts, or EQ presets, eliminating unwanted tab switching to the listener profile.
+- Multi-tier Gemini reasoning pipeline upgraded to `gemini-3.8-flash` primary with automatic fallback to `gemini-3.7-flash` and `gemini-3.5-flash-lite`.
 - Fake online, latency, token, and verification status displays have been removed.
 - Large tools load on demand; the AI SDK has its own production chunk. React type definitions and repeatable browser checks are now included.
 
@@ -39,7 +45,11 @@ Start the local app with `npm run dev`, then run:
 ```sh
 npm run typecheck
 npm run build
+npm run test:core
+npm run test:apo
+npm run test:dsp
 npm run test:ui
+npm run test:mobile
 ```
 
 The browser checks use installed Microsoft Edge and an isolated browser context. Set `AUDIOSAGE_TEST_URL` for another local server URL, or `PLAYWRIGHT_MODULE` for an externally bundled Playwright installation. Screenshots are saved under the ignored `artifacts/` directory.

@@ -14,7 +14,9 @@
 | Measurement parsing                                                                                                    | REW phase columns, explicit L/R columns, duplicates, unsorted rows, non-finite values and supported frequency range tested                                                      |
 | Equalizer APO bridge                                                                                                   | Non-destructive permission probe, original-file backup, repeated sync, managed-line removal and preservation of independently managed includes tested using disposable fixtures |
 | Bridge request restrictions                                                                                            | Non-local clients, untrusted hosts, cross-origin requests, wrong content type and malformed JSON rejected                                                                       |
-| Gemini                                                                                                                 | Configured generation endpoint accepted a live minimal connection test with HTTP 200; no listener profile sent                                                                  |
+| Graph Lab & datum normalization                                                                        | Squig.link 1 kHz datum alignment across all curves, Fritsch-Carlson monotonic Hermite clamping, target-isolated solo mode with focused Y bounds, and inverted post-EQ residual delta error vs target verified |
+| Settings & workbench tab retention                                                                    | Switching/editing gear items, listener facts, or custom EQ profiles preserves the active tab and prevents unwanted jumping to the listener profile                              |
+| Gemini multi-model tier                                                                                | Primary reasoning runs on `gemini-3.8-flash` with automatic fallback to `gemini-3.7-flash` and `gemini-3.5-flash-lite`; live minimal connection test passed with HTTP 200        |
 | npm dependency audit                                                                                                   | Zero reported vulnerabilities after migration to Tailwind 4                                                                                                                     |
 
 ## Accuracy corrections
@@ -22,6 +24,8 @@
 The original graph used approximate bell/shelf shapes and a graphic spline, while playback used real cascaded filters. A shared RBJ biquad implementation now drives the plotted response, automatic fitting, headroom calculation and playback. Shelf Q uses browser IIR filters; pass-filter Q is converted to Web Audio's dB convention. High-pass, low-pass and notch filters remain active even with zero gain. The app's playback and workbench model use 48 kHz.
 
 Measured curves and targets share the normalization datum. The post-EQ plot uses measured response plus EQ; it no longer adds EQ to an unrelated target and calls that the measured result. Graphic slider values are filter parameters: overlapping filters sum, so a slider value is not a guaranteed final response at that frequency. Wavelet exports sample the actual response onto its documented import grid and include headroom in the exported gains. Imported GraphicEQ files are approximated with parametric filters, with the residual RMS shown to the user.
+
+Curves in Graph Lab follow squig.link datum conventions with 1000 Hz / 0.0 dB alignment, eliminating floating vertical offsets in reconstructed IEM responses. Sparse graphic equalizer interpolation uses monotonic cubic Hermite splines with Fritsch-Carlson tangent clamping to eliminate overshoot between adjacent sliders. Solo view isolates individual curves against target baselines with dynamically focused Y-axis bounds, while inverted post-EQ mode plots the true residual delta error directly relative to the active target.
 
 The former match percentage included an arbitrary bonus. It now reports RMS improvement rather than a claim about acoustic fidelity. Fitting stays within the supplied measurement support. Reference targets and measurements must come from compatible measurement rigs to support meaningful acoustic comparisons.
 
@@ -63,5 +67,5 @@ The optional `node tests/live-api.cjs` check makes one live Gemini connection re
 - [Wavelet import documentation](https://pittvandewitt.github.io/Wavelet/Import/) — required frequency grid and normalization.
 - [AutoEq project](https://github.com/jaakkopasanen/AutoEq) — measurement-based EQ and optimization limitations.
 - [Crinacle's IEF target explanation](https://crinacle.com/2025/02/05/the-new-2025-ief-target/) — preference targets are not universal acoustic truth.
-- [Gemini model deprecations](https://ai.google.dev/gemini-api/docs/deprecations) — removed Gemini 2.0 fallback replaced with a supported Flash-Lite model.
+- [Google Gemini API Models](https://ai.google.dev/gemini-api/docs/models) — primary reasoning upgraded to Gemini 3.8 Flash with automatic fallback to Gemini 3.7 Flash and Gemini 3.5 Flash-Lite.
 - [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide) — PostCSS migration and modern browser requirements.

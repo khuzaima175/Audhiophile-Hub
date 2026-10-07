@@ -18,7 +18,7 @@ interface MessageBubbleProps {
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
-  activeModel = 'GEMINI 3.6 FLASH',
+  activeModel = 'GEMINI 3.8 FLASH',
   onVerify,
   onSaveToNotes,
   onRetry,

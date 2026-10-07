@@ -1242,7 +1242,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }
                           setImportMessage({
                             type: 'success',
-                            text: 'Testing connection to Gemini 3.6 Flash…',
+                            text: 'Testing connection to Gemini 3.8 Flash…',
                           });
                           try {
                             const testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;

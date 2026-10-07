@@ -8,7 +8,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6.2-646CFF.svg?style=flat-square&logo=vite)](https://vitejs.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6.svg?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3-38B2AC.svg?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
-[![Gemini 3.6 Flash](https://img.shields.io/badge/Gemini_3.6_Flash-Google_AI-FFA116.svg?style=flat-square&logo=google)](https://ai.google.dev/)
+[![Gemini 3.8 Flash](https://img.shields.io/badge/Gemini_3.8_Flash-Google_AI-FFA116.svg?style=flat-square&logo=google)](https://ai.google.dev/)
 [![Theme](https://img.shields.io/badge/Theme-Warm_Hi--Fi_Chassis-C6934F.svg?style=flat-square)](#-design-system-warm-hi-fi-chassis)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
@@ -149,7 +149,7 @@ A signature visualization component (`FRGraph.tsx`) engineered specifically for 
 
 ### 5. ⚡ Gemini Multi-Model Assistant & Streaming Pipeline
 
-* **Multi-Tier Fallback Architecture**: Primary reasoning runs on `gemini-3.6-flash`, backed by fallback chains to `gemini-2.5-flash` and `gemini-2.0-flash`.
+* **Multi-Tier Fallback Architecture**: Primary reasoning runs on `gemini-3.8-flash`, backed by fallback chains to `gemini-3.7-flash` and `gemini-3.5-flash-lite`.
 * **Senior Audio Research Engineer Mode**: Toggleable advanced protocol that activates in-depth technical analysis for:
   * **Group Delay & Minimum Phase Response**
   * **Impulse Response & Transient Snappiness**
@@ -268,7 +268,7 @@ Chassis Palette Tokens:
 | **Build System** | [Vite 6.2](https://vitejs.dev/) | Instant HMR and optimized production bundle |
 | **Language** | [TypeScript 5.8](https://www.typescriptlang.org/) | Strict type-safety across audio schemas & DSP filters |
 | **Styling** | [Tailwind CSS 3.4](https://tailwindcss.com/) + Vanilla CSS | Design tokens, containment layouts & hardware textures |
-| **AI SDK** | [@google/genai 1.37](https://ai.google.dev/) | Gemini 3.6 Flash multimodal streaming & tool calls |
+| **AI SDK** | [@google/genai 1.37](https://ai.google.dev/) | Gemini 3.8 Flash multimodal streaming & tool calls |
 | **Search Grounding** | Google Search Tool | Real-time specification, pricing, and driver verification |
 | **Audio Engine** | Web Audio API (`AudioContext`, `BiquadFilterNode`) | Real-time filter cascade, noise generation & A/B bypass |
 | **Vector / Storage** | LocalStorage + JSON Export | Persistent offline-ready memory & listener profile |
@@ -280,6 +280,7 @@ Chassis Palette Tokens:
 ```
 Audhiophile-Hub/
 ├── components/
+│   ├── lab/                     # Graph Lab sub-components (BandLabels, LabToolbar, PerCurveRow)
 │   ├── ui/
 │   │   ├── Engraved.tsx         # Tactile chassis engraved text badge
 │   │   ├── Fader.tsx            # Analog rotary / vertical tuning fader
@@ -294,6 +295,7 @@ Audhiophile-Hub/
 │   ├── ErrorCard.tsx            # Connection fault handler with raw error drawer
 │   ├── FRGraph.tsx              # CrinGraph 20Hz-20kHz curve visualizer
 │   ├── GlossaryTooltip.tsx      # Audiophile dictionary with hover cards
+│   ├── GraphLab.tsx             # Acoustic measurement lab, squig.link datum & curve studio
 │   ├── Header.tsx               # Rotary engine selector & TTFT latency strip
 │   ├── HomeConsole.tsx          # Main hardware console & system setup checklist
 │   ├── Icon.tsx                 # Curated Hi-Fi vector SVG icon library
@@ -310,12 +312,24 @@ Audhiophile-Hub/
 │   └── apoBridge.ts             # Equalizer APO hot-reload bridge & Vite middleware plugin
 ├── services/
 │   ├── apoBridgeClient.ts       # Client-side Equalizer APO bridge sync & permission test service
-│   └── geminiService.ts         # Gemini 3.6 Flash SDK client, RAG & Battle Analyst
+│   └── geminiService.ts         # Gemini 3.8 Flash SDK client, RAG & Battle Analyst
+├── store/
+│   └── labStore.ts              # Graph Lab state management, curve cache & view modes
+├── tests/
+│   ├── apo.cjs                  # Equalizer APO bridge idempotence & fixture permissions
+│   ├── core.cjs                 # DSP anchors, Auto-PEQ consistency & measurement parsing
+│   ├── dsp-browser.cjs          # Independent Web Audio filter parity audit (4,842 points)
+│   ├── live-api.cjs             # Live minimal Gemini API connection test
+│   ├── mobile.cjs               # Playwright mobile viewport & touch crosshair tests
+│   └── ui-smoke.cjs             # Playwright desktop workflow & data restore tests
 ├── utils/
 │   ├── autoPeqGenerator.ts      # Greedy residual minimization & biquad PEQ synthesis
-│   ├── curveSynthesizer.ts      # Biquad filter formulas & dynamic Y auto-ranging
+│   ├── biquad.ts                # Audio EQ Cookbook RBJ biquad formulas & complex responses
+│   ├── curveSynthesizer.ts      # Monotonic Hermite spline & dynamic auto-ranging
+│   ├── dataValidation.ts        # Defensive backup & profile JSON schema validators
 │   ├── importExportParser.ts    # Equalizer APO, Wavelet & AutoEQ bidirectional parser
-│   └── measurementParser.ts     # Lenient CSV/TSV REW parser, 1kHz norm & log smoothing
+│   ├── measurementParser.ts     # Lenient CSV/TSV REW parser, 1kHz norm & log smoothing
+│   └── shareCodec.ts            # URL-safe compressed graph sharing encoder/decoder
 ├── types.ts                     # TypeScript schemas (Measurement, AutoPeq, LiveTab, ApoBridge)
 ├── index.css                    # Hardware design tokens, chassis grain & table layouts
 ├── tailwind.config.js           # Warm Hi-Fi chassis palette & keyframe animations
@@ -366,6 +380,16 @@ Audhiophile-Hub/
    npm run build
    ```
 
+6. **Run Validation & Test Suites:**
+   ```bash
+   npm run typecheck    # Strict TypeScript type verification
+   npm run test:core    # RBJ biquad filters, Auto-PEQ, and measurement parsing
+   npm run test:apo     # Equalizer APO bridge idempotence & fixture permissions
+   npm run test:dsp     # Browser Web Audio filter parity audit (4,842 points)
+   npm run test:ui      # Playwright UI smoke & layout checks in Edge
+   npm run test:mobile  # Responsive touch & crosshair checks in Chromium/WebKit
+   ```
+
 ---
 
 ## ⌨️ Keyboard Shortcuts Cheatsheet
@@ -392,6 +416,9 @@ Audhiophile-Hub/
 * ✅ **Stage 6: Motion & Feedback Layer**: Fluid `.stagger` animations, needle idle-sway, count-up numeric dials, and tactile modal transitions.
 * ✅ **Stage 7: Power Navigation Layer**: Global ⌘K / Ctrl+K Command Palette, full keyboard navigation, and runtime Google AI Studio connection test suite.
 * ✅ **Stage 8: Mobile & Accessibility Hardening**: Comprehensive touch optimization ($\ge 44\text{px}$ targets), ARIA compliance, `prefers-reduced-motion` compliance, and verified zero-error production build.
+* ✅ **Stage 9: Graph Lab & Squig.link Normalization**: Implemented squig.link 1 kHz datum alignment across all targets, measurements, and reconstructed IEM curves. Added Fritsch-Carlson monotonic cubic Hermite spline clamping to prevent GraphicEQ overshoot, target-isolated solo filtering with focused Y-axis auto-ranging, per-curve inversion, and post-EQ residual delta error tracking.
+* ✅ **Stage 10: Task-Based Workspace Redesign & DSP Parity**: Redesigned UI into task-focused navigation (Overview, Research, My Gear, Equalizer, Graph Lab, Profile, Notes, Settings). Migrated to Tailwind 4, verified RBJ biquad DSP across 4,842 frequency points (0.0000057 dB maximum error), hardened Equalizer APO file bridge, and added automated Playwright test suites.
+* ✅ **Stage 11: Multi-Tier Gemini 3.8 Flash Upgrade**: Upgraded primary AI reasoning engine to `gemini-3.8-flash` with resilient fallback cascade to `gemini-3.7-flash` and `gemini-3.5-flash-lite`, integrated real-time Google Search grounding, multimodal frequency graph inspection, and head-to-head gear comparison battles.
 
 ---
 

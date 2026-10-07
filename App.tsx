@@ -82,7 +82,7 @@ const App: React.FC = () => {
   const [isAdvancedAnalysis, setIsAdvancedAnalysis] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | undefined>(undefined);
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [activeModel, setActiveModel] = useState<string>('gemini-3.6-flash');
+  const [activeModel, setActiveModel] = useState<string>('gemini-3.8-flash');
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
 
   // Audio Recording State
