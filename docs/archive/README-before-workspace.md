@@ -1,3 +1,5 @@
+> **⚠️ OUTDATED HISTORICAL ARCHIVE**: This file is an unedited historical snapshot superseded on 2026-10-07. Several claims below (`"Bit-perfect"`, `"Zero-Pop"`, `"independently audited"`, `"optimal filter"`, `#C6934F` brass theme, `Space Grotesk` font, and APO `config.txt` behavior) are inaccurate or obsolete and have been replaced in [the current README.md](../../README.md).
+>
 > Historical snapshot: the 2026-10-07 mobile graph, Squig workflow and stereo EQ follow-up is described in [the current Graph Lab guide](../GRAPH_LAB_GUIDE.md). This archived body remains unchanged.
 
 > Historical snapshot retained for traceability. Marked superseded on 2026-10-07. Model IDs, theme descriptions and test claims below describe earlier work and are not current product guidance. See [the current document](../../README.md), [current UI](../../UI_REDESIGN.md) and [manual testing](../MANUAL_TESTING.md).

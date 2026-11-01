@@ -1,9 +1,9 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
-const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
+const { ensurePreviewServer, launchBrowser } = require('./browserEnv.cjs');
 
 (async () => {
-  const serverHandle = await ensureViteServer(3000);
+  const serverHandle = await ensurePreviewServer(3001);
   try {
     const browser = await launchBrowser(chromium);
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -55,11 +55,7 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
     });
   });
 
-  await page.addInitScript(() => {
-    window.__AUDIOSAGE_FORCE_NO_KEY__ = true;
-  });
-
-  await page.goto(process.env.AUDIOSAGE_PRODUCTION_URL || 'http://127.0.0.1:3000');
+  await page.goto(process.env.AUDIOSAGE_PRODUCTION_URL || 'http://127.0.0.1:3001');
   await page.getByText('Chat: add key', { exact: true }).waitFor();
 
   const nav = async (name) => {
@@ -71,9 +67,6 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
   };
 
   await nav('Settings & data');
-  await page.evaluate(() => {
-    delete window.__AUDIOSAGE_FORCE_NO_KEY__;
-  });
   await page.getByLabel(/API key/i).fill('TEST_PRODUCTION_PERSONAL_KEY');
   await page.getByRole('button', { name: 'Test Connection', exact: true }).click();
   await page.getByText(/verified streaming and grounding request/).waitFor();
@@ -175,10 +168,13 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
   assert.match(text, /intended sample rate 48000/);
   assert.match(text, /Preamp: -/);
 
+  const bridge = await page.request.get('http://127.0.0.1:3001/api/apo/status');
+  assert.notEqual(bridge.headers()['content-type'], 'application/json');
+
   assert.deepEqual(errors, []);
   await browser.close();
   console.log(
-    'PASS production lazy loading, browser personal key, mocked streaming/grounding capability, 3.8 -> 3.7 -> 3.5 Flash-Lite fallback preserving selection, per-answer supplied context/model/cited-only sources, disabled-source exclusion, manual save/refresh/export',
+    'PASS production lazy loading, browser personal key, mocked streaming/grounding capability, 3.8 -> 3.7 -> 3.5 Flash-Lite fallback preserving selection, per-answer supplied context/model/cited-only sources, disabled-source exclusion, manual save/refresh/export, hosted APO distinction',
   );
   } finally {
     if (serverHandle && serverHandle.spawned) serverHandle.kill();

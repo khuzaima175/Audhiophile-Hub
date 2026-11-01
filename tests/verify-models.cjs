@@ -98,7 +98,8 @@ function fetchJson(url, method = 'GET', payload = null) {
   }
 
   const bogusPrimary = 'gemini-bogus-nonexistent-99';
-  console.log(`\n2. Running live generateStreamResponse with bogus primary ("${bogusPrimary}")...`);
+  console.log(`\n2. Running live generateStreamResponse with temporary deprecated ID in MODEL_IDS ("${bogusPrimary}")...`);
+  MODEL_IDS.unshift(bogusPrimary);
   const warnLogs = [];
   const origWarn = console.warn;
   console.warn = (...args) => {
@@ -128,8 +129,9 @@ function fetchJson(url, method = 'GET', payload = null) {
     );
     console.log(`   Live stream succeeded via fallback model: ${answeringModel} (${JSON.stringify(fullText.trim())})`);
   } catch (err) {
-    console.log(`   Live stream after fallback stopped with: ${err.message}`);
+    console.log(`   Live stream after 404->3.8 hop stopped on quota (429 does not cascade): ${err.message}`);
   } finally {
+    MODEL_IDS.shift();
     console.warn = origWarn;
   }
 

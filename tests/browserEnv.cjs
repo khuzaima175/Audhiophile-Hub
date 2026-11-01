@@ -15,14 +15,15 @@ function isServerRunning(url = 'http://127.0.0.1:3000') {
   });
 }
 
-async function ensureViteServer(port = 3000) {
+async function ensureViteServer(port = 3000, subcommand = []) {
   const url = `http://127.0.0.1:${port}`;
   if (await isServerRunning(url)) {
     return { spawned: false, kill: () => {} };
   }
 
   const viteBin = path.join(__dirname, '..', 'node_modules', 'vite', 'bin', 'vite.js');
-  const child = spawn(process.execPath, [viteBin, '--port', String(port), '--strictPort'], {
+  const args = [viteBin, ...subcommand, '--host', '127.0.0.1', '--port', String(port), '--strictPort'];
+  const child = spawn(process.execPath, args, {
     cwd: path.join(__dirname, '..'),
     stdio: 'ignore',
     windowsHide: true,
@@ -81,8 +82,13 @@ async function launchBrowser(chromium, options = {}) {
   }
 }
 
+async function ensurePreviewServer(port = 3001) {
+  return ensureViteServer(port, ['preview']);
+}
+
 module.exports = {
   isServerRunning,
   ensureViteServer,
+  ensurePreviewServer,
   launchBrowser,
 };

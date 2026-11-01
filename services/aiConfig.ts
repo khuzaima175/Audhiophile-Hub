@@ -7,12 +7,7 @@ export const AI_MODELS = [
 export const MODEL_IDS = AI_MODELS.map(m => m.id);
 export function resolveApiKey() {
   let browser = '';
-  try {
-    if (typeof window !== 'undefined' && (window as any).__AUDIOSAGE_FORCE_NO_KEY__) {
-      return { key: '', source: 'Not configured' };
-    }
-    browser = typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key')?.trim() || '' : '';
-  } catch {}
+  try { browser = typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key')?.trim() || '' : ''; } catch {}
   const gemini = typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : undefined;
   const vite = import.meta.env?.DEV ? import.meta.env?.VITE_GEMINI_API_KEY : undefined;
   return browser ? { key: browser, source: 'Browser personal key' } : gemini ? { key: gemini, source: 'GEMINI_API_KEY (local development)' } : vite ? { key: vite, source: 'VITE_GEMINI_API_KEY (local development)' } : { key: '', source: 'Not configured' };
