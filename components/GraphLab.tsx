@@ -55,10 +55,11 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
   };
   const startManualEq = async () => {
     if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return;
+    const currentSampleRate = audioWorkspace.getSnapshot().draft.sampleRate;
     const target = labState.curves.find(c => c.id === labState.targetCurveId && c.isTarget);
     const targetRef = target ? target.measurementRef || await storeMeasurement({name:target.name,rawPoints:target.points.map(p=>({...p,rawSpl:p.gain})),smoothedPoints:[],smoothing:'RAW',sampleCount:target.points.length,normOffset:0}) : null;
     const id = crypto.randomUUID();
-    audioWorkspace.replace({ ...freshDraft(), workbenchState: 'ADDING', eqMode: 'peq',
+    audioWorkspace.replace({ ...freshDraft(), sampleRate: currentSampleRate, workbenchState: 'ADDING', eqMode: 'peq',
       selectedTargetId: labState.targetCurveId, targetMeasurementRef: targetRef, selectedBand: id,
       peqFilters: [{ id, type: 'PK', freq: 1000, gain: 0, q: 1.4, enabled: true }] });
     setPanel('eq');
@@ -85,6 +86,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
     isoGains: [],
     peqFilters: [],
     isBypassed,
+    intendedSampleRate: draft.sampleRate,
   });
 
   const {
@@ -377,7 +379,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
     // Fit original source arrays; display changes never affect analysis.
     const peqResult = synthesizeAutoPeq(smoothLogCurve(channelPoints(curveA).map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW'), channelPoints(curveB), {
       ...(labState.fitLimits || DEFAULT_FIT_LIMITS), normalize: labState.fitNormalize ?? true,
-      sampleRate: audioEngine.audioContext?.sampleRate || 48000,
+      sampleRate: audioEngine.audioContext?.sampleRate || draft.sampleRate,
       smoothing: labState.fitSmoothing || 'RAW',
       maxFilters: 10,
       targetCurveId: 'audition-delta',
@@ -396,21 +398,22 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
     } catch (e) { showToast((e as Error).message); }
   };
 
-  useEffect(() => { setAuditionResult(null); audioEngine.stopAudio(); audioEngine.clearExternalPeq(); }, [labState.curves.map(c => c.id + JSON.stringify(c.points)).join('|'), labState.fitNormalize, labState.fitSmoothing, JSON.stringify(labState.fitLimits), labState.curves.map(c=>c.channel).join('|')]);
+  useEffect(() => { setAuditionResult(null); audioEngine.stopAudio(); audioEngine.clearExternalPeq(); }, [labState.curves.map(c => c.id + JSON.stringify(c.points)).join('|'), labState.fitNormalize, labState.fitSmoothing, JSON.stringify(labState.fitLimits), labState.curves.map(c=>c.channel).join('|'), draft.sampleRate]);
 
   // Auto-PEQ send to Workbench
   const handleSendAutoPeq = async (curve: LabCurve) => {
     if (!activeTarget || curve.provenance !== 'measured' || curve.isFilterCurve) { showToast('Generate correction requires a measured source and reference target.'); return; }
     if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work with this correction?')) return;
     try {
+      const currentSampleRate = audioWorkspace.getSnapshot().draft.sampleRate;
       const target = labState.curves.find(c => c.id === labState.targetCurveId && c.isTarget);
       const targetRef = target ? target.measurementRef || await storeMeasurement({name:target.name,rawPoints:target.points.map(p=>({...p,rawSpl:p.gain})),smoothedPoints:[],smoothing:'RAW',sampleCount:target.points.length,normOffset:0}) : null;
       const measured = smoothLogCurve(channelPoints(curve).map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW');
       const result = synthesizeAutoPeq(measured, activeTarget.points, {
-        ...(labState.fitLimits || DEFAULT_FIT_LIMITS), normalize: labState.fitNormalize ?? true, sampleRate: 48000, smoothing: labState.fitSmoothing || 'RAW', maxFilters: 10, targetCurveId: activeTarget.id,
+        ...(labState.fitLimits || DEFAULT_FIT_LIMITS), normalize: labState.fitNormalize ?? true, sampleRate: currentSampleRate, smoothing: labState.fitSmoothing || 'RAW', maxFilters: 10, targetCurveId: activeTarget.id,
       });
       const ref = await storeMeasurement({ name: curve.name, rawPoints: channelPoints(curve).map(p => ({ ...p, rawSpl: p.gain })), channels: curve.channels ? {left:curve.channels.left.map(p=>({...p,rawSpl:p.gain})),right:curve.channels.right.map(p=>({...p,rawSpl:p.gain}))} : undefined, smoothedPoints: [], normOffset: 0, sampleCount: curve.points.length, smoothing: 'RAW' });
-      audioWorkspace.replace({ ...freshDraft(), dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, targetMeasurementRef: targetRef, fitLimits: labState.fitLimits || structuredClone(DEFAULT_FIT_LIMITS), workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
+      audioWorkspace.replace({ ...freshDraft(), sampleRate: currentSampleRate, dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, targetMeasurementRef: targetRef, fitLimits: labState.fitLimits || structuredClone(DEFAULT_FIT_LIMITS), workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
       setPanel('eq');
     } catch (e) { showToast((e as Error).message); }
   };

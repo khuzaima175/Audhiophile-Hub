@@ -150,6 +150,14 @@ const Module = require('node:module');
     /overlap/,
   );
   assert.equal(dsp.validateProfile(dsp.DEFAULT_PROFILE), true, 'DEFAULT_PROFILE must pass validateProfile');
+  // Sample-rate-aware Auto-PEQ fitting (44.1 kHz vs 96 kHz near Nyquist)
+  const trebleMeasured = target.map((p) => ({
+    ...p,
+    gain: dsp.calculateFilterGainAtFreq(p.freq, 'PK', 14000, 6, 3.0, 96000),
+  }));
+  const fit96 = dsp.synthesizeAutoPeq(trebleMeasured, target, { maxFilters: 5, targetCurveId: 'flat', sampleRate: 96000 });
+  const resp96At96 = dsp.evaluateCompositeCurve(fit96.correctedPoints.map((p) => p.freq), [], [], fit96.filters, 96000);
+  fit96.correctedPoints.forEach((p, i) => near(p.gain, trebleMeasured[i].gain + resp96At96[i].gain, 0.011));
   console.log(
     'PASS DSP anchors, complementary filters, graphic cascade, headroom, measurement parsing, Auto-PEQ consistency and normalization',
   );

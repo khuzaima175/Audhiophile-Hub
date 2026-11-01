@@ -194,6 +194,17 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
     'Bypass must route audio through the dry path: ' + JSON.stringify(bypassState),
   );
   await lab.getByText('Listen to the difference', { exact: true }).click();
+  // Verify Graph Lab Generate correction preserves non-48k draft sampleRate (e.g. 96000 Hz)
+  await page.evaluate(async () => {
+    const { audioWorkspace } = await import('/store/audioWorkspace.ts');
+    audioWorkspace.update({ sampleRate: 96000, dirty: false }, false);
+  });
+  await lab.getByRole('button', { name: /Generate correction/ }).click();
+  await page.waitForFunction(() => {
+    const d = JSON.parse(localStorage.getItem('audiosage_audio_draft_v2') || '{}');
+    return d.sampleRate === 96000 && Array.isArray(d.peqFilters) && d.peqFilters.length > 0;
+  });
+  await lab.getByRole('button', { name: 'Compare curves', exact: true }).click();
   const downloadWait = page.waitForEvent('download');
   await lab.getByRole('button', { name: 'Export CSV', exact: true }).click();
   const download = await downloadWait;
