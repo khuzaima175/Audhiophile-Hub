@@ -194,7 +194,7 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
     'Bypass must route audio through the dry path: ' + JSON.stringify(bypassState),
   );
   await lab.getByText('Listen to the difference', { exact: true }).click();
-  // Verify Graph Lab Generate correction preserves non-48k draft sampleRate (e.g. 96000 Hz)
+  // Verify Graph Lab Generate correction fits at and preserves non-48k draft sampleRate (e.g. 96000 Hz)
   await page.evaluate(async () => {
     const { audioWorkspace } = await import('/store/audioWorkspace.ts');
     audioWorkspace.update({ sampleRate: 96000, dirty: false }, false);
@@ -202,8 +202,17 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
   await lab.getByRole('button', { name: /Generate correction/ }).click();
   await page.waitForFunction(() => {
     const d = JSON.parse(localStorage.getItem('audiosage_audio_draft_v2') || '{}');
-    return d.sampleRate === 96000 && Array.isArray(d.peqFilters) && d.peqFilters.length > 0;
+    return Array.isArray(d.peqFilters) && d.peqFilters.length > 0 && d.originalFit;
   });
+  const fitCheck = await page.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('audiosage_audio_draft_v2') || '{}');
+    return {
+      draftSampleRate: d.sampleRate,
+      fitSampleRate: d.originalFit?.settings?.sampleRate,
+    };
+  });
+  assert.equal(fitCheck.draftSampleRate, 96000, 'Generate correction must preserve draft.sampleRate (96000 Hz)');
+  assert.equal(fitCheck.fitSampleRate, 96000, 'synthesizeAutoPeq must fit at draft.sampleRate (96000 Hz)');
   await lab.getByRole('button', { name: 'Compare curves', exact: true }).click();
   const downloadWait = page.waitForEvent('download');
   await lab.getByRole('button', { name: 'Export CSV', exact: true }).click();
