@@ -6,6 +6,9 @@ interface InputConsoleProps {
   isRecording: boolean;
   isAdvancedAnalysis: boolean;
   attachedImage: string | undefined;
+  showNoKeyNotice?: boolean;
+  onDismissNoKeyNotice?: () => void;
+  onOpenKeySettings?: () => void;
   onInputChange: (value: string) => void;
   onSend: (text?: string) => void;
   onToggleAdvanced: () => void;
@@ -20,6 +23,33 @@ export default function InputConsole(props: InputConsoleProps) {
   const disabled = props.isGenerating || props.isRecording;
   return (
     <div className="composer-dock safe-area-bottom">
+      {props.showNoKeyNotice && (
+        <div className="mb-2 p-3 rounded-xl border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm flex items-center justify-between gap-3 text-xs text-amber-200/90 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-400">✧</span>
+            <span>
+              A Gemini API key is needed for research chat. Equalizer, Graph Lab, and Gear work offline.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={props.onOpenKeySettings}
+              className="px-2.5 py-1 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 font-mono text-[11px] transition-colors"
+            >
+              Connect Key →
+            </button>
+            <button
+              type="button"
+              onClick={props.onDismissNoKeyNotice}
+              className="p-1 text-amber-400/70 hover:text-amber-300"
+              aria-label="Dismiss notice"
+            >
+              <XIcon />
+            </button>
+          </div>
+        </div>
+      )}
       <div className="composer">
         {props.attachedImage && (
           <div className="attachment-preview">

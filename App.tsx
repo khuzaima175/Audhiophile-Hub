@@ -21,6 +21,7 @@ import {
   KnowledgeEntry,
 } from './types';
 import { generateStreamResponse, generateSessionSummary } from './services/geminiService';
+import { WaveformIcon } from './components/Icon';
 import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY_CHATS = 'audiosage_chats_v1';
@@ -43,6 +44,8 @@ const App: React.FC = () => {
     'profile',
   );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [apiKey, setApiKey] = useState<string>(() => resolveApiKey().key || '');
+  const [showNoKeyNotice, setShowNoKeyNotice] = useState(false);
   const [activePage, setActivePage] = useState<WorkspacePage>('home');
   const [storageReady, setStorageReady] = useState(false);
   const [storageError, setStorageError] = useState('');
@@ -415,7 +418,7 @@ const App: React.FC = () => {
 
     if ((!textToSend.trim() && !attachedImage && !audioToSend) || isGenerating) return;
     if (!hasApiKey) {
-      openKnowledgeBase('memory');
+      setShowNoKeyNotice(true);
       return;
     }
     setActivePage('research');
@@ -586,7 +589,7 @@ const App: React.FC = () => {
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   const activeMessages = currentSession?.messages || [];
-  const hasApiKey = Boolean(resolveApiKey().key);
+  const hasApiKey = Boolean(apiKey);
 
   return (
     <div className="app-shell flex h-screen h-screen-mobile bg-audio-base text-audio-text font-sans overflow-hidden selection:bg-audio-accent selection:text-black">
@@ -702,6 +705,7 @@ const App: React.FC = () => {
                 knowledgeBase={knowledgeBase}
                 onSave={setProfile}
                 onKnowledgeChange={setKnowledgeBase}
+                onApiKeyChange={setApiKey}
                 sessions={sessions}
                 onSessionsChange={setSessions}
                 onRestore={restoreBackup}
@@ -726,7 +730,7 @@ const App: React.FC = () => {
             />
           ) : activeMessages.length === 0 ? (
             <div className="research-welcome">
-              <span className="research-emblem">✦</span>
+              <span className="research-emblem"><WaveformIcon /></span>
               <p className="eyebrow">Your personal audio assistant</p>
               <h1>What sounds good to you?</h1>
               <p>Ask a question. Compare your options. Find a sound you'll love.</p>
@@ -776,6 +780,9 @@ const App: React.FC = () => {
             isRecording={isRecording}
             isAdvancedAnalysis={isAdvancedAnalysis}
             attachedImage={attachedImage}
+            showNoKeyNotice={showNoKeyNotice}
+            onDismissNoKeyNotice={() => setShowNoKeyNotice(false)}
+            onOpenKeySettings={() => openKnowledgeBase('memory')}
             onInputChange={setInput}
             onSend={handleSendMessage}
             onToggleAdvanced={() => setIsAdvancedAnalysis(!isAdvancedAnalysis)}

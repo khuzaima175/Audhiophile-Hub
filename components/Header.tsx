@@ -46,7 +46,7 @@ export default function Header({
       <div className="header-actions">
         <span className={`connection-status ${hasApiKey ? 'connected' : ''}`}>
           <span />
-          {isStreaming ? 'Researching…' : hasApiKey ? 'AI key configured' : 'AI setup needed'}
+          {isStreaming ? 'Researching…' : hasApiKey ? 'AI connected' : 'Chat: add key'}
         </span>
         <button className="search-trigger" onClick={onOpenCommandPalette} aria-label="Search workspace">
           <SearchIcon />

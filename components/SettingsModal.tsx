@@ -57,6 +57,7 @@ interface SettingsModalProps {
   onSummarizeHistory: () => void;
   isSummarizing: boolean;
   initialTab?: 'profile' | 'eq' | 'gear' | 'memory' | 'knowledge';
+  onApiKeyChange?: (key: string) => void;
 }
 
 const TABS: { key: 'profile' | 'eq' | 'gear' | 'memory' | 'knowledge'; label: string; shortLabel: string }[] =
@@ -119,6 +120,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isSummarizing,
   initialTab = 'profile',
   embedded = false,
+  onApiKeyChange,
 }) => {
   const [formData, setFormData] = useState<AudioProfile>(profile || DEFAULT_PROFILE);
   const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'knowledge' | 'eq' | 'gear'>(initialTab);
@@ -1205,9 +1207,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key') || '' : ''
                         }
                         onChange={(e) => {
+                          const val = e.target.value.trim();
                           if (typeof window !== 'undefined') {
-                            localStorage.setItem('audiosage_api_key', e.target.value.trim());
+                            localStorage.setItem('audiosage_api_key', val);
                           }
+                          onApiKeyChange?.(val);
                         }}
                         className={inputClass}
                       />
