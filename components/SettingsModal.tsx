@@ -5,6 +5,7 @@ import { audioWorkspace, freshDraft } from '../store/audioWorkspace';
 import { resolveApiKey, testAiConnection } from '../services/aiConfig';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AudioProfile, KnowledgeEntry, EQPreset, GearItem, DEFAULT_PROFILE } from '../types';
+import { SAMPLE_AUDIOPHILE_PROFILE } from '../constants/sampleProfile';
 import {
   PlusIcon,
   TrashIcon,
@@ -489,6 +490,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     window.location.reload();
   };
 
+  const handleLoadExampleProfile = () => {
+    if (window.confirm('Replace current profile with example audiophile profile? Your existing data will be replaced.')) {
+      const next = { ...SAMPLE_AUDIOPHILE_PROFILE };
+      setFormData(next);
+      setBassGain(next.faderState?.bassGain ?? 0);
+      setSibilanceGain(next.faderState?.sibilanceGain ?? 0);
+      setAirGain(next.faderState?.airGain ?? 0);
+      onSave(next);
+      setIsSavedFlash(true);
+      setTimeout(() => setIsSavedFlash(false), 1500);
+    }
+  };
+
   const handleSave = () => {
     onSave(formData);
     setIsSavedFlash(true);
@@ -564,6 +578,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ========================================================================= */}
           {activeTab === 'profile' && (
             <div className="space-y-6 max-w-3xl mx-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-audio-border/40">
+                <Engraved size="xs" glow>Listener Identity & Acoustics</Engraved>
+                <button
+                  type="button"
+                  onClick={handleLoadExampleProfile}
+                  className="text-xs font-mono text-audio-accent hover:text-audio-accent-bright hover:underline"
+                >
+                  Load example profile →
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                 {/* Left Column: Profile Inputs & Target Chips */}
                 <div className="md:col-span-7 space-y-4">
