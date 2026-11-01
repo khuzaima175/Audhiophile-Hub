@@ -1140,7 +1140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span />
                         <span />
                       </span>
-                      <span>Google Search Spec Shootout in progress…</span>
+                      <span>Product specification shootout in progress…</span>
                     </div>
                   ) : (
                     <div className="text-xs text-audio-text leading-relaxed font-sans max-h-96 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
@@ -1163,18 +1163,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Engraved size="xs" glow>
                     AI connection
                   </Engraved>
-                  <span className="text-[10px] font-mono text-audio-signal">GEMINI API</span>
+                  <span className="text-[10px] font-mono text-audio-signal">RESEARCH ENGINE</span>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-audio-border bg-audio-surface space-y-3">
                   <div>
                     <label className={labelClass} htmlFor="gemini-key">
-                      Gemini API key
+                      Research API key
                     </label>
                     <div className="flex gap-2 mt-1">
                       <input
                         type="password"
                         id="gemini-key"
+                        aria-label="Research API key"
                         placeholder="AIzaSy..."
                         defaultValue={
                           typeof window !== 'undefined' ? localStorage.getItem('audiosage_api_key') || '' : ''
@@ -1201,14 +1202,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-mono text-audio-muted">
                     <span>Personal key stays in this browser. Environment keys are local development only.</span>
-                    <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-audio-accent hover:underline"
-                    >
-                      Get Key from Google AI Studio ↗
-                    </a>
+                    <span>Provider endpoints are secured</span>
                   </div>
                 </div>
               </div>

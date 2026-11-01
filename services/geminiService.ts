@@ -187,7 +187,7 @@ export const generateStreamResponse = async (
   }
 
   const systemInstruction = `
-    You are 'AudioSage', an elite Audiophile Research Assistant using the requested model.
+    You are 'AudioSage', an elite Audiophile Research Assistant.
     
     USER PROFILE:
     - Name: ${profile.name}
@@ -468,12 +468,11 @@ export const generateStreamResponse = async (
     errorMessage.includes('RESOURCE_EXHAUSTED')
   ) {
     throw new Error(
-      'All Gemini models have exceeded their quota. Please try again later or check your API quota at: https://aistudio.google.com/app/apikey',
+      'All AI reasoning tiers have exceeded their quota. Please try again later or check your API account quota.',
     );
   } else if (errorMessage.includes('API key')) {
     throw new Error(
-      'Invalid API Key. Please check your GEMINI_API_KEY in .env.local file.\\n' +
-        'Get a new key from: https://aistudio.google.com/app/apikey',
+      'Invalid API Key. Please verify your API key in Settings or .env.local file.',
     );
   } else {
     throw new Error(`Failed to generate response: ${errorMessage}`);

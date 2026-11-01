@@ -1,8 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 export const AI_MODELS = [
-  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
-  { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
-  { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
+  { id: 'gemini-3.8-flash', label: 'Deep Research (Best)' },
+  { id: 'gemini-3.7-flash', label: 'Balanced' },
+  { id: 'gemini-3.5-flash-lite', label: 'Fast Response' },
 ] as const;
 export const MODEL_IDS = AI_MODELS.map(m => m.id);
 export function resolveApiKey() {
@@ -22,7 +22,7 @@ export function classifyAiError(error: unknown): 'credential' | 'model' | 'quota
 }
 export function createAiClient() {
   const { key } = resolveApiKey();
-  if (!key) throw new Error('API key missing. Add your personal Gemini key in Settings & data.');
+  if (!key) throw new Error('API key missing. Add your personal key in Settings & data.');
   return new GoogleGenAI({ apiKey: key });
 }
 export async function testAiConnection(model = MODEL_IDS[0]) {

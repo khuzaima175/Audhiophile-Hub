@@ -16,9 +16,24 @@ interface MessageBubbleProps {
   onOpenSettings?: () => void;
 }
 
+const formatTierBadge = (modelName?: string): string => {
+  if (!modelName) return 'AUDIOSAGE';
+  const lower = modelName.toLowerCase();
+  if (lower.includes('3.8') || lower.includes('deep') || lower.includes('precision')) {
+    return 'AUDIOSAGE · DEEP RESEARCH';
+  }
+  if (lower.includes('3.7') || lower.includes('balanced')) {
+    return 'AUDIOSAGE · BALANCED';
+  }
+  if (lower.includes('3.5') || lower.includes('lite') || lower.includes('fast')) {
+    return 'AUDIOSAGE · FAST RESPONSE';
+  }
+  return 'AUDIOSAGE';
+};
+
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
-  activeModel = 'GEMINI 3.8 FLASH',
+  activeModel = 'gemini-3.8-flash',
   onVerify,
   onSaveToNotes,
   onRetry,
@@ -104,7 +119,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     rawText.length > 0 &&
     (rawText.includes('**Connection Error**') ||
       rawText.includes('Invalid API Key') ||
-      rawText.includes('All Gemini models have exceeded their quota') ||
+      rawText.includes('exceeded their quota') ||
       rawText.startsWith('Connection Error:'));
 
   if (isErrorMessage) {
@@ -398,7 +413,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <WaveformIcon />
             </div>
             <div className="flex items-center gap-2 text-[10px] font-mono text-audio-muted">
-              <span className="text-audio-accent font-bold tracking-wider uppercase">{message.answeringModel || (message.isThinking ? message.requestedModel : 'Model not recorded')}</span>
+              <span className="text-audio-accent font-bold tracking-wider uppercase">{formatTierBadge(message.answeringModel || (message.isThinking ? message.requestedModel : activeModel))}</span>
               <span className="text-audio-muted">· {formatTimestamp(message.timestamp)}</span>
             </div>
           </div>
@@ -412,7 +427,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           </span>
         </div>
 
-        {message.requestedModel && message.answeringModel !== message.requestedModel && <p className="text-xs text-audio-muted">Requested: {message.requestedModel}</p>}
+        {message.requestedModel && message.answeringModel && message.answeringModel !== message.requestedModel && (
+          <p className="text-xs text-audio-muted">Tier: {formatTierBadge(message.answeringModel).replace('AUDIOSAGE · ', '')} (Fallback from {formatTierBadge(message.requestedModel).replace('AUDIOSAGE · ', '')})</p>
+        )}
         {message.contextSupplied && <details className="section-disclosure"><summary>Context supplied ({message.contextSupplied.length})</summary><ul>{message.contextSupplied.map(r => <li key={r.id}>{r.title} · {r.kind} · {r.characters} characters · revision {r.revision}</li>)}</ul><p className="text-xs text-audio-muted">Supplied context may be unused. Sources cited lists only grounded citations returned with support metadata.</p></details>}
         {/* BODY CONTENT */}
         <div className="leading-relaxed text-[14px] md:text-[15px] font-normal text-audio-text/95 tracking-wide break-words w-full min-w-0">

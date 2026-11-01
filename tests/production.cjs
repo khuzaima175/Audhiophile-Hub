@@ -11,7 +11,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.goto(process.env.AUDIOSAGE_PRODUCTION_URL||'http://127.0.0.1:3001');
  await page.getByText('AI setup needed',{exact:true}).waitFor();
  const nav=async name=>{await page.locator('.workspace-sidebar').getByRole('button',{name,exact:false}).click();await page.waitForTimeout(100);};
- await nav('Settings & data');await page.getByLabel('Gemini API key',{exact:true}).fill('TEST_PRODUCTION_PERSONAL_KEY');await page.getByRole('button',{name:'Test Connection',exact:true}).click();await page.getByText(/verified streaming and grounding request/).waitFor();
+ await nav('Settings & data');await page.getByLabel(/API key/i).fill('TEST_PRODUCTION_PERSONAL_KEY');await page.getByRole('button',{name:'Test Connection',exact:true}).click();await page.getByText(/verified streaming and grounding request/).waitFor();
  assert.ok(requests[0].url.includes('gemini-3.8-flash:streamGenerateContent'));assert.ok(requests[0].body.tools.some(t=>t.googleSearch));
  await nav('Research notes');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByLabel('Edit User note',{exact:true}).fill('HD600 FR has warm mids. This is a user note.');await page.waitForTimeout(100);
  unavailableModels.add('gemini-3.8-flash');const firstStart=requests.length;await nav('Research assistant');await page.getByLabel('Message the research assistant',{exact:true}).fill('What does my HD600 FR note say?');await page.getByRole('button',{name:'Send message',exact:true}).click();await page.getByText('Mocked research answer about HD600 FR.',{exact:true}).waitFor();await page.waitForTimeout(100);

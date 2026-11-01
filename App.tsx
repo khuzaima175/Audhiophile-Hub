@@ -565,7 +565,7 @@ const App: React.FC = () => {
               m.id === botMessageId
                 ? {
                     ...m,
-                    text: `**Connection Error**: ${errorMessage}\n\nPlease check your API Key and ensure it is valid for Gemini models.`,
+                    text: `**Connection Error**: ${errorMessage}\n\nPlease check your API Key and ensure it is valid.`,
                     isThinking: false,
                   }
                 : m,

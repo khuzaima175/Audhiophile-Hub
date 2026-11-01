@@ -93,7 +93,7 @@ export default function HomeConsole({
           <div>
             <strong>Connect your research assistant</strong>
             <p>
-              Add a Gemini API key to use AI research. Your gear, equalizer, and graph tools are ready to use.
+              Add an API key to use AI research. Your gear, equalizer, and graph tools are ready to use.
             </p>
           </div>
           <button className="secondary-button" onClick={() => onOpenKnowledgeBase('memory')}>
@@ -182,10 +182,15 @@ export default function HomeConsole({
                 <strong>A home for your favorite gear</strong>
                 <p>Keep your headphones, IEMs, and wishlist in one place.</p>
               </div>
-              <button className="secondary-button" onClick={() => onOpenKnowledgeBase('gear')}>
-                <PlusIcon />
-                Add gear
-              </button>
+              <div className="flex flex-wrap gap-2 mt-1">
+                <button className="secondary-button" onClick={() => onOpenKnowledgeBase('gear')}>
+                  <PlusIcon />
+                  Add gear
+                </button>
+                <button className="text-button text-xs" onClick={() => onOpenKnowledgeBase('profile')}>
+                  Load sample profile →
+                </button>
+              </div>
             </div>
           )}
           <div className="library-summary">

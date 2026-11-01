@@ -48,10 +48,10 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
           {isApiKeyIssue ? (
             <>
               <p>
-                Your assistant could not connect to Gemini. Your API key may be missing, expired, or quota-limited.
+                Your assistant could not connect to the AI service. Your API key may be missing, expired, or quota-limited.
               </p>
               <p className="text-audio-muted text-xs">
-                To fix this, open Settings below and paste a free Gemini API key from Google AI Studio, then test connection.
+                To fix this, open Settings below and ensure a valid API key is configured, then test connection.
               </p>
             </>
           ) : (
@@ -82,16 +82,6 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
               ⚙ Open API Settings
             </button>
           )}
-
-          <a
-            href="https://aistudio.google.com/app/apikey"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-lg text-audio-muted hover:text-audio-text text-xs font-mono transition-colors inline-flex items-center gap-1"
-          >
-            <span>Get Free Key</span>
-            <span>↗</span>
-          </a>
 
           <button
             type="button"

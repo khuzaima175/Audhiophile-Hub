@@ -4,7 +4,7 @@ const Module = require('node:module');
 (async () => {
   const result = await esbuild.build({
     stdin: {
-      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';export * from './utils/conversionAudit';export * from './utils/graphTools';export * from './utils/squigCatalog';export * from './utils/stereoEq';`,
+      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';export * from './utils/conversionAudit';export * from './utils/graphTools';export * from './utils/squigCatalog';export * from './utils/stereoEq';export * from './utils/dataValidation';export * from './types';`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -149,6 +149,7 @@ const Module = require('node:module');
       ),
     /overlap/,
   );
+  assert.equal(dsp.validateProfile(dsp.DEFAULT_PROFILE), true, 'DEFAULT_PROFILE must pass validateProfile');
   console.log(
     'PASS DSP anchors, complementary filters, graphic cascade, headroom, measurement parsing, Auto-PEQ consistency and normalization',
   );
