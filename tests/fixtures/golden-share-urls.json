@@ -1,5 +1,5 @@
 {
-  "generatedFromCommit": "aadaa91872787e087ddcd620b2d3c0c861f051fd",
+  "generatedFromCommit": "f934c2079036c1c3e8ae1e2a4c35acf0990394fc",
   "cases": [
     {
       "id": "single-measured-with-offset",
@@ -292,6 +292,1005 @@
             "sourceTargetId": "crinacle-ief-2025",
             "isInverted": true,
             "deltaCompensate": true,
+            "preserveAbsolute": true
+          }
+        ],
+        "isOpen": true
+      }
+    },
+    {
+      "id": "real-browser-qa-measurement-share",
+      "description": "Real browser Share graph link captured after importing qa-measurement.csv with Crinacle IEF 2025 target and 1/6 OCT smoothing",
+      "url": "http://127.0.0.1:3000/#/lab?c=eyJncmFwaFNldHRpbmdzIjp7Im1pbkZyZXEiOjIwLCJtYXhGcmVxIjoyMDAwMCwieVJhbmdlIjpudWxsLCJpbnNwZWN0Ijp0cnVlLCJzaG93TGFiZWxzIjpmYWxzZX0sImZpdExpbWl0cyI6eyJtaW5GcmVxIjoyMCwibWF4RnJlcSI6MjAwMDAsIm1pbkdhaW4iOi0xMiwibWF4R2FpbiI6MTIsIm1pblEiOjAuNSwibWF4USI6NCwidHlwZXMiOlsiUEsiLCJMUyIsIkhTIl19LCJiYXNlbGluZUlkIjpudWxsLCJub3JtYWxpemF0aW9uTW9kZSI6ImZyZXF1ZW5jeSIsInYiOjEsIm5vcm0iOlswLDEwMDBdLCJ6b29tIjoiZnVsbCIsInRhcmdldElkIjoiY3JpbmFjbGUtaWVmLTIwMjUiLCJkZWx0YSI6ZmFsc2UsImN1cnZlcyI6W3siaWQiOiJjdXN0b20tMWJiODQ3NjYtMWU1YS00ZGFkLThmYTktNjA3NDYyM2Q5OWM2IiwidGFyZ2V0IjpmYWxzZSwibiI6InFhIG1lYXN1cmVtZW50IiwiYyI6IiNlZGFiNzciLCJwIjoibWVhc3VyZWQiLCJmaWx0ZXIiOmZhbHNlLCJ2aXNpYmxlIjp0cnVlLCJzb2xvIjpmYWxzZSwicHRzIjpbWzIwLDg2XSxbMzAsODVdLFs1MCw4NF0sWzEwMCw4M10sWzIwMCw4MF0sWzUwMCw3OV0sWzEwMDAsODBdLFsyMDAwLDg2XSxbNDAwMCw4M10sWzYwMDAsODZdLFs4MDAwLDgzXSxbMTAwMDAsNzhdLFsxNjAwMCw3M10sWzIwMDAwLDcxXV19XSwidmlldyI6InJhd0ZpbHRlciIsInNtb290aGluZyI6IjEvNiBPQ1QiLCJmaXRTbW9vdGhpbmciOiJSQVciLCJmaXROb3JtYWxpemUiOnRydWV9",
+      "expectedDecoded": {
+        "graphSettings": {
+          "minFreq": 20,
+          "maxFreq": 20000,
+          "yRange": null,
+          "inspect": true,
+          "showLabels": false
+        },
+        "fitLimits": {
+          "minFreq": 20,
+          "maxFreq": 20000,
+          "minGain": -12,
+          "maxGain": 12,
+          "minQ": 0.5,
+          "maxQ": 4,
+          "types": [
+            "PK",
+            "LS",
+            "HS"
+          ]
+        },
+        "baselineId": null,
+        "normalizationMode": "frequency",
+        "normDb": 0,
+        "normHz": 1000,
+        "zoomRange": "full",
+        "targetCurveId": "crinacle-ief-2025",
+        "deltaMode": false,
+        "viewMode": "rawFilter",
+        "smoothing": "1/6 OCT",
+        "fitSmoothing": "RAW",
+        "fitNormalize": true,
+        "curves": [
+          {
+            "id": "custom-1bb84766-1e5a-4dad-8fa9-6074623d99c6",
+            "isTarget": false,
+            "pinned": false,
+            "name": "qa measurement",
+            "color": "#edab77",
+            "points": [
+              {
+                "freq": 20,
+                "gain": 86
+              },
+              {
+                "freq": 30,
+                "gain": 85
+              },
+              {
+                "freq": 50,
+                "gain": 84
+              },
+              {
+                "freq": 100,
+                "gain": 83
+              },
+              {
+                "freq": 200,
+                "gain": 80
+              },
+              {
+                "freq": 500,
+                "gain": 79
+              },
+              {
+                "freq": 1000,
+                "gain": 80
+              },
+              {
+                "freq": 2000,
+                "gain": 86
+              },
+              {
+                "freq": 4000,
+                "gain": 83
+              },
+              {
+                "freq": 6000,
+                "gain": 86
+              },
+              {
+                "freq": 8000,
+                "gain": 83
+              },
+              {
+                "freq": 10000,
+                "gain": 78
+              },
+              {
+                "freq": 16000,
+                "gain": 73
+              },
+              {
+                "freq": 20000,
+                "gain": 71
+              }
+            ],
+            "provenance": "measured",
+            "provenanceDetails": "Imported via AudioSage Share URL",
+            "pointsCount": 14,
+            "offset": 0,
+            "visible": true,
+            "solo": false,
+            "isFilterCurve": false,
+            "isInverted": false,
+            "deltaCompensate": false,
+            "preserveAbsolute": false
+          }
+        ],
+        "isOpen": true
+      }
+    },
+    {
+      "id": "real-browser-auto-peq-compare-share",
+      "description": "Real browser Share graph link captured after Generate correction -> Compare these curves (measured + correction + post-EQ)",
+      "url": "http://127.0.0.1:3000/#/lab?c=eyJncmFwaFNldHRpbmdzIjp7Im1pbkZyZXEiOjIwLCJtYXhGcmVxIjoyMDAwMCwieVJhbmdlIjpudWxsLCJpbnNwZWN0Ijp0cnVlLCJzaG93TGFiZWxzIjpmYWxzZX0sImZpdExpbWl0cyI6eyJtaW5GcmVxIjoyMCwibWF4RnJlcSI6MjAwMDAsIm1pbkdhaW4iOi0xMiwibWF4R2FpbiI6MTIsIm1pblEiOjAuNSwibWF4USI6NCwidHlwZXMiOlsiUEsiLCJMUyIsIkhTIl19LCJiYXNlbGluZUlkIjpudWxsLCJub3JtYWxpemF0aW9uTW9kZSI6ImZyZXF1ZW5jeSIsInYiOjEsIm5vcm0iOlswLDEwMDBdLCJ6b29tIjoiZnVsbCIsInRhcmdldElkIjoiY3JpbmFjbGUtaWVmLTIwMjUiLCJkZWx0YSI6ZmFsc2UsImN1cnZlcyI6W3siaWQiOiJtZWFzdXJlbWVudC04ZjRkZGE3MjQyNTVkYmNhOTk2NmVlZDIwNTI0Y2M5ZjlhMzc0MmUyYjVmMTU0ODUzZDA2Y2I2MGY2ZjRiNjU4IiwidGFyZ2V0IjpmYWxzZSwibiI6InFhIG1lYXN1cmVtZW50IiwiYyI6IiNmMGI0N2MiLCJwIjoibWVhc3VyZWQiLCJmaWx0ZXIiOmZhbHNlLCJ2aXNpYmxlIjp0cnVlLCJzb2xvIjpmYWxzZSwicHRzIjpbWzIwLDg2XSxbMzAsODVdLFs1MCw4NF0sWzEwMCw4M10sWzIwMCw4MF0sWzUwMCw3OV0sWzEwMDAsODBdLFsyMDAwLDg2XSxbNDAwMCw4M10sWzYwMDAsODZdLFs4MDAwLDgzXSxbMTAwMDAsNzhdLFsxNjAwMCw3M10sWzIwMDAwLDcxXV19LHsiaWQiOiJhdWRpby1kcmFmdC1jb3JyZWN0aW9uIiwibiI6InFhIG1lYXN1cmVtZW50IEF1dG8tUEVRIGNvcnJlY3Rpb24iLCJjIjoiIzc5YWFmZiIsInAiOiJlcS1jb21wZW5zYXRlZCIsImZpbHRlciI6dHJ1ZSwic291cmNlVGFyZ2V0IjoiY3JpbmFjbGUtaWVmLTIwMjUiLCJ2aXNpYmxlIjp0cnVlLCJzb2xvIjpmYWxzZSwicHRzIjpbWzIwLDEuNTQ5XSxbMjEuNiwxLjc3Nl0sWzIzLjMyLDIuMDI2XSxbMjUuMTgsMi4yOTldLFsyNy4xOSwyLjU5XSxbMjkuMzYsMi44OTFdLFszMS43LDMuMTldLFszNC4yMywzLjQ3MV0sWzM2Ljk2LDMuNzEzXSxbMzkuOTEsMy44OTNdLFs0My4wOSwzLjk5M10sWzQ2LjUzLDQuMDAxXSxbNTAuMjQsMy45MTVdLFs1NC4yNSwzLjc0N10sWzU4LjU3LDMuNTE1XSxbNjMuMjUsMy4yNDFdLFs2OC4yOSwyLjk0OF0sWzczLjc0LDIuNjUxXSxbNzkuNjIsMi4zNjNdLFs4NS45NywyLjA5NF0sWzkyLjgzLDEuODQ3XSxbMTAwLjI0LDEuNjI1XSxbMTA4LjIzLDEuNDI5XSxbMTE2Ljg3LDEuMjU4XSxbMTI2LjE5LDEuMTFdLFsxMzYuMjYsMC45ODZdLFsxNDcuMTMsMC44ODJdLFsxNTguODcsMC43OThdLFsxNzEuNTQsMC43MzNdLFsxODUuMjIsMC42ODddLFsyMDAsMC42Nl0sWzIxNS45NiwwLjY1Ml0sWzIzMy4xOCwwLjY2N10sWzI1MS43OSwwLjcwNl0sWzI3MS44NywwLjc3NF0sWzI5My41NiwwLjg3OF0sWzMxNi45OCwxLjAyNF0sWzM0Mi4yNywxLjIxOV0sWzM2OS41NywxLjQ2XSxbMzk5LjA1LDEuNzI1XSxbNDMwLjg5LDEuOTU3XSxbNDY1LjI2LDIuMDcyXSxbNTAyLjM4LDIuMDE0XSxbNTQyLjQ1LDEuODAzXSxbNTg1LjczLDEuNTE4XSxbNjMyLjQ2LDEuMjMzXSxbNjgyLjkxLDAuOTg0XSxbNzM3LjM5LDAuNzc5XSxbNzk2LjIxLDAuNjE1XSxbODU5LjczLDAuNDgzXSxbOTI4LjMyLDAuMzcyXSxbMTAwMi4zNywwLjI3NF0sWzEwODIuMzQsMC4xNzhdLFsxMTY4LjY4LDAuMDY3XSxbMTI2MS45MSwtMC4wOF0sWzEzNjIuNTgsLTAuMzAyXSxbMTQ3MS4yOCwtMC42MjldLFsxNTg4LjY2LC0wLjk0XSxbMTcxNS4zOSwtMC44MjldLFsxODUyLjI0LC0wLjI2N10sWzIwMDAsMC40MDJdLFsyMTU5LjU1LDEuMTY5XSxbMjMzMS44MywyLjI1N10sWzI1MTcuODUsMy42MzhdLFsyNzE4LjcxLDQuNjQ3XSxbMjkzNS42LDUuNzQ1XSxbMzE2OS43OSw1Ljk4OV0sWzM0MjIuNjYsNS4wNF0sWzM2OTUuNyw0LjE2N10sWzM5OTAuNTIsMi42MzJdLFs0MzA4Ljg3LDEuMTczXSxbNDY1Mi42MSwwLjE3M10sWzUwMjMuNzcsLTAuNzEzXSxbNTQyNC41NSwtMS44NzNdLFs1ODU3LjI5LC0zLjQyOV0sWzYzMjQuNTYsLTMuNDg1XSxbNjgyOS4xLC0yLjY0Ml0sWzczNzMuODksLTIuNDE1XSxbNzk2Mi4xNCwtMi41OV0sWzg1OTcuMzIsLTIuOTYzXSxbOTI4My4xOCwtMy40MTJdLFsxMDAyMy43NCwtMy44MTJdLFsxMDgyMy4zOSwtNC4wNDhdLFsxMTY4Ni44MywtNC4yMzddLFsxMjYxOS4xNSwtMy44ODddLFsxMzYyNS44NCwtMS45NzddLFsxNDcxMi44NSwtMC4zOTNdLFsxNTg4Ni41NiwxLjAyM10sWzE3MTUzLjkyLDEuNDc5XSxbMTg1MjIuMzcsMC43NjRdLFsyMDAwMCwwLjI0XV19LHsiaWQiOiJhdWRpby1kcmFmdC1wb3N0ZXEiLCJuIjoicWEgbWVhc3VyZW1lbnQgQXV0by1QRVEgY3VycmVudCBwb3N0LUVRIiwiYyI6IiNkMjhlZjAiLCJwIjoiZXEtY29tcGVuc2F0ZWQiLCJ2aXNpYmxlIjp0cnVlLCJzb2xvIjpmYWxzZSwiYWJzb2x1dGUiOnRydWUsInB0cyI6W1syMCwxLjE0OV0sWzIxLjYsMS4xODZdLFsyMy4zMiwxLjI0Nl0sWzI1LjE4LDEuMzI5XSxbMjcuMTksMS40M10sWzI5LjM2LDEuNTQxXSxbMzEuNywxLjY4XSxbMzQuMjMsMS44MTFdLFszNi45NiwxLjkwM10sWzM5LjkxLDEuOTMzXSxbNDMuMDksMS44ODNdLFs0Ni41MywxLjc0MV0sWzUwLjI0LDEuNTA1XSxbNTQuMjUsMS4yMjddLFs1OC41NywwLjg4NV0sWzYzLjI1LDAuNTAxXSxbNjguMjksMC4wOThdLFs3My43NCwtMC4zMDldLFs3OS42MiwtMC43MDddLFs4NS45NywtMS4wODZdLFs5Mi44MywtMS40NDNdLFsxMDAuMjQsLTEuNzg1XSxbMTA4LjIzLC0yLjMxMV0sWzExNi44NywtMi44MTJdLFsxMjYuMTksLTMuM10sWzEzNi4yNiwtMy43NTRdLFsxNDcuMTMsLTQuMTg4XSxbMTU4Ljg3LC00LjYwMl0sWzE3MS41NCwtNS4wMDddLFsxODUuMjIsLTUuMzgzXSxbMjAwLC01Ljc0XSxbMjE1Ljk2LC01LjgyOF0sWzIzMy4xOCwtNS45MDNdLFsyNTEuNzksLTUuOTQ0XSxbMjcxLjg3LC01Ljk2Nl0sWzI5My41NiwtNS45NDJdLFszMTYuOTgsLTUuODc2XSxbMzQyLjI3LC01Ljc3MV0sWzM2OS41NywtNS42MV0sWzM5OS4wNSwtNS40MjVdLFs0MzAuODksLTUuMjgzXSxbNDY1LjI2LC01LjI0OF0sWzUwMi4zOCwtNS4zNzZdLFs1NDIuNDUsLTUuNDc3XSxbNTg1LjczLC01LjY1Ml0sWzYzMi40NiwtNS44MjddLFs2ODIuOTEsLTUuOTY2XSxbNzM3LjM5LC02LjA2MV0sWzc5Ni4yMSwtNi4xMTVdLFs4NTkuNzMsLTYuMTM3XSxbOTI4LjMyLC02LjEzOF0sWzEwMDIuMzcsLTYuMTA2XSxbMTA4Mi4zNCwtNS41NDJdLFsxMTY4LjY4LC00Ljk4M10sWzEyNjEuOTEsLTQuNDddLFsxMzYyLjU4LC00LjAyMl0sWzE0NzEuMjgsLTMuNjg5XSxbMTU4OC42NiwtMy4zM10sWzE3MTUuMzksLTIuNTU5XSxbMTg1Mi4yNCwtMS4zMjddLFsyMDAwLDAuMDAyXSxbMjE1OS41NSwwLjQzOV0sWzIzMzEuODMsMS4xOTddLFsyNTE3Ljg1LDIuMjM4XSxbMjcxOC43MSwyLjkxN10sWzI5MzUuNiwzLjY4NV0sWzMxNjkuNzksMy41OTldLFszNDIyLjY2LDIuMzFdLFszNjk1LjcsMS4xMDddLFszOTkwLjUyLC0wLjc1OF0sWzQzMDguODcsLTEuNjc3XSxbNDY1Mi42MSwtMi4xMDddLFs1MDIzLjc3LC0yLjQyM10sWzU0MjQuNTUsLTMuMDIzXSxbNTg1Ny4yOSwtNC4wMDldLFs2MzI0LjU2LC00LjQzNV0sWzY4MjkuMSwtNC4zOTJdLFs3MzczLjg5LC00Ljk2NV0sWzc5NjIuMTQsLTUuOTRdLFs4NTk3LjMyLC03Ljk3M10sWzkyODMuMTgsLTEwLjE0Ml0sWzEwMDIzLjc0LC0xMi4yNDJdLFsxMDgyMy4zOSwtMTMuMjg4XSxbMTE2ODYuODMsLTE0LjI5N10sWzEyNjE5LjE1LC0xNC43NTddLFsxMzYyNS44NCwtMTMuNjY3XSxbMTQ3MTIuODUsLTEyLjkwM10sWzE1ODg2LjU2LC0xMi4yOTddLFsxNzE1My45MiwtMTIuNTQxXSxbMTg1MjIuMzcsLTEzLjk0Nl0sWzIwMDAwLC0xNS4xNl1dfV0sInZpZXciOiJyYXdGaWx0ZXIiLCJzbW9vdGhpbmciOiIxLzYgT0NUIiwiZml0U21vb3RoaW5nIjoiUkFXIiwiZml0Tm9ybWFsaXplIjp0cnVlfQ",
+      "expectedDecoded": {
+        "graphSettings": {
+          "minFreq": 20,
+          "maxFreq": 20000,
+          "yRange": null,
+          "inspect": true,
+          "showLabels": false
+        },
+        "fitLimits": {
+          "minFreq": 20,
+          "maxFreq": 20000,
+          "minGain": -12,
+          "maxGain": 12,
+          "minQ": 0.5,
+          "maxQ": 4,
+          "types": [
+            "PK",
+            "LS",
+            "HS"
+          ]
+        },
+        "baselineId": null,
+        "normalizationMode": "frequency",
+        "normDb": 0,
+        "normHz": 1000,
+        "zoomRange": "full",
+        "targetCurveId": "crinacle-ief-2025",
+        "deltaMode": false,
+        "viewMode": "rawFilter",
+        "smoothing": "1/6 OCT",
+        "fitSmoothing": "RAW",
+        "fitNormalize": true,
+        "curves": [
+          {
+            "id": "measurement-8f4dda724255dbca9966eed20524cc9f9a3742e2b5f154853d06cb60f6f4b658",
+            "isTarget": false,
+            "pinned": false,
+            "name": "qa measurement",
+            "color": "#f0b47c",
+            "points": [
+              {
+                "freq": 20,
+                "gain": 86
+              },
+              {
+                "freq": 30,
+                "gain": 85
+              },
+              {
+                "freq": 50,
+                "gain": 84
+              },
+              {
+                "freq": 100,
+                "gain": 83
+              },
+              {
+                "freq": 200,
+                "gain": 80
+              },
+              {
+                "freq": 500,
+                "gain": 79
+              },
+              {
+                "freq": 1000,
+                "gain": 80
+              },
+              {
+                "freq": 2000,
+                "gain": 86
+              },
+              {
+                "freq": 4000,
+                "gain": 83
+              },
+              {
+                "freq": 6000,
+                "gain": 86
+              },
+              {
+                "freq": 8000,
+                "gain": 83
+              },
+              {
+                "freq": 10000,
+                "gain": 78
+              },
+              {
+                "freq": 16000,
+                "gain": 73
+              },
+              {
+                "freq": 20000,
+                "gain": 71
+              }
+            ],
+            "provenance": "measured",
+            "provenanceDetails": "Imported via AudioSage Share URL",
+            "pointsCount": 14,
+            "offset": 0,
+            "visible": true,
+            "solo": false,
+            "isFilterCurve": false,
+            "isInverted": false,
+            "deltaCompensate": false,
+            "preserveAbsolute": false
+          },
+          {
+            "id": "audio-draft-correction",
+            "isTarget": false,
+            "pinned": false,
+            "name": "qa measurement Auto-PEQ correction",
+            "color": "#79aaff",
+            "points": [
+              {
+                "freq": 20,
+                "gain": 1.549
+              },
+              {
+                "freq": 21.6,
+                "gain": 1.776
+              },
+              {
+                "freq": 23.32,
+                "gain": 2.026
+              },
+              {
+                "freq": 25.18,
+                "gain": 2.299
+              },
+              {
+                "freq": 27.19,
+                "gain": 2.59
+              },
+              {
+                "freq": 29.36,
+                "gain": 2.891
+              },
+              {
+                "freq": 31.7,
+                "gain": 3.19
+              },
+              {
+                "freq": 34.23,
+                "gain": 3.471
+              },
+              {
+                "freq": 36.96,
+                "gain": 3.713
+              },
+              {
+                "freq": 39.91,
+                "gain": 3.893
+              },
+              {
+                "freq": 43.09,
+                "gain": 3.993
+              },
+              {
+                "freq": 46.53,
+                "gain": 4.001
+              },
+              {
+                "freq": 50.24,
+                "gain": 3.915
+              },
+              {
+                "freq": 54.25,
+                "gain": 3.747
+              },
+              {
+                "freq": 58.57,
+                "gain": 3.515
+              },
+              {
+                "freq": 63.25,
+                "gain": 3.241
+              },
+              {
+                "freq": 68.29,
+                "gain": 2.948
+              },
+              {
+                "freq": 73.74,
+                "gain": 2.651
+              },
+              {
+                "freq": 79.62,
+                "gain": 2.363
+              },
+              {
+                "freq": 85.97,
+                "gain": 2.094
+              },
+              {
+                "freq": 92.83,
+                "gain": 1.847
+              },
+              {
+                "freq": 100.24,
+                "gain": 1.625
+              },
+              {
+                "freq": 108.23,
+                "gain": 1.429
+              },
+              {
+                "freq": 116.87,
+                "gain": 1.258
+              },
+              {
+                "freq": 126.19,
+                "gain": 1.11
+              },
+              {
+                "freq": 136.26,
+                "gain": 0.986
+              },
+              {
+                "freq": 147.13,
+                "gain": 0.882
+              },
+              {
+                "freq": 158.87,
+                "gain": 0.798
+              },
+              {
+                "freq": 171.54,
+                "gain": 0.733
+              },
+              {
+                "freq": 185.22,
+                "gain": 0.687
+              },
+              {
+                "freq": 200,
+                "gain": 0.66
+              },
+              {
+                "freq": 215.96,
+                "gain": 0.652
+              },
+              {
+                "freq": 233.18,
+                "gain": 0.667
+              },
+              {
+                "freq": 251.79,
+                "gain": 0.706
+              },
+              {
+                "freq": 271.87,
+                "gain": 0.774
+              },
+              {
+                "freq": 293.56,
+                "gain": 0.878
+              },
+              {
+                "freq": 316.98,
+                "gain": 1.024
+              },
+              {
+                "freq": 342.27,
+                "gain": 1.219
+              },
+              {
+                "freq": 369.57,
+                "gain": 1.46
+              },
+              {
+                "freq": 399.05,
+                "gain": 1.725
+              },
+              {
+                "freq": 430.89,
+                "gain": 1.957
+              },
+              {
+                "freq": 465.26,
+                "gain": 2.072
+              },
+              {
+                "freq": 502.38,
+                "gain": 2.014
+              },
+              {
+                "freq": 542.45,
+                "gain": 1.803
+              },
+              {
+                "freq": 585.73,
+                "gain": 1.518
+              },
+              {
+                "freq": 632.46,
+                "gain": 1.233
+              },
+              {
+                "freq": 682.91,
+                "gain": 0.984
+              },
+              {
+                "freq": 737.39,
+                "gain": 0.779
+              },
+              {
+                "freq": 796.21,
+                "gain": 0.615
+              },
+              {
+                "freq": 859.73,
+                "gain": 0.483
+              },
+              {
+                "freq": 928.32,
+                "gain": 0.372
+              },
+              {
+                "freq": 1002.37,
+                "gain": 0.274
+              },
+              {
+                "freq": 1082.34,
+                "gain": 0.178
+              },
+              {
+                "freq": 1168.68,
+                "gain": 0.067
+              },
+              {
+                "freq": 1261.91,
+                "gain": -0.08
+              },
+              {
+                "freq": 1362.58,
+                "gain": -0.302
+              },
+              {
+                "freq": 1471.28,
+                "gain": -0.629
+              },
+              {
+                "freq": 1588.66,
+                "gain": -0.94
+              },
+              {
+                "freq": 1715.39,
+                "gain": -0.829
+              },
+              {
+                "freq": 1852.24,
+                "gain": -0.267
+              },
+              {
+                "freq": 2000,
+                "gain": 0.402
+              },
+              {
+                "freq": 2159.55,
+                "gain": 1.169
+              },
+              {
+                "freq": 2331.83,
+                "gain": 2.257
+              },
+              {
+                "freq": 2517.85,
+                "gain": 3.638
+              },
+              {
+                "freq": 2718.71,
+                "gain": 4.647
+              },
+              {
+                "freq": 2935.6,
+                "gain": 5.745
+              },
+              {
+                "freq": 3169.79,
+                "gain": 5.989
+              },
+              {
+                "freq": 3422.66,
+                "gain": 5.04
+              },
+              {
+                "freq": 3695.7,
+                "gain": 4.167
+              },
+              {
+                "freq": 3990.52,
+                "gain": 2.632
+              },
+              {
+                "freq": 4308.87,
+                "gain": 1.173
+              },
+              {
+                "freq": 4652.61,
+                "gain": 0.173
+              },
+              {
+                "freq": 5023.77,
+                "gain": -0.713
+              },
+              {
+                "freq": 5424.55,
+                "gain": -1.873
+              },
+              {
+                "freq": 5857.29,
+                "gain": -3.429
+              },
+              {
+                "freq": 6324.56,
+                "gain": -3.485
+              },
+              {
+                "freq": 6829.1,
+                "gain": -2.642
+              },
+              {
+                "freq": 7373.89,
+                "gain": -2.415
+              },
+              {
+                "freq": 7962.14,
+                "gain": -2.59
+              },
+              {
+                "freq": 8597.32,
+                "gain": -2.963
+              },
+              {
+                "freq": 9283.18,
+                "gain": -3.412
+              },
+              {
+                "freq": 10023.74,
+                "gain": -3.812
+              },
+              {
+                "freq": 10823.39,
+                "gain": -4.048
+              },
+              {
+                "freq": 11686.83,
+                "gain": -4.237
+              },
+              {
+                "freq": 12619.15,
+                "gain": -3.887
+              },
+              {
+                "freq": 13625.84,
+                "gain": -1.977
+              },
+              {
+                "freq": 14712.85,
+                "gain": -0.393
+              },
+              {
+                "freq": 15886.56,
+                "gain": 1.023
+              },
+              {
+                "freq": 17153.92,
+                "gain": 1.479
+              },
+              {
+                "freq": 18522.37,
+                "gain": 0.764
+              },
+              {
+                "freq": 20000,
+                "gain": 0.24
+              }
+            ],
+            "provenance": "eq-compensated",
+            "provenanceDetails": "Imported via AudioSage Share URL",
+            "pointsCount": 91,
+            "offset": 0,
+            "visible": true,
+            "solo": false,
+            "isFilterCurve": true,
+            "sourceTargetId": "crinacle-ief-2025",
+            "isInverted": false,
+            "deltaCompensate": false,
+            "preserveAbsolute": false
+          },
+          {
+            "id": "audio-draft-posteq",
+            "isTarget": false,
+            "pinned": false,
+            "name": "qa measurement Auto-PEQ current post-EQ",
+            "color": "#d28ef0",
+            "points": [
+              {
+                "freq": 20,
+                "gain": 1.149
+              },
+              {
+                "freq": 21.6,
+                "gain": 1.186
+              },
+              {
+                "freq": 23.32,
+                "gain": 1.246
+              },
+              {
+                "freq": 25.18,
+                "gain": 1.329
+              },
+              {
+                "freq": 27.19,
+                "gain": 1.43
+              },
+              {
+                "freq": 29.36,
+                "gain": 1.541
+              },
+              {
+                "freq": 31.7,
+                "gain": 1.68
+              },
+              {
+                "freq": 34.23,
+                "gain": 1.811
+              },
+              {
+                "freq": 36.96,
+                "gain": 1.903
+              },
+              {
+                "freq": 39.91,
+                "gain": 1.933
+              },
+              {
+                "freq": 43.09,
+                "gain": 1.883
+              },
+              {
+                "freq": 46.53,
+                "gain": 1.741
+              },
+              {
+                "freq": 50.24,
+                "gain": 1.505
+              },
+              {
+                "freq": 54.25,
+                "gain": 1.227
+              },
+              {
+                "freq": 58.57,
+                "gain": 0.885
+              },
+              {
+                "freq": 63.25,
+                "gain": 0.501
+              },
+              {
+                "freq": 68.29,
+                "gain": 0.098
+              },
+              {
+                "freq": 73.74,
+                "gain": -0.309
+              },
+              {
+                "freq": 79.62,
+                "gain": -0.707
+              },
+              {
+                "freq": 85.97,
+                "gain": -1.086
+              },
+              {
+                "freq": 92.83,
+                "gain": -1.443
+              },
+              {
+                "freq": 100.24,
+                "gain": -1.785
+              },
+              {
+                "freq": 108.23,
+                "gain": -2.311
+              },
+              {
+                "freq": 116.87,
+                "gain": -2.812
+              },
+              {
+                "freq": 126.19,
+                "gain": -3.3
+              },
+              {
+                "freq": 136.26,
+                "gain": -3.754
+              },
+              {
+                "freq": 147.13,
+                "gain": -4.188
+              },
+              {
+                "freq": 158.87,
+                "gain": -4.602
+              },
+              {
+                "freq": 171.54,
+                "gain": -5.007
+              },
+              {
+                "freq": 185.22,
+                "gain": -5.383
+              },
+              {
+                "freq": 200,
+                "gain": -5.74
+              },
+              {
+                "freq": 215.96,
+                "gain": -5.828
+              },
+              {
+                "freq": 233.18,
+                "gain": -5.903
+              },
+              {
+                "freq": 251.79,
+                "gain": -5.944
+              },
+              {
+                "freq": 271.87,
+                "gain": -5.966
+              },
+              {
+                "freq": 293.56,
+                "gain": -5.942
+              },
+              {
+                "freq": 316.98,
+                "gain": -5.876
+              },
+              {
+                "freq": 342.27,
+                "gain": -5.771
+              },
+              {
+                "freq": 369.57,
+                "gain": -5.61
+              },
+              {
+                "freq": 399.05,
+                "gain": -5.425
+              },
+              {
+                "freq": 430.89,
+                "gain": -5.283
+              },
+              {
+                "freq": 465.26,
+                "gain": -5.248
+              },
+              {
+                "freq": 502.38,
+                "gain": -5.376
+              },
+              {
+                "freq": 542.45,
+                "gain": -5.477
+              },
+              {
+                "freq": 585.73,
+                "gain": -5.652
+              },
+              {
+                "freq": 632.46,
+                "gain": -5.827
+              },
+              {
+                "freq": 682.91,
+                "gain": -5.966
+              },
+              {
+                "freq": 737.39,
+                "gain": -6.061
+              },
+              {
+                "freq": 796.21,
+                "gain": -6.115
+              },
+              {
+                "freq": 859.73,
+                "gain": -6.137
+              },
+              {
+                "freq": 928.32,
+                "gain": -6.138
+              },
+              {
+                "freq": 1002.37,
+                "gain": -6.106
+              },
+              {
+                "freq": 1082.34,
+                "gain": -5.542
+              },
+              {
+                "freq": 1168.68,
+                "gain": -4.983
+              },
+              {
+                "freq": 1261.91,
+                "gain": -4.47
+              },
+              {
+                "freq": 1362.58,
+                "gain": -4.022
+              },
+              {
+                "freq": 1471.28,
+                "gain": -3.689
+              },
+              {
+                "freq": 1588.66,
+                "gain": -3.33
+              },
+              {
+                "freq": 1715.39,
+                "gain": -2.559
+              },
+              {
+                "freq": 1852.24,
+                "gain": -1.327
+              },
+              {
+                "freq": 2000,
+                "gain": 0.002
+              },
+              {
+                "freq": 2159.55,
+                "gain": 0.439
+              },
+              {
+                "freq": 2331.83,
+                "gain": 1.197
+              },
+              {
+                "freq": 2517.85,
+                "gain": 2.238
+              },
+              {
+                "freq": 2718.71,
+                "gain": 2.917
+              },
+              {
+                "freq": 2935.6,
+                "gain": 3.685
+              },
+              {
+                "freq": 3169.79,
+                "gain": 3.599
+              },
+              {
+                "freq": 3422.66,
+                "gain": 2.31
+              },
+              {
+                "freq": 3695.7,
+                "gain": 1.107
+              },
+              {
+                "freq": 3990.52,
+                "gain": -0.758
+              },
+              {
+                "freq": 4308.87,
+                "gain": -1.677
+              },
+              {
+                "freq": 4652.61,
+                "gain": -2.107
+              },
+              {
+                "freq": 5023.77,
+                "gain": -2.423
+              },
+              {
+                "freq": 5424.55,
+                "gain": -3.023
+              },
+              {
+                "freq": 5857.29,
+                "gain": -4.009
+              },
+              {
+                "freq": 6324.56,
+                "gain": -4.435
+              },
+              {
+                "freq": 6829.1,
+                "gain": -4.392
+              },
+              {
+                "freq": 7373.89,
+                "gain": -4.965
+              },
+              {
+                "freq": 7962.14,
+                "gain": -5.94
+              },
+              {
+                "freq": 8597.32,
+                "gain": -7.973
+              },
+              {
+                "freq": 9283.18,
+                "gain": -10.142
+              },
+              {
+                "freq": 10023.74,
+                "gain": -12.242
+              },
+              {
+                "freq": 10823.39,
+                "gain": -13.288
+              },
+              {
+                "freq": 11686.83,
+                "gain": -14.297
+              },
+              {
+                "freq": 12619.15,
+                "gain": -14.757
+              },
+              {
+                "freq": 13625.84,
+                "gain": -13.667
+              },
+              {
+                "freq": 14712.85,
+                "gain": -12.903
+              },
+              {
+                "freq": 15886.56,
+                "gain": -12.297
+              },
+              {
+                "freq": 17153.92,
+                "gain": -12.541
+              },
+              {
+                "freq": 18522.37,
+                "gain": -13.946
+              },
+              {
+                "freq": 20000,
+                "gain": -15.16
+              }
+            ],
+            "provenance": "eq-compensated",
+            "provenanceDetails": "Imported via AudioSage Share URL",
+            "pointsCount": 91,
+            "offset": 0,
+            "visible": true,
+            "solo": false,
+            "isFilterCurve": false,
+            "isInverted": false,
+            "deltaCompensate": false,
             "preserveAbsolute": true
           }
         ],
