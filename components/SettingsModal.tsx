@@ -1205,13 +1205,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div className="p-3.5 rounded-xl border border-audio-border bg-audio-surface space-y-3">
                   <div>
-                    <label className={labelClass} htmlFor="gemini-key">
+                    <label className={labelClass} htmlFor="ai-api-key">
                       Research API key
                     </label>
                     <div className="flex gap-2 mt-1">
                       <input
                         type="password"
-                        id="gemini-key"
+                        id="ai-api-key"
                         aria-label="Research API key"
                         placeholder="AIzaSy..."
                         defaultValue={

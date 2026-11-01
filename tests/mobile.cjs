@@ -1,11 +1,15 @@
 const { chromium, webkit } = require('playwright');
 const assert = require('node:assert/strict');
+const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
+
 (async () => {
-  for (const [name, launcher, options] of [
-    ['chromium', chromium, { executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || '/usr/bin/chromium' }],
-    ...(process.env.TEST_WEBKIT ? [['webkit', webkit, {}]] : []),
-  ]) {
-    const browser = await launcher.launch({ headless: true, ...options });
+  const serverHandle = await ensureViteServer(3000);
+  try {
+    for (const [name, launcher] of [
+      ['chromium', chromium],
+      ...(process.env.TEST_WEBKIT ? [['webkit', webkit]] : []),
+    ]) {
+      const browser = await launchBrowser(launcher);
     const errors = [];
     const context = await browser.newContext({
       viewport: { width: 320, height: 640 },
@@ -83,6 +87,9 @@ const assert = require('node:assert/strict');
     );
     await browser.close();
   }
+} finally {
+  if (serverHandle && serverHandle.spawned) serverHandle.kill();
+}
 })().catch((e) => {
   console.error(e);
   process.exit(1);

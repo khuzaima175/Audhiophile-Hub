@@ -89,7 +89,9 @@ export default function HomeConsole({
       </section>
       {!hasApiKey && (
         <div className="setup-notice">
-          <div className="notice-icon">✦</div>
+          <div className="notice-icon">
+            <WaveformIcon />
+          </div>
           <div>
             <strong>Connect your research assistant</strong>
             <p>
@@ -222,7 +224,7 @@ export default function HomeConsole({
             ))
           ) : (
             <div className="recent-empty">
-              <span>✧</span>
+              <span><WaveformIcon /></span>
               <strong>A fresh start sounds good.</strong>
               <p>Start a conversation and return to your research here.</p>
               <button className="text-button" onClick={onAutoEQClick}>

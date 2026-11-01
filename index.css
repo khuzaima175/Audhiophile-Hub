@@ -2071,3 +2071,17 @@ summary::-webkit-details-marker {
 .tone-controls input[type=number] { width:100px; background:var(--base); border:1px solid var(--border); border-radius:6px; padding:6px; }
 .tone-controls input[type=range] { min-width:80px; flex:1; max-width:240px; }
 @media (max-width: 767px) { .selected-band-sheet[open] { position:static; } }
+
+
+.research-emblem svg {
+  width: 32px;
+  height: 32px;
+}
+.notice-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.recent-empty svg {
+  width: 18px;
+  height: 18px;
+}

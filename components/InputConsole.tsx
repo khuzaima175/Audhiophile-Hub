@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { SendIcon, PaperclipIcon, MicIcon, StopIcon, XIcon } from './Icon';
+import { SendIcon, PaperclipIcon, MicIcon, StopIcon, XIcon, WaveformIcon } from './Icon';
 interface InputConsoleProps {
   input: string;
   isGenerating: boolean;
@@ -26,9 +26,9 @@ export default function InputConsole(props: InputConsoleProps) {
       {props.showNoKeyNotice && (
         <div className="mb-2 p-3 rounded-xl border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm flex items-center justify-between gap-3 text-xs text-amber-200/90 animate-fadeIn">
           <div className="flex items-center gap-2">
-            <span className="text-amber-400">✧</span>
+            <span className="text-amber-400 w-4 h-4 flex items-center justify-center"><WaveformIcon /></span>
             <span>
-              A Gemini API key is needed for research chat. Equalizer, Graph Lab, and Gear work offline.
+              An API key is needed for research chat. Equalizer, Graph Lab, and Gear work offline.
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">

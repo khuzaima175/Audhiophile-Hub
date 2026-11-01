@@ -3,10 +3,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
 
 (async () => {
   fs.mkdirSync('artifacts', { recursive: true });
-  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || '/usr/bin/chromium', headless: true });
+  const serverHandle = await ensureViteServer(3000);
+  const browser = await launchBrowser(chromium);
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(10000);
   page.on('dialog', dialog => dialog.accept());
@@ -341,6 +343,7 @@ const path = require('node:path');
   console.log('PASS corrupt saved data is preserved and reported');
   assert.deepEqual(errors, [], 'No browser runtime errors');
   await browser.close();
+  if (serverHandle && serverHandle.spawned) serverHandle.kill();
   console.log('ALL UI CHECKS PASSED');
 })().catch((error) => {
   console.error(error);
