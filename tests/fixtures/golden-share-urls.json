@@ -1,0 +1,302 @@
+{
+  "generatedFromCommit": "aadaa91872787e087ddcd620b2d3c0c861f051fd",
+  "cases": [
+    {
+      "id": "single-measured-with-offset",
+      "description": "Single measured curve with Crinacle IEF 2025 target, 1/12 OCT smoothing, -1.5 dB offset, and B&K 5128 rig metadata",
+      "url": "#/lab?c=eyJncmFwaFNldHRpbmdzIjp7Im1pbkZyZXEiOjIwLCJtYXhGcmVxIjoyMDAwMCwieVJhbmdlIjpudWxsLCJpbnNwZWN0Ijp0cnVlLCJzaG93TGFiZWxzIjpmYWxzZX0sImZpdExpbWl0cyI6eyJtaW5GcmVxIjoyMCwibWF4RnJlcSI6MjAwMDAsIm1pbkdhaW4iOi0xMiwibWF4R2FpbiI6MTIsIm1pblEiOjAuNSwibWF4USI6NCwidHlwZXMiOlsiUEsiLCJMUyIsIkhTIl19LCJiYXNlbGluZUlkIjpudWxsLCJub3JtYWxpemF0aW9uTW9kZSI6ImZyZXF1ZW5jeSIsInYiOjEsIm5vcm0iOlswLDEwMDBdLCJ6b29tIjoiZnVsbCIsInRhcmdldElkIjoiY3JpbmFjbGUtaWVmLTIwMjUiLCJkZWx0YSI6ZmFsc2UsImN1cnZlcyI6W3siaWQiOiJnb2xkZW4taGQ2MDAtbWVhc3VyZWQiLCJwaW5uZWQiOnRydWUsInJpZyI6IkImSyA1MTI4IiwibiI6IlNlbm5oZWlzZXIgSEQ2MDAgTWVhc3VyZWQiLCJjIjoiIzZGQzlBNiIsInAiOiJtZWFzdXJlZCIsIm9mZiI6LTEuNSwidmlzaWJsZSI6dHJ1ZSwic29sbyI6ZmFsc2UsInB0cyI6W1syMCwtNC4yXSxbMTAwLDEuNV0sWzEwMDAsMF0sWzMwMDAsNi44XSxbMTAwMDAsLTIuMV0sWzIwMDAwLC04LjRdXX1dLCJ2aWV3IjoicmF3RmlsdGVyIiwic21vb3RoaW5nIjoiMS8xMiBPQ1QiLCJmaXRTbW9vdGhpbmciOiIxLzEyIE9DVCIsImZpdE5vcm1hbGl6ZSI6dHJ1ZX0",
+      "expectedDecoded": {
+        "graphSettings": {
+          "minFreq": 20,
+          "maxFreq": 20000,
+          "yRange": null,
+          "inspect": true,
+          "showLabels": false
+        },
+        "fitLimits": {
+          "minFreq": 20,
+          "maxFreq": 20000,
+          "minGain": -12,
+          "maxGain": 12,
+          "minQ": 0.5,
+          "maxQ": 4,
+          "types": [
+            "PK",
+            "LS",
+            "HS"
+          ]
+        },
+        "baselineId": null,
+        "normalizationMode": "frequency",
+        "normDb": 0,
+        "normHz": 1000,
+        "zoomRange": "full",
+        "targetCurveId": "crinacle-ief-2025",
+        "deltaMode": false,
+        "viewMode": "rawFilter",
+        "smoothing": "1/12 OCT",
+        "fitSmoothing": "1/12 OCT",
+        "fitNormalize": true,
+        "curves": [
+          {
+            "id": "golden-hd600-measured",
+            "isTarget": false,
+            "pinned": true,
+            "rig": "B&K 5128",
+            "name": "Sennheiser HD600 Measured",
+            "color": "#6FC9A6",
+            "points": [
+              {
+                "freq": 20,
+                "gain": -4.2
+              },
+              {
+                "freq": 100,
+                "gain": 1.5
+              },
+              {
+                "freq": 1000,
+                "gain": 0
+              },
+              {
+                "freq": 3000,
+                "gain": 6.8
+              },
+              {
+                "freq": 10000,
+                "gain": -2.1
+              },
+              {
+                "freq": 20000,
+                "gain": -8.4
+              }
+            ],
+            "provenance": "measured",
+            "provenanceDetails": "Imported via AudioSage Share URL",
+            "pointsCount": 6,
+            "offset": -1.5,
+            "visible": true,
+            "solo": false,
+            "isFilterCurve": false,
+            "isInverted": false,
+            "deltaCompensate": false,
+            "preserveAbsolute": false
+          }
+        ],
+        "isOpen": true
+      }
+    },
+    {
+      "id": "stereo-paired-mean-delta",
+      "description": "Stereo L/R paired curve (channel=both) with bass zoom, mean normalization, delta mode, and baseline",
+      "url": "#/lab?c=eyJncmFwaFNldHRpbmdzIjp7Im1pbkZyZXEiOjIwLCJtYXhGcmVxIjoyNTAsInlSYW5nZSI6bnVsbCwiaW5zcGVjdCI6dHJ1ZSwic2hvd0xhYmVscyI6ZmFsc2V9LCJmaXRMaW1pdHMiOnsibWluRnJlcSI6MjAsIm1heEZyZXEiOjIwMDAwLCJtaW5HYWluIjotMTIsIm1heEdhaW4iOjEyLCJtaW5RIjowLjUsIm1heFEiOjQsInR5cGVzIjpbIlBLIiwiTFMiLCJIUyJdfSwiYmFzZWxpbmVJZCI6ImdvbGRlbi1zdGVyZW8taWVtIiwibm9ybWFsaXphdGlvbk1vZGUiOiJtZWFuIiwidiI6MSwibm9ybSI6WzEuNSw1MDBdLCJ6b29tIjoiYmFzcyIsInRhcmdldElkIjoiaGFybWFuLWllLTIwMTkiLCJkZWx0YSI6dHJ1ZSwiY3VydmVzIjpbeyJpZCI6ImdvbGRlbi1zdGVyZW8taWVtIiwiY2hhbm5lbCI6ImJvdGgiLCJjaGFubmVscyI6eyJsZWZ0IjpbWzIwLDVdLFsxMDAsM10sWzEwMDAsMF0sWzEwMDAwLC00XSxbMjAwMDAsLTddXSwicmlnaHQiOltbMjAsNS40XSxbMTAwLDMuMl0sWzEwMDAsMC4xXSxbMTAwMDAsLTMuNl0sWzIwMDAwLC02LjhdXX0sIm4iOiJTdGVyZW8gUGFpcmVkIElFTSIsImMiOiIjNzlhYWZmIiwicCI6Im1lYXN1cmVkIiwidmlzaWJsZSI6dHJ1ZSwic29sbyI6ZmFsc2UsInB0cyI6W1syMCw1LjJdLFsxMDAsMy4xXSxbMTAwMCwwLjA1XSxbMTAwMDAsLTMuOF0sWzIwMDAwLC02LjldXX1dLCJ2aWV3IjoicmF3RmlsdGVyIiwic21vb3RoaW5nIjoiMS82IE9DVCIsImZpdFNtb290aGluZyI6IlJBVyIsImZpdE5vcm1hbGl6ZSI6dHJ1ZX0",
+      "expectedDecoded": {
+        "graphSettings": {
+          "minFreq": 20,
+          "maxFreq": 250,
+          "yRange": null,
+          "inspect": true,
+          "showLabels": false
+        },
+        "fitLimits": {
+          "minFreq": 20,
+          "maxFreq": 20000,
+          "minGain": -12,
+          "maxGain": 12,
+          "minQ": 0.5,
+          "maxQ": 4,
+          "types": [
+            "PK",
+            "LS",
+            "HS"
+          ]
+        },
+        "baselineId": "golden-stereo-iem",
+        "normalizationMode": "mean",
+        "normDb": 1.5,
+        "normHz": 500,
+        "zoomRange": "bass",
+        "targetCurveId": "harman-ie-2019",
+        "deltaMode": true,
+        "viewMode": "rawFilter",
+        "smoothing": "1/6 OCT",
+        "fitSmoothing": "RAW",
+        "fitNormalize": true,
+        "curves": [
+          {
+            "id": "golden-stereo-iem",
+            "isTarget": false,
+            "pinned": false,
+            "channel": "both",
+            "channels": {
+              "left": [
+                {
+                  "freq": 20,
+                  "gain": 5
+                },
+                {
+                  "freq": 100,
+                  "gain": 3
+                },
+                {
+                  "freq": 1000,
+                  "gain": 0
+                },
+                {
+                  "freq": 10000,
+                  "gain": -4
+                },
+                {
+                  "freq": 20000,
+                  "gain": -7
+                }
+              ],
+              "right": [
+                {
+                  "freq": 20,
+                  "gain": 5.4
+                },
+                {
+                  "freq": 100,
+                  "gain": 3.2
+                },
+                {
+                  "freq": 1000,
+                  "gain": 0.1
+                },
+                {
+                  "freq": 10000,
+                  "gain": -3.6
+                },
+                {
+                  "freq": 20000,
+                  "gain": -6.8
+                }
+              ]
+            },
+            "name": "Stereo Paired IEM",
+            "color": "#79aaff",
+            "points": [
+              {
+                "freq": 20,
+                "gain": 5.2
+              },
+              {
+                "freq": 100,
+                "gain": 3.1
+              },
+              {
+                "freq": 1000,
+                "gain": 0.05
+              },
+              {
+                "freq": 10000,
+                "gain": -3.8
+              },
+              {
+                "freq": 20000,
+                "gain": -6.9
+              }
+            ],
+            "provenance": "measured",
+            "provenanceDetails": "Imported via AudioSage Share URL",
+            "pointsCount": 5,
+            "offset": 0,
+            "visible": true,
+            "solo": false,
+            "isFilterCurve": false,
+            "isInverted": false,
+            "deltaCompensate": false,
+            "preserveAbsolute": false
+          }
+        ],
+        "isOpen": true
+      }
+    },
+    {
+      "id": "filter-curve-posteq-pinned",
+      "description": "Filter correction curve in netPostEq view with solo, inverted polarity, deltaCompensate, preserveAbsolute, and custom fitLimits",
+      "url": "#/lab?c=eyJncmFwaFNldHRpbmdzIjp7Im1pbkZyZXEiOjQwMDAsIm1heEZyZXEiOjIwMDAwLCJ5UmFuZ2UiOm51bGwsImluc3BlY3QiOnRydWUsInNob3dMYWJlbHMiOmZhbHNlfSwiZml0TGltaXRzIjp7Im1pbkZyZXEiOjIwLCJtYXhGcmVxIjoxMjAwMCwibWluR2FpbiI6LTEwLCJtYXhHYWluIjo0LCJtaW5RIjowLjUsIm1heFEiOjQsInR5cGVzIjpbIlBLIiwiTFMiLCJIUyJdfSwiYmFzZWxpbmVJZCI6bnVsbCwibm9ybWFsaXphdGlvbk1vZGUiOiJmcmVxdWVuY3kiLCJ2IjoxLCJub3JtIjpbMCwxMDAwXSwiem9vbSI6InRyZWJsZSIsInRhcmdldElkIjoiY3JpbmFjbGUtaWVmLTIwMjUiLCJkZWx0YSI6ZmFsc2UsImN1cnZlcyI6W3siaWQiOiJnb2xkZW4tZmlsdGVyLWN1cnZlIiwibiI6IkF1ZGlvIGRyYWZ0IGNvcnJlY3Rpb24iLCJjIjoiI2QyOGVmMCIsInAiOiJlcS1jb21wZW5zYXRlZCIsIm9mZiI6MC41LCJmaWx0ZXIiOnRydWUsInNvdXJjZVRhcmdldCI6ImNyaW5hY2xlLWllZi0yMDI1IiwiaW52ZXJ0ZWQiOnRydWUsImRlbHRhQ29tcGVuc2F0ZSI6dHJ1ZSwidmlzaWJsZSI6dHJ1ZSwic29sbyI6dHJ1ZSwiYWJzb2x1dGUiOnRydWUsInB0cyI6W1syMCwtMi41XSxbMjAwLC0xXSxbMTAwMCwwXSxbMzAwMCwtMy4yXSxbODAwMCwtNC41XSxbMjAwMDAsMV1dfV0sInZpZXciOiJuZXRQb3N0RXEiLCJzbW9vdGhpbmciOiJSQVciLCJmaXRTbW9vdGhpbmciOiIxLzI0IE9DVCIsImZpdE5vcm1hbGl6ZSI6ZmFsc2V9",
+      "expectedDecoded": {
+        "graphSettings": {
+          "minFreq": 4000,
+          "maxFreq": 20000,
+          "yRange": null,
+          "inspect": true,
+          "showLabels": false
+        },
+        "fitLimits": {
+          "minFreq": 20,
+          "maxFreq": 12000,
+          "minGain": -10,
+          "maxGain": 4,
+          "minQ": 0.5,
+          "maxQ": 4,
+          "types": [
+            "PK",
+            "LS",
+            "HS"
+          ]
+        },
+        "baselineId": null,
+        "normalizationMode": "frequency",
+        "normDb": 0,
+        "normHz": 1000,
+        "zoomRange": "treble",
+        "targetCurveId": "crinacle-ief-2025",
+        "deltaMode": false,
+        "viewMode": "netPostEq",
+        "smoothing": "RAW",
+        "fitSmoothing": "1/24 OCT",
+        "fitNormalize": false,
+        "curves": [
+          {
+            "id": "golden-filter-curve",
+            "isTarget": false,
+            "pinned": false,
+            "name": "Audio draft correction",
+            "color": "#d28ef0",
+            "points": [
+              {
+                "freq": 20,
+                "gain": -2.5
+              },
+              {
+                "freq": 200,
+                "gain": -1
+              },
+              {
+                "freq": 1000,
+                "gain": 0
+              },
+              {
+                "freq": 3000,
+                "gain": -3.2
+              },
+              {
+                "freq": 8000,
+                "gain": -4.5
+              },
+              {
+                "freq": 20000,
+                "gain": 1
+              }
+            ],
+            "provenance": "eq-compensated",
+            "provenanceDetails": "Imported via AudioSage Share URL",
+            "pointsCount": 6,
+            "offset": 0.5,
+            "visible": true,
+            "solo": true,
+            "isFilterCurve": true,
+            "sourceTargetId": "crinacle-ief-2025",
+            "isInverted": true,
+            "deltaCompensate": true,
+            "preserveAbsolute": true
+          }
+        ],
+        "isOpen": true
+      }
+    }
+  ]
+}

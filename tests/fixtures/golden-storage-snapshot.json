@@ -1,0 +1,2472 @@
+{
+  "generatedFromCommit": "aadaa91872787e087ddcd620b2d3c0c861f051fd",
+  "localStorage": {
+    "audiosage_audio_draft_v2": {
+      "stereoFilters": {
+        "left": [
+          {
+            "id": "f-left-1",
+            "type": "LS",
+            "freq": 80,
+            "gain": 3.5,
+            "q": 0.71,
+            "enabled": true
+          },
+          {
+            "id": "f-left-2",
+            "type": "PK",
+            "freq": 3200,
+            "gain": -2.5,
+            "q": 2,
+            "enabled": true
+          }
+        ],
+        "right": [
+          {
+            "id": "f-right-1",
+            "type": "LS",
+            "freq": 80,
+            "gain": 3.3,
+            "q": 0.71,
+            "enabled": true
+          },
+          {
+            "id": "f-right-2",
+            "type": "PK",
+            "freq": 3200,
+            "gain": -2.7,
+            "q": 2,
+            "enabled": true
+          }
+        ]
+      },
+      "eqChannel": "left",
+      "graphSettings": {
+        "minFreq": 20,
+        "maxFreq": 20000,
+        "yRange": null,
+        "inspect": true,
+        "showLabels": false
+      },
+      "fitLimits": {
+        "minFreq": 20,
+        "maxFreq": 20000,
+        "minGain": -12,
+        "maxGain": 12,
+        "minQ": 0.5,
+        "maxQ": 4,
+        "types": [
+          "PK",
+          "LS",
+          "HS"
+        ]
+      },
+      "targetMeasurementRef": null,
+      "version": 2,
+      "editingPresetId": "kefine-delci-ae-golden-nozzle",
+      "presetName": "HD600 Studio Reference",
+      "hardwareAssigned": "Sennheiser HD600",
+      "gearId": null,
+      "dirty": true,
+      "eqMode": "peq",
+      "selectedTargetId": "crinacle-ief-2025",
+      "measurementRef": "measurement-golden-hd600-sha256",
+      "gains10": [
+        2,
+        1.5,
+        0.5,
+        0,
+        -0.5,
+        -1,
+        -1.5,
+        -2,
+        0,
+        1
+      ],
+      "gains15": [
+        2,
+        1.5,
+        1,
+        0.5,
+        0,
+        0,
+        -0.5,
+        -1,
+        -1.5,
+        -2,
+        -1,
+        0,
+        0.5,
+        1,
+        1
+      ],
+      "gains31": [
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5,
+        -0.5,
+        0.5
+      ],
+      "peqFilters": [
+        {
+          "id": "f-left-1",
+          "type": "LS",
+          "freq": 80,
+          "gain": 3.5,
+          "q": 0.71,
+          "enabled": true
+        },
+        {
+          "id": "f-left-2",
+          "type": "PK",
+          "freq": 3200,
+          "gain": -2.5,
+          "q": 2,
+          "enabled": true
+        }
+      ],
+      "selectedBand": "f-left-1",
+      "requestedPreamp": -3.6,
+      "preampMode": "automatic",
+      "sampleRate": 96000,
+      "graphView": "compensated",
+      "responseLevel": "absolute",
+      "smoothing": "1/12 OCT",
+      "normalize": true,
+      "maxAutoFilters": 10,
+      "workbenchState": "ADDING",
+      "originalFit": {
+        "filters": [
+          {
+            "id": "f-left-1",
+            "type": "LS",
+            "freq": 80,
+            "gain": 3.5,
+            "q": 0.71,
+            "enabled": true
+          },
+          {
+            "id": "f-left-2",
+            "type": "PK",
+            "freq": 3200,
+            "gain": -2.5,
+            "q": 2,
+            "enabled": true
+          }
+        ],
+        "preamp": -3.6,
+        "initialRms": 3.42,
+        "finalRms": 0.68,
+        "matchPercentage": 91,
+        "evaluatedPoints": 180,
+        "correctedPoints": [
+          {
+            "freq": 20,
+            "gain": -0.7
+          },
+          {
+            "freq": 1000,
+            "gain": 0
+          },
+          {
+            "freq": 20000,
+            "gain": -8.4
+          }
+        ],
+        "residualPoints": [
+          {
+            "freq": 20,
+            "gain": 0.2
+          },
+          {
+            "freq": 1000,
+            "gain": 0
+          },
+          {
+            "freq": 20000,
+            "gain": -0.4
+          }
+        ]
+      }
+    },
+    "audiosage_profile_v1": {
+      "name": "Phoenix User",
+      "soundSignature": "Strict adherence to Crinacle IEF Preference 2025 Target. Detailed, holographic, with sub-bass extension.",
+      "preferredGenres": "Pop, Vocal-focused, Electronic, Chill/Vibe, OSTs. Likes 'Deep thinking' music.",
+      "currentGear": "CCA Phoenix (Main), SoundPEATS Capsule 3 Pro+ (Commute), JCally JM6 Pro (DAC)",
+      "notes": "Prioritizes immersive soundstage (Dolby Atmos feel) for movies and gaming. Loves musicality. Uses two EQ presets on Phoenix - one for chill, one for vocals. Incoming: JCally JM6 Pro DAC.",
+      "technicalPrefs": "Prioritizes: Wide holographic soundstage, precise 3D imaging, natural decay (avoids xMEMS). Sensitive to 8kHz sibilance and mid-bass bloat. Prefers wide-bore silicone tips for maximum soundstage.",
+      "savedMemories": [
+        "TARGET CURVE: Crinacle IEF Preference 2025 (B&K 5128).",
+        "SENSITIVITY: 8kHz peaks cause sibilance.",
+        "SENSITIVITY: Dislikes excessive mid-bass bloat (prefer tuck at 200Hz).",
+        "SENSITIVITY: HATES 'Zero Decay' from xMEMS - sounds rough/dry.",
+        "PRIORITY: Natural Decay (must have 'soul').",
+        "PRIORITY: Holographic Imaging (3D positioning).",
+        "PRIORITY: Wide Soundstage (Dolby Atmos feel).",
+        "USE CASE: Gaming: Offline single-player titles (Cyberpunk 2077, RDR2, Witcher 3). Immersive, NOT competitive.",
+        "EQ PRESET 'Phoenix Chill': Darker, bass boosted, reduced 4kHz (shout) and 8kHz (sibilance).",
+        "EQ PRESET 'Phoenix Vocal': Vocals boosted/forward, treble/8kHz reduced.",
+        "TIP PREFERENCE: Wide-Bore Silicone tips - maximizes soundstage.",
+        "HISTORY: CCA Phoenix - Best imaging and details owned.",
+        "HISTORY: SoundPEATS Capsule 3 Pro+ - HATES xMEMS roughness.",
+        "UPGRADE TARGET: Simgot EW300 - Tribrid, Soundstage Monster (Top Pick).",
+        "UPGRADE TARGET: Simgot EG280 (Gaming Pick)."
+      ],
+      "eqLibrary": [
+        {
+          "id": "kefine-delci-ae-golden-nozzle",
+          "name": "Kefine Delci AE — Golden Nozzle",
+          "hardware": "Kefine Delci AE",
+          "type": "Wavelet",
+          "mode": "31-band",
+          "bands": "GraphicEQ: 20 -4.9; 25 -4.7; 31.5 -3.7; 40 -3.3; 50 -3.1; 63 -3.1; 80 -3.1; 100 -3.2; 125 -3.5; 160 -3.2; 200 -2.6; 250 -2.0; 315 -1.1; 400 -0.3; 500 0.0; 630 -0.6; 800 -1.4; 1000 -2.0; 1250 -2.5; 1600 -3.0; 2000 -3.4; 2500 -2.4; 3150 -0.6; 4000 -2.3; 5000 -5.8; 6300 -6.9; 8000 -4.0; 10000 -3.4; 12500 -3.1; 16000 -3.0; 20000 -3.0",
+          "graphicGains": [
+            -4.9,
+            -4.7,
+            -3.7,
+            -3.3,
+            -3.1,
+            -3.1,
+            -3.1,
+            -3.2,
+            -3.5,
+            -3.2,
+            -2.6,
+            -2,
+            -1.1,
+            -0.3,
+            0,
+            -0.6,
+            -1.4,
+            -2,
+            -2.5,
+            -3,
+            -3.4,
+            -2.4,
+            -0.6,
+            -2.3,
+            -5.8,
+            -6.9,
+            -4,
+            -3.4,
+            -3.1,
+            -3,
+            -3
+          ],
+          "targetCurveId": "crinacle-ief-2025",
+          "preamp": 0,
+          "timestamp": 1754600000000
+        },
+        {
+          "id": "kefine-delci-ae-signature-nozzle",
+          "name": "Kefine Delci AE — Signature Nozzle",
+          "hardware": "Kefine Delci AE",
+          "type": "Wavelet",
+          "mode": "31-band",
+          "bands": "GraphicEQ: 20 -4.9; 25 -4.7; 31.5 -3.7; 40 -3.3; 50 -3.1; 63 -3.1; 80 -3.1; 100 -3.2; 125 -3.5; 160 -3.2; 200 -2.6; 250 -2.0; 315 -1.1; 400 -0.3; 500 0.0; 630 -0.6; 800 -1.4; 1000 -2.0; 1250 -2.5; 1600 -3.0; 2000 -3.4; 2500 -2.4; 3150 -0.6; 4000 -2.3; 5000 -5.8; 6300 -6.9; 8000 -4.0; 10000 -3.4; 12500 -3.1; 16000 -3.0; 20000 -3.0",
+          "graphicGains": [
+            -4.9,
+            -4.7,
+            -3.7,
+            -3.3,
+            -3.1,
+            -3.1,
+            -3.1,
+            -3.2,
+            -3.5,
+            -3.2,
+            -2.6,
+            -2,
+            -1.1,
+            -0.3,
+            0,
+            -0.6,
+            -1.4,
+            -2,
+            -2.5,
+            -3,
+            -3.4,
+            -2.4,
+            -0.6,
+            -2.3,
+            -5.8,
+            -6.9,
+            -4,
+            -3.4,
+            -3.1,
+            -3,
+            -3
+          ],
+          "targetCurveId": "crinacle-ief-2025",
+          "preamp": 0,
+          "timestamp": 1754600001000
+        }
+      ],
+      "gearLibrary": [],
+      "faderState": {
+        "bassGain": 0,
+        "sibilanceGain": -2,
+        "airGain": 1
+      }
+    },
+    "audiosage_retrieval_v1": {
+      "version": 1,
+      "olderConversations": false,
+      "budgetCharacters": 6000,
+      "minScore": 0.1
+    }
+  },
+  "indexedDB": {
+    "databaseName": "audiosage_audio_v2",
+    "version": 2,
+    "records": [
+      {
+        "id": "measurement-golden-hd600-sha256",
+        "kind": "measurement",
+        "value": {
+          "name": "Sennheiser HD600 Golden",
+          "smoothing": "1/12 OCT",
+          "normOffset": 80,
+          "sampleCount": 6,
+          "rawPoints": [
+            {
+              "freq": 20,
+              "gain": -4.2,
+              "rawSpl": 75.8
+            },
+            {
+              "freq": 100,
+              "gain": 1.5,
+              "rawSpl": 81.5
+            },
+            {
+              "freq": 1000,
+              "gain": 0,
+              "rawSpl": 80
+            },
+            {
+              "freq": 3000,
+              "gain": 6.8,
+              "rawSpl": 86.8
+            },
+            {
+              "freq": 10000,
+              "gain": -2.1,
+              "rawSpl": 77.9
+            },
+            {
+              "freq": 20000,
+              "gain": -8.4,
+              "rawSpl": 71.6
+            }
+          ],
+          "smoothedPoints": [
+            {
+              "freq": 20,
+              "gain": -4.2
+            },
+            {
+              "freq": 100,
+              "gain": 1.5
+            },
+            {
+              "freq": 1000,
+              "gain": 0
+            },
+            {
+              "freq": 3000,
+              "gain": 6.8
+            },
+            {
+              "freq": 10000,
+              "gain": -2.1
+            },
+            {
+              "freq": 20000,
+              "gain": -8.4
+            }
+          ],
+          "channels": {
+            "left": [
+              {
+                "freq": 20,
+                "gain": -4.2,
+                "rawSpl": 75.8
+              },
+              {
+                "freq": 1000,
+                "gain": 0,
+                "rawSpl": 80
+              },
+              {
+                "freq": 20000,
+                "gain": -8.4,
+                "rawSpl": 71.6
+              }
+            ],
+            "right": [
+              {
+                "freq": 20,
+                "gain": -4,
+                "rawSpl": 76
+              },
+              {
+                "freq": 1000,
+                "gain": 0.1,
+                "rawSpl": 80.1
+              },
+              {
+                "freq": 20000,
+                "gain": -8.2,
+                "rawSpl": 71.8
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "comparison": {
+      "graphSettings": {
+        "minFreq": 20,
+        "maxFreq": 20000,
+        "yRange": null,
+        "inspect": true,
+        "showLabels": false
+      },
+      "fitLimits": {
+        "minFreq": 20,
+        "maxFreq": 20000,
+        "minGain": -12,
+        "maxGain": 12,
+        "minQ": 0.5,
+        "maxQ": 4,
+        "types": [
+          "PK",
+          "LS",
+          "HS"
+        ]
+      },
+      "normalizationMode": "frequency",
+      "baselineId": null,
+      "isOpen": false,
+      "curves": [
+        {
+          "id": "crinacle-ief-2025-ref",
+          "name": "Crinacle IEF 2025 Target",
+          "color": "#6FC9A6",
+          "points": [
+            {
+              "freq": 20,
+              "gain": 7.889
+            },
+            {
+              "freq": 20.3,
+              "gain": 7.898
+            },
+            {
+              "freq": 20.6,
+              "gain": 7.911
+            },
+            {
+              "freq": 20.9,
+              "gain": 7.923
+            },
+            {
+              "freq": 21.2,
+              "gain": 7.935
+            },
+            {
+              "freq": 21.4,
+              "gain": 7.944
+            },
+            {
+              "freq": 21.8,
+              "gain": 7.96
+            },
+            {
+              "freq": 22,
+              "gain": 7.968
+            },
+            {
+              "freq": 22.4,
+              "gain": 7.984
+            },
+            {
+              "freq": 22.7,
+              "gain": 7.996
+            },
+            {
+              "freq": 23,
+              "gain": 8.007
+            },
+            {
+              "freq": 23.3,
+              "gain": 8.018
+            },
+            {
+              "freq": 23.6,
+              "gain": 8.03
+            },
+            {
+              "freq": 24,
+              "gain": 8.044
+            },
+            {
+              "freq": 24.3,
+              "gain": 8.055
+            },
+            {
+              "freq": 24.7,
+              "gain": 8.068
+            },
+            {
+              "freq": 25,
+              "gain": 8.078
+            },
+            {
+              "freq": 25.4,
+              "gain": 8.091
+            },
+            {
+              "freq": 25.8,
+              "gain": 8.103
+            },
+            {
+              "freq": 26.2,
+              "gain": 8.114
+            },
+            {
+              "freq": 26.5,
+              "gain": 8.122
+            },
+            {
+              "freq": 26.9,
+              "gain": 8.133
+            },
+            {
+              "freq": 27.2,
+              "gain": 8.14
+            },
+            {
+              "freq": 27.6,
+              "gain": 8.149
+            },
+            {
+              "freq": 28,
+              "gain": 8.158
+            },
+            {
+              "freq": 28.5,
+              "gain": 8.167
+            },
+            {
+              "freq": 29,
+              "gain": 8.176
+            },
+            {
+              "freq": 29.5,
+              "gain": 8.183
+            },
+            {
+              "freq": 30,
+              "gain": 8.189
+            },
+            {
+              "freq": 30.4,
+              "gain": 8.194
+            },
+            {
+              "freq": 30.7,
+              "gain": 8.197
+            },
+            {
+              "freq": 31.1,
+              "gain": 8.2
+            },
+            {
+              "freq": 31.5,
+              "gain": 8.202
+            },
+            {
+              "freq": 32,
+              "gain": 8.205
+            },
+            {
+              "freq": 32.5,
+              "gain": 8.207
+            },
+            {
+              "freq": 33,
+              "gain": 8.207
+            },
+            {
+              "freq": 33.5,
+              "gain": 8.207
+            },
+            {
+              "freq": 34,
+              "gain": 8.206
+            },
+            {
+              "freq": 34.5,
+              "gain": 8.204
+            },
+            {
+              "freq": 35,
+              "gain": 8.201
+            },
+            {
+              "freq": 35.5,
+              "gain": 8.198
+            },
+            {
+              "freq": 36,
+              "gain": 8.194
+            },
+            {
+              "freq": 36.5,
+              "gain": 8.189
+            },
+            {
+              "freq": 37,
+              "gain": 8.184
+            },
+            {
+              "freq": 37.5,
+              "gain": 8.178
+            },
+            {
+              "freq": 38.2,
+              "gain": 8.169
+            },
+            {
+              "freq": 38.7,
+              "gain": 8.162
+            },
+            {
+              "freq": 39.5,
+              "gain": 8.15
+            },
+            {
+              "freq": 40,
+              "gain": 8.141
+            },
+            {
+              "freq": 40.6,
+              "gain": 8.13
+            },
+            {
+              "freq": 41.2,
+              "gain": 8.119
+            },
+            {
+              "freq": 41.8,
+              "gain": 8.106
+            },
+            {
+              "freq": 42.5,
+              "gain": 8.092
+            },
+            {
+              "freq": 43.1,
+              "gain": 8.078
+            },
+            {
+              "freq": 43.7,
+              "gain": 8.064
+            },
+            {
+              "freq": 44.4,
+              "gain": 8.047
+            },
+            {
+              "freq": 45,
+              "gain": 8.031
+            },
+            {
+              "freq": 45.5,
+              "gain": 8.018
+            },
+            {
+              "freq": 46.2,
+              "gain": 7.999
+            },
+            {
+              "freq": 46.8,
+              "gain": 7.982
+            },
+            {
+              "freq": 47.5,
+              "gain": 7.962
+            },
+            {
+              "freq": 48.2,
+              "gain": 7.94
+            },
+            {
+              "freq": 48.7,
+              "gain": 7.924
+            },
+            {
+              "freq": 49.4,
+              "gain": 7.902
+            },
+            {
+              "freq": 50,
+              "gain": 7.882
+            },
+            {
+              "freq": 50.8,
+              "gain": 7.854
+            },
+            {
+              "freq": 51.5,
+              "gain": 7.828
+            },
+            {
+              "freq": 52.2,
+              "gain": 7.802
+            },
+            {
+              "freq": 53,
+              "gain": 7.771
+            },
+            {
+              "freq": 53.8,
+              "gain": 7.74
+            },
+            {
+              "freq": 54.5,
+              "gain": 7.711
+            },
+            {
+              "freq": 55.2,
+              "gain": 7.682
+            },
+            {
+              "freq": 56,
+              "gain": 7.647
+            },
+            {
+              "freq": 57,
+              "gain": 7.602
+            },
+            {
+              "freq": 58,
+              "gain": 7.555
+            },
+            {
+              "freq": 59,
+              "gain": 7.506
+            },
+            {
+              "freq": 60,
+              "gain": 7.456
+            },
+            {
+              "freq": 60.8,
+              "gain": 7.414
+            },
+            {
+              "freq": 61.5,
+              "gain": 7.377
+            },
+            {
+              "freq": 62.2,
+              "gain": 7.339
+            },
+            {
+              "freq": 63,
+              "gain": 7.294
+            },
+            {
+              "freq": 64,
+              "gain": 7.236
+            },
+            {
+              "freq": 65,
+              "gain": 7.176
+            },
+            {
+              "freq": 66,
+              "gain": 7.115
+            },
+            {
+              "freq": 67,
+              "gain": 7.052
+            },
+            {
+              "freq": 68,
+              "gain": 6.987
+            },
+            {
+              "freq": 69,
+              "gain": 6.921
+            },
+            {
+              "freq": 70,
+              "gain": 6.853
+            },
+            {
+              "freq": 71,
+              "gain": 6.784
+            },
+            {
+              "freq": 72,
+              "gain": 6.713
+            },
+            {
+              "freq": 73,
+              "gain": 6.641
+            },
+            {
+              "freq": 74,
+              "gain": 6.567
+            },
+            {
+              "freq": 75,
+              "gain": 6.493
+            },
+            {
+              "freq": 76.2,
+              "gain": 6.401
+            },
+            {
+              "freq": 77.5,
+              "gain": 6.301
+            },
+            {
+              "freq": 78.8,
+              "gain": 6.198
+            },
+            {
+              "freq": 80,
+              "gain": 6.103
+            },
+            {
+              "freq": 81.2,
+              "gain": 6.006
+            },
+            {
+              "freq": 82.5,
+              "gain": 5.9
+            },
+            {
+              "freq": 83.8,
+              "gain": 5.793
+            },
+            {
+              "freq": 85,
+              "gain": 5.693
+            },
+            {
+              "freq": 86.2,
+              "gain": 5.593
+            },
+            {
+              "freq": 87.5,
+              "gain": 5.484
+            },
+            {
+              "freq": 88.5,
+              "gain": 5.4
+            },
+            {
+              "freq": 90,
+              "gain": 5.275
+            },
+            {
+              "freq": 91.2,
+              "gain": 5.174
+            },
+            {
+              "freq": 92.5,
+              "gain": 5.064
+            },
+            {
+              "freq": 93.8,
+              "gain": 4.955
+            },
+            {
+              "freq": 95,
+              "gain": 4.855
+            },
+            {
+              "freq": 96.2,
+              "gain": 4.755
+            },
+            {
+              "freq": 97.5,
+              "gain": 4.647
+            },
+            {
+              "freq": 98.8,
+              "gain": 4.54
+            },
+            {
+              "freq": 100,
+              "gain": 4.442
+            },
+            {
+              "freq": 101.5,
+              "gain": 4.32
+            },
+            {
+              "freq": 103,
+              "gain": 4.2
+            },
+            {
+              "freq": 104.4,
+              "gain": 4.089
+            },
+            {
+              "freq": 106,
+              "gain": 3.964
+            },
+            {
+              "freq": 107.5,
+              "gain": 3.848
+            },
+            {
+              "freq": 109,
+              "gain": 3.734
+            },
+            {
+              "freq": 110.6,
+              "gain": 3.616
+            },
+            {
+              "freq": 112,
+              "gain": 3.512
+            },
+            {
+              "freq": 113.8,
+              "gain": 3.383
+            },
+            {
+              "freq": 115,
+              "gain": 3.299
+            },
+            {
+              "freq": 117.2,
+              "gain": 3.147
+            },
+            {
+              "freq": 118,
+              "gain": 3.093
+            },
+            {
+              "freq": 120.6,
+              "gain": 2.922
+            },
+            {
+              "freq": 122,
+              "gain": 2.833
+            },
+            {
+              "freq": 124.1,
+              "gain": 2.702
+            },
+            {
+              "freq": 125,
+              "gain": 2.648
+            },
+            {
+              "freq": 126.5,
+              "gain": 2.558
+            },
+            {
+              "freq": 128,
+              "gain": 2.471
+            },
+            {
+              "freq": 131.5,
+              "gain": 2.278
+            },
+            {
+              "freq": 132,
+              "gain": 2.251
+            },
+            {
+              "freq": 134,
+              "gain": 2.147
+            },
+            {
+              "freq": 136,
+              "gain": 2.047
+            },
+            {
+              "freq": 138,
+              "gain": 1.95
+            },
+            {
+              "freq": 140,
+              "gain": 1.857
+            },
+            {
+              "freq": 143,
+              "gain": 1.724
+            },
+            {
+              "freq": 145,
+              "gain": 1.64
+            },
+            {
+              "freq": 147.5,
+              "gain": 1.539
+            },
+            {
+              "freq": 150,
+              "gain": 1.444
+            },
+            {
+              "freq": 152.5,
+              "gain": 1.353
+            },
+            {
+              "freq": 155,
+              "gain": 1.268
+            },
+            {
+              "freq": 157.5,
+              "gain": 1.187
+            },
+            {
+              "freq": 160,
+              "gain": 1.11
+            },
+            {
+              "freq": 162.5,
+              "gain": 1.038
+            },
+            {
+              "freq": 165,
+              "gain": 0.97
+            },
+            {
+              "freq": 167.5,
+              "gain": 0.906
+            },
+            {
+              "freq": 170,
+              "gain": 0.846
+            },
+            {
+              "freq": 172.5,
+              "gain": 0.79
+            },
+            {
+              "freq": 175,
+              "gain": 0.737
+            },
+            {
+              "freq": 177.5,
+              "gain": 0.688
+            },
+            {
+              "freq": 180,
+              "gain": 0.643
+            },
+            {
+              "freq": 182.5,
+              "gain": 0.601
+            },
+            {
+              "freq": 185,
+              "gain": 0.561
+            },
+            {
+              "freq": 187.5,
+              "gain": 0.526
+            },
+            {
+              "freq": 190,
+              "gain": 0.493
+            },
+            {
+              "freq": 192.5,
+              "gain": 0.463
+            },
+            {
+              "freq": 195,
+              "gain": 0.437
+            },
+            {
+              "freq": 197.5,
+              "gain": 0.412
+            },
+            {
+              "freq": 200,
+              "gain": 0.391
+            },
+            {
+              "freq": 203,
+              "gain": 0.368
+            },
+            {
+              "freq": 206,
+              "gain": 0.349
+            },
+            {
+              "freq": 209,
+              "gain": 0.333
+            },
+            {
+              "freq": 212,
+              "gain": 0.32
+            },
+            {
+              "freq": 214,
+              "gain": 0.313
+            },
+            {
+              "freq": 218,
+              "gain": 0.303
+            },
+            {
+              "freq": 220,
+              "gain": 0.299
+            },
+            {
+              "freq": 224,
+              "gain": 0.296
+            },
+            {
+              "freq": 227,
+              "gain": 0.296
+            },
+            {
+              "freq": 230,
+              "gain": 0.297
+            },
+            {
+              "freq": 233,
+              "gain": 0.301
+            },
+            {
+              "freq": 236,
+              "gain": 0.307
+            },
+            {
+              "freq": 240,
+              "gain": 0.316
+            },
+            {
+              "freq": 243,
+              "gain": 0.325
+            },
+            {
+              "freq": 247,
+              "gain": 0.338
+            },
+            {
+              "freq": 250,
+              "gain": 0.35
+            },
+            {
+              "freq": 254,
+              "gain": 0.367
+            },
+            {
+              "freq": 258,
+              "gain": 0.385
+            },
+            {
+              "freq": 262,
+              "gain": 0.405
+            },
+            {
+              "freq": 265,
+              "gain": 0.421
+            },
+            {
+              "freq": 269,
+              "gain": 0.442
+            },
+            {
+              "freq": 272,
+              "gain": 0.458
+            },
+            {
+              "freq": 276,
+              "gain": 0.481
+            },
+            {
+              "freq": 280,
+              "gain": 0.506
+            },
+            {
+              "freq": 285,
+              "gain": 0.536
+            },
+            {
+              "freq": 290,
+              "gain": 0.566
+            },
+            {
+              "freq": 295,
+              "gain": 0.597
+            },
+            {
+              "freq": 300,
+              "gain": 0.629
+            },
+            {
+              "freq": 304,
+              "gain": 0.653
+            },
+            {
+              "freq": 307,
+              "gain": 0.672
+            },
+            {
+              "freq": 311,
+              "gain": 0.698
+            },
+            {
+              "freq": 315,
+              "gain": 0.722
+            },
+            {
+              "freq": 320,
+              "gain": 0.753
+            },
+            {
+              "freq": 325,
+              "gain": 0.785
+            },
+            {
+              "freq": 330,
+              "gain": 0.815
+            },
+            {
+              "freq": 335,
+              "gain": 0.845
+            },
+            {
+              "freq": 340,
+              "gain": 0.874
+            },
+            {
+              "freq": 345,
+              "gain": 0.904
+            },
+            {
+              "freq": 350,
+              "gain": 0.932
+            },
+            {
+              "freq": 355,
+              "gain": 0.96
+            },
+            {
+              "freq": 360,
+              "gain": 0.988
+            },
+            {
+              "freq": 365,
+              "gain": 1.014
+            },
+            {
+              "freq": 370,
+              "gain": 1.04
+            },
+            {
+              "freq": 375,
+              "gain": 1.065
+            },
+            {
+              "freq": 382,
+              "gain": 1.099
+            },
+            {
+              "freq": 387,
+              "gain": 1.122
+            },
+            {
+              "freq": 395,
+              "gain": 1.156
+            },
+            {
+              "freq": 400,
+              "gain": 1.177
+            },
+            {
+              "freq": 406,
+              "gain": 1.199
+            },
+            {
+              "freq": 412,
+              "gain": 1.22
+            },
+            {
+              "freq": 418,
+              "gain": 1.239
+            },
+            {
+              "freq": 425,
+              "gain": 1.259
+            },
+            {
+              "freq": 431,
+              "gain": 1.274
+            },
+            {
+              "freq": 437,
+              "gain": 1.287
+            },
+            {
+              "freq": 444,
+              "gain": 1.3
+            },
+            {
+              "freq": 450,
+              "gain": 1.309
+            },
+            {
+              "freq": 455,
+              "gain": 1.315
+            },
+            {
+              "freq": 462,
+              "gain": 1.322
+            },
+            {
+              "freq": 468,
+              "gain": 1.325
+            },
+            {
+              "freq": 475,
+              "gain": 1.328
+            },
+            {
+              "freq": 482,
+              "gain": 1.328
+            },
+            {
+              "freq": 487,
+              "gain": 1.328
+            },
+            {
+              "freq": 494,
+              "gain": 1.325
+            },
+            {
+              "freq": 500,
+              "gain": 1.322
+            },
+            {
+              "freq": 508,
+              "gain": 1.316
+            },
+            {
+              "freq": 515,
+              "gain": 1.31
+            },
+            {
+              "freq": 522,
+              "gain": 1.303
+            },
+            {
+              "freq": 530,
+              "gain": 1.293
+            },
+            {
+              "freq": 538,
+              "gain": 1.283
+            },
+            {
+              "freq": 545,
+              "gain": 1.273
+            },
+            {
+              "freq": 552,
+              "gain": 1.263
+            },
+            {
+              "freq": 560,
+              "gain": 1.249
+            },
+            {
+              "freq": 570,
+              "gain": 1.232
+            },
+            {
+              "freq": 580,
+              "gain": 1.213
+            },
+            {
+              "freq": 590,
+              "gain": 1.193
+            },
+            {
+              "freq": 600,
+              "gain": 1.171
+            },
+            {
+              "freq": 608,
+              "gain": 1.151
+            },
+            {
+              "freq": 615,
+              "gain": 1.134
+            },
+            {
+              "freq": 622,
+              "gain": 1.115
+            },
+            {
+              "freq": 630,
+              "gain": 1.093
+            },
+            {
+              "freq": 640,
+              "gain": 1.063
+            },
+            {
+              "freq": 650,
+              "gain": 1.031
+            },
+            {
+              "freq": 660,
+              "gain": 0.997
+            },
+            {
+              "freq": 670,
+              "gain": 0.962
+            },
+            {
+              "freq": 680,
+              "gain": 0.925
+            },
+            {
+              "freq": 690,
+              "gain": 0.885
+            },
+            {
+              "freq": 700,
+              "gain": 0.844
+            },
+            {
+              "freq": 710,
+              "gain": 0.802
+            },
+            {
+              "freq": 720,
+              "gain": 0.758
+            },
+            {
+              "freq": 730,
+              "gain": 0.713
+            },
+            {
+              "freq": 740,
+              "gain": 0.667
+            },
+            {
+              "freq": 750,
+              "gain": 0.621
+            },
+            {
+              "freq": 762,
+              "gain": 0.565
+            },
+            {
+              "freq": 775,
+              "gain": 0.504
+            },
+            {
+              "freq": 788,
+              "gain": 0.442
+            },
+            {
+              "freq": 800,
+              "gain": 0.385
+            },
+            {
+              "freq": 812,
+              "gain": 0.33
+            },
+            {
+              "freq": 825,
+              "gain": 0.271
+            },
+            {
+              "freq": 838,
+              "gain": 0.215
+            },
+            {
+              "freq": 850,
+              "gain": 0.165
+            },
+            {
+              "freq": 862,
+              "gain": 0.118
+            },
+            {
+              "freq": 875,
+              "gain": 0.073
+            },
+            {
+              "freq": 885,
+              "gain": 0.041
+            },
+            {
+              "freq": 900,
+              "gain": 0
+            },
+            {
+              "freq": 912,
+              "gain": -0.026
+            },
+            {
+              "freq": 925,
+              "gain": -0.048
+            },
+            {
+              "freq": 938,
+              "gain": -0.061
+            },
+            {
+              "freq": 950,
+              "gain": -0.066
+            },
+            {
+              "freq": 962,
+              "gain": -0.063
+            },
+            {
+              "freq": 975,
+              "gain": -0.051
+            },
+            {
+              "freq": 988,
+              "gain": -0.029
+            },
+            {
+              "freq": 1000,
+              "gain": 0
+            },
+            {
+              "freq": 1015,
+              "gain": 0.046
+            },
+            {
+              "freq": 1030,
+              "gain": 0.104
+            },
+            {
+              "freq": 1044,
+              "gain": 0.169
+            },
+            {
+              "freq": 1060,
+              "gain": 0.254
+            },
+            {
+              "freq": 1075,
+              "gain": 0.342
+            },
+            {
+              "freq": 1090,
+              "gain": 0.437
+            },
+            {
+              "freq": 1106,
+              "gain": 0.545
+            },
+            {
+              "freq": 1120,
+              "gain": 0.644
+            },
+            {
+              "freq": 1138,
+              "gain": 0.775
+            },
+            {
+              "freq": 1150,
+              "gain": 0.865
+            },
+            {
+              "freq": 1172,
+              "gain": 1.029
+            },
+            {
+              "freq": 1180,
+              "gain": 1.089
+            },
+            {
+              "freq": 1206,
+              "gain": 1.282
+            },
+            {
+              "freq": 1220,
+              "gain": 1.384
+            },
+            {
+              "freq": 1241,
+              "gain": 1.533
+            },
+            {
+              "freq": 1250,
+              "gain": 1.596
+            },
+            {
+              "freq": 1265,
+              "gain": 1.698
+            },
+            {
+              "freq": 1280,
+              "gain": 1.796
+            },
+            {
+              "freq": 1315,
+              "gain": 2.014
+            },
+            {
+              "freq": 1320,
+              "gain": 2.044
+            },
+            {
+              "freq": 1340,
+              "gain": 2.16
+            },
+            {
+              "freq": 1360,
+              "gain": 2.27
+            },
+            {
+              "freq": 1380,
+              "gain": 2.375
+            },
+            {
+              "freq": 1400,
+              "gain": 2.474
+            },
+            {
+              "freq": 1430,
+              "gain": 2.614
+            },
+            {
+              "freq": 1450,
+              "gain": 2.702
+            },
+            {
+              "freq": 1475,
+              "gain": 2.806
+            },
+            {
+              "freq": 1500,
+              "gain": 2.904
+            },
+            {
+              "freq": 1525,
+              "gain": 3
+            },
+            {
+              "freq": 1550,
+              "gain": 3.094
+            },
+            {
+              "freq": 1575,
+              "gain": 3.187
+            },
+            {
+              "freq": 1600,
+              "gain": 3.28
+            },
+            {
+              "freq": 1625,
+              "gain": 3.375
+            },
+            {
+              "freq": 1650,
+              "gain": 3.472
+            },
+            {
+              "freq": 1675,
+              "gain": 3.573
+            },
+            {
+              "freq": 1700,
+              "gain": 3.678
+            },
+            {
+              "freq": 1725,
+              "gain": 3.788
+            },
+            {
+              "freq": 1750,
+              "gain": 3.902
+            },
+            {
+              "freq": 1775,
+              "gain": 4.022
+            },
+            {
+              "freq": 1800,
+              "gain": 4.148
+            },
+            {
+              "freq": 1825,
+              "gain": 4.279
+            },
+            {
+              "freq": 1850,
+              "gain": 4.417
+            },
+            {
+              "freq": 1875,
+              "gain": 4.562
+            },
+            {
+              "freq": 1900,
+              "gain": 4.712
+            },
+            {
+              "freq": 1925,
+              "gain": 4.87
+            },
+            {
+              "freq": 1950,
+              "gain": 5.034
+            },
+            {
+              "freq": 1975,
+              "gain": 5.206
+            },
+            {
+              "freq": 2000,
+              "gain": 5.384
+            },
+            {
+              "freq": 2030,
+              "gain": 5.604
+            },
+            {
+              "freq": 2060,
+              "gain": 5.83
+            },
+            {
+              "freq": 2090,
+              "gain": 6.06
+            },
+            {
+              "freq": 2120,
+              "gain": 6.293
+            },
+            {
+              "freq": 2140,
+              "gain": 6.448
+            },
+            {
+              "freq": 2180,
+              "gain": 6.755
+            },
+            {
+              "freq": 2200,
+              "gain": 6.905
+            },
+            {
+              "freq": 2240,
+              "gain": 7.201
+            },
+            {
+              "freq": 2270,
+              "gain": 7.414
+            },
+            {
+              "freq": 2300,
+              "gain": 7.62
+            },
+            {
+              "freq": 2330,
+              "gain": 7.817
+            },
+            {
+              "freq": 2360,
+              "gain": 8.004
+            },
+            {
+              "freq": 2400,
+              "gain": 8.239
+            },
+            {
+              "freq": 2430,
+              "gain": 8.402
+            },
+            {
+              "freq": 2470,
+              "gain": 8.604
+            },
+            {
+              "freq": 2500,
+              "gain": 8.742
+            },
+            {
+              "freq": 2540,
+              "gain": 8.91
+            },
+            {
+              "freq": 2580,
+              "gain": 9.059
+            },
+            {
+              "freq": 2620,
+              "gain": 9.19
+            },
+            {
+              "freq": 2650,
+              "gain": 9.277
+            },
+            {
+              "freq": 2690,
+              "gain": 9.379
+            },
+            {
+              "freq": 2720,
+              "gain": 9.444
+            },
+            {
+              "freq": 2760,
+              "gain": 9.519
+            },
+            {
+              "freq": 2800,
+              "gain": 9.578
+            },
+            {
+              "freq": 2850,
+              "gain": 9.631
+            },
+            {
+              "freq": 2900,
+              "gain": 9.663
+            },
+            {
+              "freq": 2950,
+              "gain": 9.672
+            },
+            {
+              "freq": 3000,
+              "gain": 9.657
+            },
+            {
+              "freq": 3040,
+              "gain": 9.63
+            },
+            {
+              "freq": 3070,
+              "gain": 9.599
+            },
+            {
+              "freq": 3110,
+              "gain": 9.544
+            },
+            {
+              "freq": 3150,
+              "gain": 9.474
+            },
+            {
+              "freq": 3200,
+              "gain": 9.367
+            },
+            {
+              "freq": 3250,
+              "gain": 9.238
+            },
+            {
+              "freq": 3300,
+              "gain": 9.092
+            },
+            {
+              "freq": 3350,
+              "gain": 8.93
+            },
+            {
+              "freq": 3400,
+              "gain": 8.755
+            },
+            {
+              "freq": 3450,
+              "gain": 8.57
+            },
+            {
+              "freq": 3500,
+              "gain": 8.374
+            },
+            {
+              "freq": 3550,
+              "gain": 8.171
+            },
+            {
+              "freq": 3600,
+              "gain": 7.96
+            },
+            {
+              "freq": 3650,
+              "gain": 7.744
+            },
+            {
+              "freq": 3700,
+              "gain": 7.522
+            },
+            {
+              "freq": 3750,
+              "gain": 7.296
+            },
+            {
+              "freq": 3820,
+              "gain": 6.977
+            },
+            {
+              "freq": 3870,
+              "gain": 6.75
+            },
+            {
+              "freq": 3950,
+              "gain": 6.394
+            },
+            {
+              "freq": 4000,
+              "gain": 6.178
+            },
+            {
+              "freq": 4060,
+              "gain": 5.929
+            },
+            {
+              "freq": 4120,
+              "gain": 5.693
+            },
+            {
+              "freq": 4180,
+              "gain": 5.47
+            },
+            {
+              "freq": 4250,
+              "gain": 5.227
+            },
+            {
+              "freq": 4310,
+              "gain": 5.034
+            },
+            {
+              "freq": 4370,
+              "gain": 4.856
+            },
+            {
+              "freq": 4440,
+              "gain": 4.664
+            },
+            {
+              "freq": 4500,
+              "gain": 4.513
+            },
+            {
+              "freq": 4550,
+              "gain": 4.395
+            },
+            {
+              "freq": 4620,
+              "gain": 4.242
+            },
+            {
+              "freq": 4680,
+              "gain": 4.12
+            },
+            {
+              "freq": 4750,
+              "gain": 3.984
+            },
+            {
+              "freq": 4820,
+              "gain": 3.854
+            },
+            {
+              "freq": 4870,
+              "gain": 3.762
+            },
+            {
+              "freq": 4940,
+              "gain": 3.633
+            },
+            {
+              "freq": 5000,
+              "gain": 3.523
+            },
+            {
+              "freq": 5080,
+              "gain": 3.372
+            },
+            {
+              "freq": 5150,
+              "gain": 3.238
+            },
+            {
+              "freq": 5220,
+              "gain": 3.101
+            },
+            {
+              "freq": 5300,
+              "gain": 2.942
+            },
+            {
+              "freq": 5380,
+              "gain": 2.782
+            },
+            {
+              "freq": 5450,
+              "gain": 2.644
+            },
+            {
+              "freq": 5520,
+              "gain": 2.508
+            },
+            {
+              "freq": 5600,
+              "gain": 2.357
+            },
+            {
+              "freq": 5700,
+              "gain": 2.177
+            },
+            {
+              "freq": 5800,
+              "gain": 2.011
+            },
+            {
+              "freq": 5900,
+              "gain": 1.86
+            },
+            {
+              "freq": 6000,
+              "gain": 1.727
+            },
+            {
+              "freq": 6080,
+              "gain": 1.635
+            },
+            {
+              "freq": 6150,
+              "gain": 1.568
+            },
+            {
+              "freq": 6220,
+              "gain": 1.513
+            },
+            {
+              "freq": 6300,
+              "gain": 1.466
+            },
+            {
+              "freq": 6400,
+              "gain": 1.429
+            },
+            {
+              "freq": 6500,
+              "gain": 1.415
+            },
+            {
+              "freq": 6600,
+              "gain": 1.42
+            },
+            {
+              "freq": 6700,
+              "gain": 1.44
+            },
+            {
+              "freq": 6800,
+              "gain": 1.47
+            },
+            {
+              "freq": 6900,
+              "gain": 1.507
+            },
+            {
+              "freq": 7000,
+              "gain": 1.548
+            },
+            {
+              "freq": 7100,
+              "gain": 1.591
+            },
+            {
+              "freq": 7200,
+              "gain": 1.63
+            },
+            {
+              "freq": 7300,
+              "gain": 1.663
+            },
+            {
+              "freq": 7400,
+              "gain": 1.686
+            },
+            {
+              "freq": 7500,
+              "gain": 1.693
+            },
+            {
+              "freq": 7620,
+              "gain": 1.673
+            },
+            {
+              "freq": 7750,
+              "gain": 1.607
+            },
+            {
+              "freq": 7880,
+              "gain": 1.486
+            },
+            {
+              "freq": 8000,
+              "gain": 1.32
+            },
+            {
+              "freq": 8120,
+              "gain": 1.102
+            },
+            {
+              "freq": 8250,
+              "gain": 0.815
+            },
+            {
+              "freq": 8380,
+              "gain": 0.486
+            },
+            {
+              "freq": 8500,
+              "gain": 0.153
+            },
+            {
+              "freq": 8620,
+              "gain": -0.2
+            },
+            {
+              "freq": 8750,
+              "gain": -0.6
+            },
+            {
+              "freq": 8850,
+              "gain": -0.916
+            },
+            {
+              "freq": 9000,
+              "gain": -1.4
+            },
+            {
+              "freq": 9120,
+              "gain": -1.793
+            },
+            {
+              "freq": 9250,
+              "gain": -2.221
+            },
+            {
+              "freq": 9380,
+              "gain": -2.648
+            },
+            {
+              "freq": 9500,
+              "gain": -3.037
+            },
+            {
+              "freq": 9620,
+              "gain": -3.417
+            },
+            {
+              "freq": 9750,
+              "gain": -3.817
+            },
+            {
+              "freq": 9880,
+              "gain": -4.2
+            },
+            {
+              "freq": 10000,
+              "gain": -4.538
+            },
+            {
+              "freq": 10150,
+              "gain": -4.945
+            },
+            {
+              "freq": 10300,
+              "gain": -5.347
+            },
+            {
+              "freq": 10440,
+              "gain": -5.736
+            },
+            {
+              "freq": 10600,
+              "gain": -6.218
+            },
+            {
+              "freq": 10750,
+              "gain": -6.72
+            },
+            {
+              "freq": 10900,
+              "gain": -7.265
+            },
+            {
+              "freq": 11060,
+              "gain": -7.863
+            },
+            {
+              "freq": 11200,
+              "gain": -8.361
+            },
+            {
+              "freq": 11380,
+              "gain": -8.905
+            },
+            {
+              "freq": 11500,
+              "gain": -9.171
+            },
+            {
+              "freq": 11720,
+              "gain": -9.426
+            },
+            {
+              "freq": 11800,
+              "gain": -9.439
+            },
+            {
+              "freq": 12060,
+              "gain": -9.257
+            },
+            {
+              "freq": 12200,
+              "gain": -9.046
+            },
+            {
+              "freq": 12410,
+              "gain": -8.633
+            },
+            {
+              "freq": 12500,
+              "gain": -8.44
+            },
+            {
+              "freq": 12650,
+              "gain": -8.108
+            },
+            {
+              "freq": 12800,
+              "gain": -7.782
+            },
+            {
+              "freq": 13150,
+              "gain": -7.087
+            },
+            {
+              "freq": 13200,
+              "gain": -6.997
+            },
+            {
+              "freq": 13400,
+              "gain": -6.681
+            },
+            {
+              "freq": 13600,
+              "gain": -6.424
+            },
+            {
+              "freq": 13800,
+              "gain": -6.229
+            },
+            {
+              "freq": 14000,
+              "gain": -6.094
+            },
+            {
+              "freq": 14300,
+              "gain": -5.988
+            },
+            {
+              "freq": 14500,
+              "gain": -5.963
+            },
+            {
+              "freq": 14750,
+              "gain": -5.963
+            },
+            {
+              "freq": 15000,
+              "gain": -5.967
+            },
+            {
+              "freq": 15250,
+              "gain": -5.95
+            },
+            {
+              "freq": 15500,
+              "gain": -5.904
+            },
+            {
+              "freq": 15750,
+              "gain": -5.84
+            },
+            {
+              "freq": 16000,
+              "gain": -5.785
+            },
+            {
+              "freq": 16250,
+              "gain": -5.766
+            },
+            {
+              "freq": 16500,
+              "gain": -5.799
+            },
+            {
+              "freq": 16750,
+              "gain": -5.89
+            },
+            {
+              "freq": 17000,
+              "gain": -6.03
+            },
+            {
+              "freq": 17250,
+              "gain": -6.211
+            },
+            {
+              "freq": 17500,
+              "gain": -6.424
+            },
+            {
+              "freq": 17750,
+              "gain": -6.67
+            },
+            {
+              "freq": 18000,
+              "gain": -6.954
+            },
+            {
+              "freq": 18250,
+              "gain": -7.291
+            },
+            {
+              "freq": 18500,
+              "gain": -7.691
+            },
+            {
+              "freq": 18750,
+              "gain": -8.134
+            },
+            {
+              "freq": 19000,
+              "gain": -8.541
+            },
+            {
+              "freq": 19250,
+              "gain": -8.752
+            },
+            {
+              "freq": 19500,
+              "gain": -8.635
+            },
+            {
+              "freq": 19750,
+              "gain": -8.352
+            },
+            {
+              "freq": 20000,
+              "gain": -8.55
+            }
+          ],
+          "provenance": "target",
+          "provenanceDetails": "Bundled target approximation; numerical source not independently verified",
+          "pointsCount": 400,
+          "offset": 0,
+          "visible": true,
+          "solo": false,
+          "isReference": true,
+          "isTarget": true
+        },
+        {
+          "id": "golden-hd600-measured",
+          "name": "Sennheiser HD600 Measured",
+          "color": "#6FC9A6",
+          "provenance": "measured",
+          "provenanceDetails": "Golden fixture measurement",
+          "points": [
+            {
+              "freq": 20,
+              "gain": -4.2
+            },
+            {
+              "freq": 100,
+              "gain": 1.5
+            },
+            {
+              "freq": 1000,
+              "gain": 0
+            },
+            {
+              "freq": 3000,
+              "gain": 6.8
+            },
+            {
+              "freq": 10000,
+              "gain": -2.1
+            },
+            {
+              "freq": 20000,
+              "gain": -8.4
+            }
+          ],
+          "offset": -1.5,
+          "visible": true,
+          "solo": false,
+          "pinned": true,
+          "rig": "B&K 5128"
+        }
+      ],
+      "targetCurveId": "crinacle-ief-2025",
+      "normDb": 0,
+      "normHz": 1000,
+      "zoomRange": "full",
+      "smoothing": "1/12 OCT",
+      "deltaMode": false,
+      "viewMode": "rawFilter",
+      "fitSmoothing": "1/12 OCT",
+      "fitNormalize": true,
+      "primaryCurveId": null,
+      "auditionAId": null,
+      "auditionBId": null
+    }
+  }
+}

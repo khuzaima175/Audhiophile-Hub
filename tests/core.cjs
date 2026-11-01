@@ -1,10 +1,12 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const esbuild = require('esbuild');
 const Module = require('node:module');
 (async () => {
   const result = await esbuild.build({
     stdin: {
-      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';export * from './utils/conversionAudit';export * from './utils/graphTools';export * from './utils/squigCatalog';export * from './utils/stereoEq';export * from './utils/dataValidation';export * from './types';`,
+      contents: `export * from './utils/curveSynthesizer';export * from './utils/biquad';export * from './utils/measurementParser';export * from './utils/autoPeqGenerator';export * from './utils/importExportParser';export * from './utils/audioPolicy';export * from './utils/conversionAudit';export * from './utils/graphTools';export * from './utils/squigCatalog';export * from './utils/stereoEq';export * from './utils/dataValidation';export * from './utils/shareCodec';export * from './store/labStore';export * from './store/audioWorkspace';export * from './utils/workspaceBackup';export * from './types';`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -158,8 +160,31 @@ const Module = require('node:module');
   const fit96 = dsp.synthesizeAutoPeq(trebleMeasured, target, { maxFilters: 5, targetCurveId: 'flat', sampleRate: 96000 });
   const resp96At96 = dsp.evaluateCompositeCurve(fit96.correctedPoints.map((p) => p.freq), [], [], fit96.filters, 96000);
   fit96.correctedPoints.forEach((p, i) => near(p.gain, trebleMeasured[i].gain + resp96At96[i].gain, 0.011));
+
+  // Verify Golden Share URLs, Storage Snapshots, and v3 Backup Fixtures
+  const goldenShares = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden-share-urls.json'), 'utf8'));
+  assert.equal(goldenShares.generatedFromCommit, 'aadaa91872787e087ddcd620b2d3c0c861f051fd');
+  assert.equal(goldenShares.cases.length, 3);
+  for (const c of goldenShares.cases) {
+    const decoded = JSON.parse(JSON.stringify(dsp.decodeUrlToLabState(c.url)));
+    assert.deepEqual(decoded, c.expectedDecoded, `Golden share URL mismatch for ${c.id}`);
+  }
+
+  const goldenStorage = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden-storage-snapshot.json'), 'utf8'));
+  assert.equal(goldenStorage.generatedFromCommit, 'aadaa91872787e087ddcd620b2d3c0c861f051fd');
+  assert.equal(dsp.validateDraft(goldenStorage.localStorage.audiosage_audio_draft_v2), true);
+  assert.equal(dsp.validateProfile(goldenStorage.localStorage.audiosage_profile_v1), true);
+  assert.equal(goldenStorage.indexedDB.records.every(dsp.validateMeasurementRecord), true);
+  assert.equal(dsp.validateLabState(goldenStorage.indexedDB.comparison), true);
+
+  const goldenBackup = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden-v3-backup.json'), 'utf8'));
+  assert.equal(goldenBackup.generatedFromCommit, 'aadaa91872787e087ddcd620b2d3c0c861f051fd');
+  const validatedBackup = dsp.validateBackup(goldenBackup.backup);
+  assert.deepEqual(JSON.parse(JSON.stringify(validatedBackup)), goldenBackup.backup);
+  assert.deepEqual(dsp.missingBackupReferences(validatedBackup), []);
+
   console.log(
-    'PASS DSP anchors, complementary filters, graphic cascade, headroom, measurement parsing, Auto-PEQ consistency and normalization',
+    'PASS DSP anchors, complementary filters, graphic cascade, headroom, measurement parsing, Auto-PEQ consistency and normalization, DEFAULT_PROFILE validation, and golden share/storage/backup fixtures',
   );
 })().catch((e) => {
   console.error(e);
