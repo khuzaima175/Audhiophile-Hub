@@ -3,6 +3,7 @@ import { getRetrievalSettings, sourceRevision } from '../utils/localRetrieval';
 import { ChatSession } from '../types';
 import { audioWorkspace, freshDraft } from '../store/audioWorkspace';
 import { resolveApiKey, testAiConnection } from '../services/aiConfig';
+import { useDismissSurface } from '../hooks/useDismissSurface';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AudioProfile, KnowledgeEntry, EQPreset, GearItem, DEFAULT_PROFILE } from '../types';
 import { SAMPLE_AUDIOPHILE_PROFILE } from '../constants/sampleProfile';
@@ -126,6 +127,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'knowledge' | 'eq' | 'gear'>(initialTab);
   const [isSavedFlash, setIsSavedFlash] = useState(false);
   const [justAddedToast, setJustAddedToast] = useState<string | null>(null);
+
+  useDismissSurface(!embedded && isOpen, onClose, 20);
 
   // Equalizer APO System Bridge State
   const [apoConfigPath, setApoConfigPath] = useState(getStoredApoConfigPath());
