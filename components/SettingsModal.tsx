@@ -214,7 +214,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const { name, value } = e.target;
     const next = { ...formData, [name]: value };
     setFormData(next);
-    if (embedded) onSave(next);
+    if (embedded) {
+      try {
+        onSave(next);
+        setIsSavedFlash(true);
+        setTimeout(() => setIsSavedFlash(false), 800);
+      } catch (err) {
+        console.error('Autosave failed:', err);
+      }
+    }
   };
 
   const handleApplyFadersToPrefs = () => {
@@ -1578,9 +1586,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* STICKY CHASSIS FOOTER */}
         <div className="workspace-page-footer flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Led color={hasUnsavedChanges ? 'amber' : 'green'} pulse={hasUnsavedChanges} size="sm" />
+            <Led color={isSavedFlash ? 'green' : (embedded ? 'green' : (hasUnsavedChanges ? 'amber' : 'green'))} pulse={!embedded && hasUnsavedChanges} size="sm" />
             <span className="text-[10px] font-mono text-audio-muted hidden sm:inline">
-              {hasUnsavedChanges ? 'Unsaved profile changes' : 'Changes saved in this browser'}
+              {isSavedFlash ? 'Saved ✓' : (embedded ? 'Changes autosaved to this browser' : (hasUnsavedChanges ? 'Unsaved profile changes' : 'Changes saved in this browser'))}
             </span>
           </div>
 
@@ -1595,7 +1603,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             >
               {embedded ? 'Back to overview' : 'Close'}
             </button>
-            {hasUnsavedChanges && (
+            {!embedded && hasUnsavedChanges && (
               <button
                 type="button"
                 onClick={handleSave}
