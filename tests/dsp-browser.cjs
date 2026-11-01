@@ -79,7 +79,7 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
     });
     assert.ok(result.maxError < 0.005, JSON.stringify(result));
     assert.ok(result.renderMaxError < .01, JSON.stringify(result));
-    console.log('PASS independent browser DSP response:', result);
+    console.log('PASS self-verified Web Audio parity DSP response:', result);
   } finally {
     if (browser) await browser.close();
     if (serverHandle && serverHandle.spawned) {

@@ -8,7 +8,8 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
 (async () => {
   fs.mkdirSync('artifacts', { recursive: true });
   const serverHandle = await ensureViteServer(3000);
-  const browser = await launchBrowser(chromium);
+  try {
+    const browser = await launchBrowser(chromium);
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(10000);
   page.on('dialog', dialog => dialog.accept());
@@ -319,6 +320,22 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
   await page.getByRole('heading', { name: 'Equalizer', exact: true }).waitFor();
   console.log('PASS command palette keyboard navigation');
 
+  // Verify LIFO Escape stack: open Graph Lab, expand Advanced details popover, then Escape twice
+  await nav('Graph lab');
+  const graphDialog = page.getByRole('dialog', { name: 'Graph lab', exact: true });
+  await graphDialog.waitFor();
+  const advancedSummary = graphDialog.locator('details.lab-advanced > summary');
+  await advancedSummary.click();
+  assert.equal(await graphDialog.locator('details.lab-advanced').evaluate((el) => el.open), true);
+  // First Escape closes only the open Advanced popover, leaving Graph Lab open
+  await page.keyboard.press('Escape');
+  assert.equal(await graphDialog.locator('details.lab-advanced').evaluate((el) => el.open), false, 'First Escape must close Advanced popover');
+  assert.equal(await graphDialog.isVisible(), true, 'Graph Lab must remain open after first Escape');
+  // Second Escape closes Graph Lab
+  await page.keyboard.press('Escape');
+  assert.equal(await graphDialog.isVisible(), false, 'Second Escape must close Graph Lab');
+  console.log('PASS LIFO Escape overlay stack');
+
   await nav('Overview');
   await page.setViewportSize({ width: 390, height: 844 });
   await overflow();
@@ -343,8 +360,10 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
   console.log('PASS corrupt saved data is preserved and reported');
   assert.deepEqual(errors, [], 'No browser runtime errors');
   await browser.close();
-  if (serverHandle && serverHandle.spawned) serverHandle.kill();
   console.log('ALL UI CHECKS PASSED');
+  } finally {
+    if (serverHandle && serverHandle.spawned) serverHandle.kill();
+  }
 })().catch((error) => {
   console.error(error);
   process.exit(1);

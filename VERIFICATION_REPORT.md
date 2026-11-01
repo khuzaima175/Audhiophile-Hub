@@ -12,7 +12,7 @@ Implementation base: `bc96299a4e51b889cbbfda55f991dc187bcecef9`. Original workin
 | Production build | Passed | Vite build; lazy Settings/Graph/AI chunks |
 | Core regression | Passed | DSP anchors, enabled filters, cascades, measurement parsing, source fitting, normalization, empty-overlap failure, sorting, preamp policy, APO round trips, Wavelet conversion audit |
 | APO fixtures | Passed | Non-destructive probe, backup, idempotent sync, managed disable and input validation; disposable files only |
-| Independent DSP response | Passed | 4,842 browser comparisons at 44.1/48/96 kHz; maximum error **0.000005715 dB** outside exact notch nulls |
+| Self-verified Web Audio parity DSP response | Passed | 4,842 browser comparisons at 44.1/48/96 kHz; maximum error **0.000005715 dB** outside exact notch nulls |
 | Rendered offline audio | Passed | Six rendered-tone cases at 44.1/48/96 kHz, including shelves, disabled filter and effective preamp; maximum level error **0.000002291 dB** |
 | UI smoke | Passed | Navigation, composer, profile/gear persistence, EQ import/save/new draft, graph import/CSV, actual Web Audio filtering/bypass/cleanup, share metadata, backup restore, corrupt originals preserved |
 | Workspace journeys | Passed | Measurement → fit → keyboard/drag/cancel/Undo → gear/save/copy → navigate/refresh/reopen; source link, filters and requested preamp retained |
@@ -78,7 +78,7 @@ Passed verification for this follow-up:
 | `test:lab` | Desktop canvas/edit/save/reload/export and mobile axes passed in development and production preview; collision/panel bounds checked at 320/360/390/568/768 pixels |
 | `test:mobile-eq` | Production preview at 360 pixels, real Chromium touch drag, one-step Undo/Redo, empty-space tap placement, type/Q editing, save/reload, label separation and 44-pixel hit areas passed |
 | Existing workspace/recovery and mobile | Passed; legacy draft/backup adaptation, source retention, portal/focus/Escape, overflow and touch inspection preserved |
-| Existing UI / DSP / retrieval | Passed; 4,842 independent DSP points and six rendered cases retain the previously reported error bounds; retrieval fixture remains 3 intended hits versus legacy 0 |
+| Existing UI / DSP / retrieval | Passed; 4,842 Web Audio parity DSP points and six rendered cases retain the previously reported error bounds; retrieval fixture remains 3 intended hits versus legacy 0 |
 | Production SDK / persistence | Passed with mocks; Gemini 3.8 → 3.7 → 3.5 Flash-Lite, requested/answering metadata and disabled-source exclusion retained |
 
 The new mobile example is saved in [docs/images/mobile-eq.png](docs/images/mobile-eq.png). Browser viewport/touch emulation does not establish physical-device listening or Safari/WebKit behavior. Catalog requests use controlled fixtures; live public catalog/CORS availability varies. Real Windows APO remains unrun. The screenshot identifies an existing Vercel deployment; local production preview tests do not verify its current assets or deployment status.

@@ -396,7 +396,7 @@ export const generateStreamResponse = async (
 
   // Prioritize models based on user choice or default fallback sequence
   let modelCandidates: string[] = [...MODELS];
-  if (requestedModel && MODELS.includes(requestedModel as any)) {
+  if (requestedModel) {
     modelCandidates = [requestedModel, ...MODELS.filter((m) => m !== requestedModel)];
   }
 

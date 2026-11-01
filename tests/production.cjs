@@ -1,9 +1,11 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
-const { launchBrowser } = require('./browserEnv.cjs');
+const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
 
 (async () => {
-  const browser = await launchBrowser(chromium);
+  const serverHandle = await ensureViteServer(3000);
+  try {
+    const browser = await launchBrowser(chromium);
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.on('dialog', (d) => d.accept());
   const errors = [];
@@ -178,6 +180,9 @@ const { launchBrowser } = require('./browserEnv.cjs');
   console.log(
     'PASS production lazy loading, browser personal key, mocked streaming/grounding capability, 3.8 -> 3.7 -> 3.5 Flash-Lite fallback preserving selection, per-answer supplied context/model/cited-only sources, disabled-source exclusion, manual save/refresh/export',
   );
+  } finally {
+    if (serverHandle && serverHandle.spawned) serverHandle.kill();
+  }
 })().catch((e) => {
   console.error(e);
   process.exit(1);
