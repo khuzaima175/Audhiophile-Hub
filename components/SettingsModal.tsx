@@ -61,15 +61,6 @@ interface SettingsModalProps {
   onApiKeyChange?: (key: string) => void;
 }
 
-const TABS: { key: 'profile' | 'eq' | 'gear' | 'memory' | 'knowledge'; label: string; shortLabel: string }[] =
-  [
-    { key: 'profile', label: 'Listener Profile', shortLabel: 'Profile' },
-    { key: 'eq', label: 'EQ Library', shortLabel: 'EQ' },
-    { key: 'gear', label: 'Collection', shortLabel: 'Gear' },
-    { key: 'memory', label: 'Manual Facts', shortLabel: 'Facts' },
-    { key: 'knowledge', label: 'AI Knowledge', shortLabel: 'RAG' },
-  ];
-
 const TARGET_PRESETS = [
   { name: 'Crinacle IEF 2025 (B&K 5128)', desc: 'Natural tilt with clean 200Hz tuck & smooth treble' },
   { name: 'Harman IE 2019 Target', desc: 'Punchy sub-bass shelf with forward upper midrange' },
