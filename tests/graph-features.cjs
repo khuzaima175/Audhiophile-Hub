@@ -1,7 +1,8 @@
+const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
 const {chromium} = require('playwright');
 const assert = require('node:assert/strict');
 (async()=>{
-  const browser = await chromium.launch({executablePath:process.env.PLAYWRIGHT_BROWSER_PATH||'/usr/bin/chromium',headless:true});
+  const browser = await launchBrowser(chromium);
   const page = await browser.newPage({viewport:{width:1440,height:1000}});
   page.on('dialog',d=>d.accept());page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(process.env.AUDIOSAGE_TEST_URL||'http://127.0.0.1:3000');
@@ -78,7 +79,8 @@ const assert = require('node:assert/strict');
   await page.getByLabel('Channels for Stereo',{exact:true}).selectOption('left');await page.keyboard.press('Escape');
   const row=lab.locator('.curve-row').filter({has:page.getByRole('button',{name:/^Stereo/})});
   await row.getByRole('button',{name:/Generate correction/}).click();
-  await lab.getByLabel('Preset name',{exact:false}).fill('Custom target EQ');
+  await lab.getByRole('button',{name:'Save preset…',exact:true}).click();
+  await lab.getByLabel('Preset name',{exact:true}).fill('Custom target EQ');
   await lab.getByRole('button',{name:'Save',exact:true}).click();
   await page.waitForFunction(()=>!JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')).dirty);
   let draft=await page.evaluate(()=>JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')));
@@ -105,6 +107,8 @@ const assert = require('node:assert/strict');
   await lab.getByLabel('EQ channel',{exact:true}).selectOption('left');
   await lab.getByRole('button',{name:'Add band',exact:true}).click();
   await lab.getByLabel('Selected gain',{exact:true}).fill('6');
+  await lab.getByRole('button',{name:'Save preset…',exact:true}).click();
+  await lab.getByLabel('Preset name',{exact:true}).fill('Graph QA EQ');
   await lab.getByRole('button',{name:'Save',exact:true}).click();
   await page.waitForFunction(()=>!JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')).dirty);
   await lab.getByText('Listen & compare your EQ',{exact:true}).click();

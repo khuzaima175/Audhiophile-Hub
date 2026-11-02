@@ -118,6 +118,42 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
   assert.ok((await page.locator('body').innerText()).includes('QA preference: smooth treble'));
   console.log('PASS listening notes');
 
+  // Enable APO flag before opening Equalizer so one-time split notice and fetch-spy regression are tested
+  const apoSyncRequests = [];
+  await page.route('**/api/apo/status*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        connected: true,
+        path: 'C:\\Program Files\\Equalizer APO\\config\\config.txt',
+        exists: true,
+        hasManagedInclude: true,
+        hasBackup: true,
+      }),
+    });
+  });
+  await page.route('**/api/apo/sync', async (route) => {
+    const postData = JSON.parse(route.request().postData() || '{}');
+    apoSyncRequests.push(postData);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        path: postData.configPath || 'C:\\Program Files\\Equalizer APO\\config\\config.txt',
+        includePath: 'audiosage-eq.txt',
+        backupCreated: false,
+        managedLineAdded: true,
+        timestamp: Date.now(),
+      }),
+    });
+  });
+  await page.evaluate(() => {
+    localStorage.setItem('audiosage_apo_enabled', 'true');
+    localStorage.removeItem('audiosage_apo_split_notice_v1');
+  });
+
   await nav('Equalizer');
   await page.getByRole('button', { name: 'Import EQ text', exact: true }).click();
   await page
@@ -126,11 +162,59 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
       'Preamp: -6 dB\nFilter 1: ON PK Fc 1000 Hz Gain 4 dB Q 1.4\nFilter 2: ON LSC Fc 100 Hz Gain 2 dB Q 0.7',
     );
   await page.getByRole('button', { name: /Parse into Bands/ }).click();
-  await page.getByLabel('Preset name', { exact: false }).fill('QA Parametric');
   assert.equal(await page.getByLabel('Equalizer type').inputValue(), 'peq');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  // Verify one-time APO split notice appears and persists dismissal in localStorage
+  const splitNotice = page.locator('.apo-split-notice');
+  await splitNotice.waitFor();
+  assert.match(await splitNotice.innerText(), /Save no longer updates Windows automatically/);
+  await splitNotice.getByRole('button', { name: 'Got it', exact: true }).click();
+  assert.equal(await splitNotice.count(), 0);
+  assert.equal(await page.evaluate(() => localStorage.getItem('audiosage_apo_split_notice_v1')), 'dismissed');
+
+  // Open SavePresetDialog: verify autofocus, LIFO Escape dismissal, required validation, and Enter submit
+  await page.getByRole('button', { name: 'Save preset…', exact: true }).click();
+  const saveDialog = page.getByRole('dialog', { name: 'Save EQ preset', exact: true });
+  await saveDialog.waitFor();
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Preset name');
+  await page.keyboard.press('Escape');
+  assert.equal(await saveDialog.count(), 0, 'Escape must dismiss SavePresetDialog without leaving the editor');
+
+  await page.getByRole('button', { name: 'Save preset…', exact: true }).click();
+  await saveDialog.waitFor();
+  await saveDialog.getByLabel('Preset name', { exact: true }).fill('');
+  assert.equal(
+    await saveDialog.getByRole('button', { name: 'Save', exact: true }).isDisabled(),
+    true,
+    'Save button must be disabled when Preset name is empty',
+  );
+  await saveDialog.getByLabel('Preset name', { exact: true }).fill('QA Parametric');
+  await saveDialog.getByLabel('Preset name', { exact: true }).press('Enter');
   await page.waitForTimeout(250);
+  assert.equal(await saveDialog.count(), 0, 'Enter inside Preset name must submit SavePresetDialog');
   assert.ok((await page.locator('body').innerText()).includes('QA Parametric'));
+
+  // REGRESSION CHECK: Saving a preset must NEVER call /api/apo/sync even when APO is enabled
+  assert.equal(
+    apoSyncRequests.length,
+    0,
+    'Save preset must not call /api/apo/sync (found ' + apoSyncRequests.length + ' calls)',
+  );
+
+  // Explicit Apply to Windows must call /api/apo/sync once with current editor filters & preamp guard
+  await page.getByRole('button', { name: 'Apply to Windows', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.apo-applied-status')?.textContent?.includes('Applied: QA Parametric'));
+  assert.equal(apoSyncRequests.length, 1, 'Apply to Windows must call /api/apo/sync exactly once');
+  assert.match(apoSyncRequests[0].eqContent, /Preamp: -6(\.0)? dB/);
+  assert.equal(await page.locator('.apo-applied-status').innerText(), 'Applied: QA Parametric');
+
+  // Editing after Apply to Windows must update status to show editor has changed since
+  await page.getByLabel('Gain for filter 1', { exact: true }).fill('5');
+  assert.equal(
+    await page.locator('.apo-applied-status').innerText(),
+    'Applied: QA Parametric · editor has changed since',
+  );
+
   await page.getByRole('button', { name: 'Presets', exact: true }).click();
   await page.getByRole('button', { name: 'New preset', exact: true }).click();
   await page.getByLabel('Equalizer type').selectOption('peq');
@@ -143,11 +227,11 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
     'New presets must not reuse previous filters',
   );
   await page
-    .getByRole('button', { name: 'Keep draft', exact: true })
+    .getByRole('button', { name: 'Back to presets', exact: true })
     .first()
     .click();
   await screenshot('equalizer-desktop');
-  console.log('PASS EQ import, save, and clean new preset');
+  console.log('PASS EQ import, save dialog, APO split fetch-spy regression, and clean new preset');
 
   await nav('Graph lab');
   const lab = page.getByRole('dialog', { name: 'Graph lab', exact: true });
