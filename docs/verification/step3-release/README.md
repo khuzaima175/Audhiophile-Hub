@@ -39,6 +39,6 @@ Evidence is generated locally by `npm run test:all` under ignored `artifacts/ste
 
 - Historical share capture and browser-history search: not performed. The computer-use runtime stopped because it could not establish Chrome's current URL confidently.
 - Physical Windows Apply/listening test: not performed. The actual config was backed up locally and read-only bridge status confirmed its existence; neither the config nor system EQ was changed. The tests in the log use temporary APO configs or intercepted requests and cannot substitute for this manual gate.
-- Merge/deployment: held until those manual checks pass. Friend observation follows deployment; Step 4 remains held until afterward.
+- Preview: the user subsequently authorized a branch push so Vercel can build a preview without changing production. The user will supply historical share URLs and manual APO results later. Friend observation uses the preview; merge to main waits for the real Apply result and resolution of unexpected friend-test issues. Step 4 remains held until the friend feedback is back.
 
 See the [full review](../../STEP3_REVIEW.md) for the actual installed path, backup location and readiness result.

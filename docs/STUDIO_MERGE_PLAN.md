@@ -36,4 +36,15 @@ Current GraphLab math shows raw filter gain only for a non-inverted filter in ra
 
 ## Remaining sequence
 
-Finish Step 3 evidence first. Review before merging/deploying. Run the friend workflow on the approved deployed build; a scripted browser journey cannot substitute for a real friend's feedback. Accessibility follow-up covers 44px touch targets, plain labels/hints, first-run flow, focus/screen-reader status, contrast/reduced motion and 320px layouts. Studio extraction, handles, hidden route, navigation migration and deletion of old components follow as individually verified commits, with review before behavior changes.
+Push the release branch for a Vercel preview without changing production. Run the friend workflow on that preview: tune toward a target, save, share, and explain why Apply is disabled. Capture hesitations without coaching; a scripted browser journey cannot substitute for a real friend's feedback. Historical share-link capture and the real Windows Apply/listening/reversal test are human tasks and can run in parallel. The user will supply their results later; neither blocks the preview push. Merge to main only after the real Apply test passes and unexpected friend-test issues are resolved. Step 4 remains held until the friend test is back.
+
+Accessibility follow-up covers 44px touch targets, plain labels/hints, first-run flow, focus/screen-reader status, contrast/reduced motion and 320px layouts. Studio extraction, handles, hidden route, navigation migration and deletion of old components follow as individually verified commits, with review before behavior changes.
+
+## Phase 3 backlog: Windows integration with other EQ tools
+
+- Detect other include directives and warn before Apply, naming existing includes such as `peace.txt`. Explain that AudioSage adds its EQ after the existing configuration and that its preamp guard accounts only for AudioSage's filters, not boosts from another EQ.
+- Detect when Peace or another tool rewrites config.txt and removes the AudioSage managed include. Report that the include is missing rather than relying on stored applied history.
+- Evaluate an explicit, opt-in replace mode with a backup and a reversible restore path. Never remove other tools' includes automatically as part of ordinary Apply.
+- Keep the real Windows reversal check in the release checklist: disabling AudioSage's managed include must leave config.txt byte-identical to the pre-test backup. Record actual manual results separately from temporary-file tests.
+
+These are recorded product gaps, not Step 3 implementation work or blockers for the hosted preview. No Peace bypass or physical Windows Apply has been performed by the agent.
