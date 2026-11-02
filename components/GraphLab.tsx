@@ -10,6 +10,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useLabStore, labStore } from '../store/labStore';
 import { LabToolbar } from './lab/LabToolbar';
 import { StudioDock, hasActiveDraft, addStudioBand } from './lab/StudioDock';
+import { FilterHandles } from './FilterHandles';
 import { MeasurementCatalog } from './lab/MeasurementCatalog';
 import { PerCurveRow } from './lab/PerCurveRow';
 import { BandLabels } from './lab/BandLabels';
@@ -37,7 +38,7 @@ import { synthesizeAutoPeq } from '../utils/autoPeqGenerator';
 import { parseMeasurementFile, smoothLogCurve } from '../utils/measurementParser';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useLiveTabCapture } from '../hooks/useLiveTabCapture';
-import { LabCurve, EQPreset, GearItem } from '../types';
+import { LabCurve, EQPreset, GearItem, PEQFilter } from '../types';
 import Led from './ui/Led';
 import Engraved from './ui/Engraved';
 import { WaveformIcon } from './Icon';
@@ -279,10 +280,18 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
 
   // Filter response of the in-progress EQ draft, drawn on the comparison plot while editing.
   const draftActive = hasActiveDraft(draft);
+  const draftBands = draft.eqMode === '31-band' ? ISO_31_BANDS : draft.eqMode === '15-band' ? ISO_15_BANDS : ISO_10_BANDS;
+  const draftGains = draft.eqMode === '31-band' ? draft.gains31 : draft.eqMode === '15-band' ? draft.gains15 : draft.gains10;
+  const updateDraftFilter = (id: string, updates: Partial<PEQFilter>) => audioWorkspace.update({ peqFilters: audioWorkspace.getSnapshot().draft.peqFilters.map(f => f.id === id ? { ...f, ...updates } : f) });
+  const updateDraftGain = (index: number, gain: number) => {
+    const key = draft.eqMode === '31-band' ? 'gains31' : draft.eqMode === '15-band' ? 'gains15' : 'gains10';
+    const next = [...audioWorkspace.getSnapshot().draft[key]]; next[index] = gain;
+    audioWorkspace.update({ [key]: next });
+  };
   const draftPoints = useMemo<CurvePoint[]>(() => {
     if (!draftActive) return [];
-    const bands = draft.eqMode === '31-band' ? ISO_31_BANDS : draft.eqMode === '15-band' ? ISO_15_BANDS : ISO_10_BANDS;
-    const gains = draft.eqMode === '31-band' ? draft.gains31 : draft.eqMode === '15-band' ? draft.gains15 : draft.gains10;
+    const bands = draftBands;
+    const gains = draftGains;
     return evaluateCompositeCurve(SYNTHESIS_FREQUENCIES, draft.eqMode === 'peq' ? [] : bands, draft.eqMode === 'peq' ? [] : gains, draft.eqMode === 'peq' ? draft.peqFilters : [], draft.sampleRate);
   }, [draftActive, draft.eqMode, draft.gains10, draft.gains15, draft.gains31, draft.peqFilters, draft.sampleRate]);
 
@@ -338,7 +347,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
   const draftPath = useMemo(() => draftPoints.length ? generateSvgPathFromPoints(draftPoints.filter(p => p.freq >= viewport.minFreq! && p.freq <= viewport.maxFreq!), viewport, minY, maxY) : '', [draftPoints, viewport, minY, maxY]);
   const addBandAtPointer = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg || (e.target as Element).closest?.('.eq-handle')) return;
     const rect = svg.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (viewport.width / rect.width);
     const y = (e.clientY - rect.top) * (viewport.height / rect.height);
@@ -813,12 +822,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
                 })}
 
               {draftPath && <path data-testid="studio-draft-curve" d={draftPath} fill="none" stroke="#5be3b0" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
-              {draftActive && draft.eqMode === 'peq' && draft.peqFilters.filter(f => f.enabled !== false && f.freq >= viewport.minFreq! && f.freq <= viewport.maxFreq!).map(f => {
-                const cx = freqToX(f.freq, viewport);
-                const cy = dbToY(['PK', 'LS', 'HS'].includes(f.type) ? f.gain : 0, viewport, minY, maxY);
-                const index = draft.peqFilters.findIndex(p => p.id === f.id) + 1;
-                return <g key={f.id} data-testid="studio-band-marker" pointerEvents="none"><circle cx={cx} cy={cy} r={draft.selectedBand === f.id ? 10 : 8} fill="#101412" stroke="#5be3b0" strokeWidth={draft.selectedBand === f.id ? 2.5 : 1.5} /><text x={cx} y={cy + 3.5} textAnchor="middle" fill="#edf0ec" fontSize="10" fontFamily="monospace">{index}</text></g>;
-              })}
+              {draftActive && <FilterHandles viewport={viewport} bands={draftBands} gains={draftGains} onGain={updateDraftGain} onFilter={updateDraftFilter} onDragging={() => {}} />}
               {graphSettings.showLabels && renderedPaths.filter(c => c.visible && c.displayPoints.length).slice(0, 10).map((c,i) => <text key={c.id} x={viewport.padding.left + 8} y={viewport.padding.top + 15 + i*17} fill={c.color} fontSize="12">{c.name.slice(0,30)}</text>)}
               {/* Multi-Curve Hover Tooltip */}
               {graphSettings.inspect && hoveredPoint &&

@@ -32,7 +32,23 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
     let saved = (await draft()).peqFilters[0];
     assert.equal(saved.gain, 5); assert.equal(saved.freq, 3000);
     await lab.getByTestId('studio-draft-curve').waitFor({ state: 'attached' });
-    assert.equal(await lab.getByTestId('studio-band-marker').count(), 1);
+    assert.equal(await lab.locator('.eq-handle').count(), 1);
+
+    // Drag the band handle on the comparison graph: frequency and gain follow the pointer, undo reverts in one step.
+    const handle = lab.locator('.eq-handle').first();
+    const hb = await handle.boundingBox();
+    const before = (await draft()).peqFilters[0];
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x + hb.width / 2 - 120, hb.y + hb.height / 2 + 40, { steps: 8 });
+    await page.mouse.up();
+    const dragged = (await draft()).peqFilters[0];
+    assert.ok(dragged.freq < before.freq, `Dragging left lowers frequency (${before.freq} -> ${dragged.freq})`);
+    assert.ok(dragged.gain < before.gain, `Dragging down lowers gain (${before.gain} -> ${dragged.gain})`);
+    await dock.getByRole('button', { name: 'Undo', exact: true }).click();
+    const undone = (await draft()).peqFilters[0];
+    assert.equal(undone.freq, before.freq); assert.equal(undone.gain, before.gain);
+    await dock.getByRole('button', { name: 'Redo', exact: true }).click();
 
     // Double-click on the graph adds a second band at the pointer.
     const svg = lab.getByRole('img', { name: 'Comparison frequency response' });
