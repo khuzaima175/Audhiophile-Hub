@@ -163,7 +163,7 @@ const Module = require('node:module');
 
   // Verify Golden Share URLs, Storage Snapshots, and v3 Backup Fixtures
   const goldenShares = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden-share-urls.json'), 'utf8'));
-  assert.equal(goldenShares.generatedFromCommit, 'f934c2079036c1c3e8ae1e2a4c35acf0990394fc');
+  assert.equal(goldenShares.generatedFromCommit, 'aadaa91872787e087ddcd620b2d3c0c861f051fd');
   assert.equal(goldenShares.cases.length, 5);
   for (const c of goldenShares.cases) {
     const decoded = JSON.parse(JSON.stringify(dsp.decodeUrlToLabState(c.url)));
@@ -171,14 +171,14 @@ const Module = require('node:module');
   }
 
   const goldenStorage = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden-storage-snapshot.json'), 'utf8'));
-  assert.equal(goldenStorage.generatedFromCommit, 'f934c2079036c1c3e8ae1e2a4c35acf0990394fc');
+  assert.equal(goldenStorage.generatedFromCommit, 'aadaa91872787e087ddcd620b2d3c0c861f051fd');
   assert.equal(dsp.validateDraft(goldenStorage.localStorage.audiosage_audio_draft_v2), true);
   assert.equal(dsp.validateProfile(goldenStorage.localStorage.audiosage_profile_v1), true);
   assert.equal(goldenStorage.indexedDB.records.every(dsp.validateMeasurementRecord), true);
   assert.equal(dsp.validateLabState(goldenStorage.indexedDB.comparison), true);
 
   const goldenBackup = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden-v3-backup.json'), 'utf8'));
-  assert.equal(goldenBackup.generatedFromCommit, 'f934c2079036c1c3e8ae1e2a4c35acf0990394fc');
+  assert.equal(goldenBackup.generatedFromCommit, 'aadaa91872787e087ddcd620b2d3c0c861f051fd');
   const validatedBackup = dsp.validateBackup(goldenBackup.backup);
   assert.deepEqual(JSON.parse(JSON.stringify(validatedBackup)), goldenBackup.backup);
   assert.deepEqual(dsp.missingBackupReferences(validatedBackup), []);

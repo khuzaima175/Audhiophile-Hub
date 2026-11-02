@@ -120,6 +120,9 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
 
   // Enable APO flag before opening Equalizer so one-time split notice and fetch-spy regression are tested
   const apoSyncRequests = [];
+  await page.route('**/api/apo/test-write', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }),
+  }));
   await page.route('**/api/apo/status*', async (route) => {
     await route.fulfill({
       status: 200,
