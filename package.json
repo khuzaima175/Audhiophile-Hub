@@ -19,7 +19,10 @@
     "test:lab": "node tests/lab-editor.cjs",
     "test:graph": "node tests/graph-features.cjs",
     "test:mobile-eq": "node tests/mobile-eq.cjs",
-    "test:models": "node tests/verify-models.cjs"
+    "test:models": "node tests/verify-models.cjs",
+    "test:save-apply": "node tests/save-apply.cjs",
+    "test:lab-sample-rate": "node tests/lab-sample-rate.cjs",
+    "test:all": "node scripts/verify-all.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",

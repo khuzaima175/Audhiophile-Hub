@@ -57,6 +57,9 @@ import {
   checkApoBridgeStatus,
   shouldShowApoSplitNotice,
   dismissApoSplitNotice,
+  testApoWrite,
+  getStoredAppliedApoState,
+  setStoredAppliedApoState,
 } from '../services/apoBridgeClient';
 import { SavePresetDialog, SavePresetDialogValues } from './SavePresetDialog';
 import { PlusIcon, TrashIcon, CopyIcon, CheckIcon, EqIcon, WaveformIcon, ActivityIcon } from './Icon';
@@ -117,14 +120,22 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [saveDialogMode, setSaveDialogMode] = useState<'save' | 'copy' | null>(null);
   const [apoBridgeAvailable, setApoBridgeAvailable] = useState<boolean>(false);
+  const [apoBridgeMessage, setApoBridgeMessage] = useState('Checking local Windows bridge…');
   const [isApplyingApo, setIsApplyingApo] = useState<boolean>(false);
-  const [appliedApoState, setAppliedApoState] = useState<{ label: string; signature: string } | null>(null);
+  const [appliedApoState, setAppliedApoState] = useState(getStoredAppliedApoState);
+  const [appliedThisSession, setAppliedThisSession] = useState(false);
   const [showApoSplitNotice, setShowApoSplitNotice] = useState<boolean>(() => shouldShowApoSplitNotice());
 
   useEffect(() => {
     let active = true;
-    checkApoBridgeStatus().then((status) => {
-      if (active) setApoBridgeAvailable(!!status.connected);
+    checkApoBridgeStatus().then(async (status) => {
+      // This probe writes and removes a temporary file, never the active EQ/config.
+      const permission = status.connected ? await testApoWrite(status.path) : null;
+      if (!active) return;
+      setApoBridgeAvailable(status.connected && permission?.success === true);
+      setApoBridgeMessage(!status.connected
+        ? status.error || 'Local Windows bridge unavailable'
+        : permission?.success ? '' : `Local bridge connected · Write permission check failed: ${permission?.error || 'Check folder permissions in Settings.'}`);
     });
     setShowApoSplitNotice(shouldShowApoSplitNotice());
     return () => {
@@ -589,7 +600,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       const syncRes = await syncApoProfileToServer(apoExport);
       if (syncRes.success) {
         const label = presetName.trim() || 'Unsaved draft';
-        setAppliedApoState({ label, signature: currentEditorSignature });
+        const applied = { label, signature: currentEditorSignature };
+        setAppliedApoState(applied);
+        setStoredAppliedApoState(applied);
+        setAppliedThisSession(true);
         showToast(`Applied "${label}" to Windows Equalizer APO`);
       } else {
         showToast(`Could not apply to Windows: ${syncRes.error || 'APO bridge error'}`);
@@ -876,23 +890,22 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
           title={
             apoBridgeAvailable
               ? 'Write current editor EQ (with preamp headroom guard) to Windows Equalizer APO'
-              : 'Needs a local run on Windows'
+              : apoBridgeMessage
           }
           className="px-3 py-1.5 rounded-lg border border-audio-signal/50 bg-audio-surface text-[11px] font-mono font-semibold text-audio-signal hover:bg-audio-signal/10 disabled:opacity-45 disabled:cursor-not-allowed"
         >
           {isApplyingApo ? 'Applying…' : 'Apply to Windows'}
         </button>
         {!apoBridgeAvailable ? (
-          <span className="text-[10px] font-mono text-audio-muted">Needs a local run on Windows</span>
-        ) : (
-          appliedApoState && (
+          <span role="status" className="text-[10px] font-mono text-audio-muted">{apoBridgeMessage}</span>
+        ) : null}
             <span role="status" className="apo-applied-status text-[10px] font-mono text-audio-signal">
-              {appliedApoState.signature === currentEditorSignature
+              {appliedApoState ? appliedApoState.signature === currentEditorSignature
                 ? `Applied: ${appliedApoState.label}`
-                : `Applied: ${appliedApoState.label} · editor has changed since`}
+                : `Applied: ${appliedApoState.label} · editor has changed since`
+                : 'Applied: unknown'}
+              {appliedApoState && !appliedThisSession && ' · Windows state unverified after reload'}
             </span>
-          )
-        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -2005,6 +2018,17 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
       {/* 7. SAVED PRESETS RACK */}
       {(!embeddedInLab || workbenchState === 'IDLE') && <div className="space-y-3 pt-2">
+        {workbenchState === 'IDLE' && draft.dirty && (
+          <div role="region" aria-label="Unsaved draft" className="panel flex flex-wrap items-center justify-between gap-3 p-4">
+            <p className="text-sm text-audio-text">Unsaved draft: {draft.presetName.trim() || 'Untitled EQ'}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="secondary-button min-h-[44px]" onClick={() => audioWorkspace.update({ workbenchState: 'ADDING' }, false)}>Resume draft</button>
+              <button type="button" className="secondary-button min-h-[44px]" onClick={() => {
+                if (window.confirm('Discard this unsaved draft? Saved presets will be kept.')) audioWorkspace.replace(freshDraft());
+              }}>Discard draft</button>
+            </div>
+          </div>
+        )}
         <div className="flex justify-between items-center px-1">
           <Engraved size="xs">Your saved presets ({presets.length})</Engraved>
         </div>

@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const esbuild = require('esbuild');
 const Module = require('node:module');
+const { execFileSync } = require('node:child_process');
 
 (async () => {
   const res = await esbuild.build({
@@ -42,11 +43,13 @@ const Module = require('node:module');
     SAMPLE_AUDIOPHILE_PROFILE,
   } = mod.exports;
 
-  // Honest commit hash: Step 1 (48k sample-rate fix) on studio-merge
-  const commitHash = 'f934c2079036c1c3e8ae1e2a4c35acf0990394fc';
-  fs.mkdirSync(path.join('tests', 'fixtures'), { recursive: true });
+  // Candidate provenance only; this command never replaces committed golden data.
+  const commitHash = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  // Candidate output only. Committed golden fixtures must never be regenerated.
+  const outputDirectory = path.join('artifacts', 'fixture-candidates');
+  fs.mkdirSync(outputDirectory, { recursive: true });
 
-  // 1. Golden Share URLs (3 synthetic coverage cases + 2 real browser-captured URLs)
+  // 1. Candidate URLs (3 synthetic cases + 2 automated browser captures, not historical user links)
   const baseLab = labStore.getSnapshot();
 
   const state1 = {
@@ -219,7 +222,7 @@ const Module = require('node:module');
   });
 
   fs.writeFileSync(
-    path.join('tests', 'fixtures', 'golden-share-urls.json'),
+    path.join(outputDirectory, 'golden-share-urls.json'),
     JSON.stringify({ generatedFromCommit: commitHash, cases: shareCases }, null, 2) + '\n',
   );
 
@@ -341,7 +344,7 @@ const Module = require('node:module');
   };
 
   fs.writeFileSync(
-    path.join('tests', 'fixtures', 'golden-storage-snapshot.json'),
+    path.join(outputDirectory, 'golden-storage-snapshot.json'),
     JSON.stringify(storageSnapshot, null, 2) + '\n',
   );
 
@@ -395,8 +398,8 @@ const Module = require('node:module');
 
   const validatedBackup = validateBackup(rawBackup);
   fs.writeFileSync(
-    path.join('tests', 'fixtures', 'golden-v3-backup.json'),
+    path.join(outputDirectory, 'golden-v3-backup.json'),
     JSON.stringify({ generatedFromCommit: commitHash, backup: validatedBackup }, null, 2) + '\n',
   );
-  console.log('Generated all 3 golden fixture files successfully (5 share URLs including 2 real browser-captured URLs).');
+  console.log('Generated candidate snapshots under artifacts/fixture-candidates; committed fixtures untouched. Automated links are not historical user links.');
 })();

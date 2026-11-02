@@ -1315,7 +1315,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             setImportMessage({
                               type: 'success',
                               text: nextState
-                                ? '✓ Equalizer APO hot-sync active. Every profile save will tune your PC in real-time!'
+                                ? 'Equalizer APO include enabled. Use Apply to Windows in the editor to update system EQ. Saving presets only updates your browser library.'
                                 : 'Equalizer APO managed include line removed from config.txt.',
                             });
                           } else {
@@ -1334,7 +1334,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       >
                         <Led color={apoBridgeEnabled ? 'green' : 'amber'} size="sm" />
                         <span>
-                          {apoBridgeEnabled ? 'BRIDGE ACTIVE (HOT RELOAD)' : 'ENABLE APO HOT BRIDGE'}
+                          {apoBridgeEnabled ? 'APO INCLUDE ENABLED' : 'ENABLE APO INCLUDE'}
                         </span>
                       </button>
                     </div>
@@ -1345,6 +1345,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <code className="text-audio-muted">.bak</code>
                     </p>
                   </div>
+
+                  <p className="text-xs text-audio-muted">This switch adds or removes the AudioSage include in Windows Equalizer APO. Apply to Windows enables the include and writes your current EQ. Saving a preset only updates your browser library.</p>
                 </div>
               </details>
 

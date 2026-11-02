@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { GearItem } from '../types';
 import { useDismissSurface } from '../hooks/useDismissSurface';
 import Engraved from './ui/Engraved';
@@ -38,11 +38,14 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
   const [hardware, setHardware] = useState(initialHardware);
   const [validationError, setValidationError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const descriptionId = useId();
 
   useDismissSurface(isOpen, onClose, 60);
 
   useEffect(() => {
     if (isOpen) {
+      const opener = document.activeElement as HTMLElement | null;
       setName(initialName);
       setGearId(initialGearId);
       setHardware(initialHardware);
@@ -50,7 +53,10 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
       const timer = setTimeout(() => {
         nameInputRef.current?.focus();
       }, 10);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        if (opener?.isConnected) opener.focus();
+      };
     }
   }, [isOpen, initialName, initialGearId, initialHardware]);
 
@@ -78,7 +84,7 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
   };
 
   const inputClass =
-    'w-full bg-audio-surface border border-audio-border rounded-xl px-3.5 py-2 text-audio-text focus:outline-none focus:border-audio-accent/70 text-xs font-sans';
+    'w-full min-h-[44px] bg-audio-surface border border-audio-border rounded-xl px-3.5 py-2 text-audio-text focus:outline-none focus:border-audio-accent/70 text-xs font-sans';
   const labelClass =
     'block text-[10px] font-bold text-audio-accent uppercase tracking-widest font-mono mb-1';
 
@@ -90,10 +96,20 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-describedby={descriptionId}
         aria-label={initialMode === 'copy' ? 'Save EQ preset as copy' : 'Save EQ preset'}
-        className="save-preset-dialog panel w-full max-w-md rounded-2xl border border-audio-accent/70 bg-audio-surface p-4 md:p-5 shadow-2xl space-y-4"
+        className="save-preset-dialog panel w-full max-w-md max-h-[calc(100dvh-24px)] overflow-y-auto rounded-2xl border border-audio-accent/70 bg-audio-surface p-4 md:p-5 shadow-2xl space-y-4"
+        onKeyDown={event => {
+          if (event.key !== 'Tab') return;
+          const controls = dialogRef.current?.querySelectorAll<HTMLElement>('input, select, button:not(:disabled)');
+          if (!controls?.length) return;
+          const first = controls[0], last = controls[controls.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }}
       >
         <div className="flex items-center justify-between gap-2">
           <Engraved size="xs" glow>
@@ -117,7 +133,6 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
               aria-label="Preset name"
               type="text"
               required
-              autoFocus
               placeholder="e.g. Simgot EW300 Holographic Chill"
               value={name}
               onChange={(e) => {
@@ -172,7 +187,7 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
             />
           </div>
 
-          <p className="text-[11px] text-audio-muted leading-relaxed">
+          <p id={descriptionId} className="text-[11px] text-audio-muted leading-relaxed">
             Saves to your browser EQ library without modifying Windows Equalizer APO. Use{' '}
             <strong>Apply to Windows</strong> in the editor when you want to update system audio.
           </p>
@@ -181,7 +196,7 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
+              className="min-h-[44px] px-3 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
             >
               Cancel
             </button>
@@ -190,7 +205,7 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
                 type="button"
                 disabled={!name.trim()}
                 onClick={() => submitWithCopyFlag(true)}
-                className="secondary-button text-xs disabled:opacity-40"
+                className="secondary-button min-h-[44px] text-xs disabled:opacity-40"
               >
                 Save as copy
               </button>
@@ -198,7 +213,7 @@ export const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass disabled:opacity-40"
+              className="min-h-[44px] px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass disabled:opacity-40"
             >
               {initialMode === 'copy' ? 'Save copy' : 'Save'}
             </button>
