@@ -4,35 +4,70 @@ export const APO_DEFAULT_CONFIG_PATH = 'C:\\Program Files\\Equalizer APO\\config
 export const APO_STORAGE_PATH_KEY = 'audiosage_apo_config_path';
 export const APO_STORAGE_ENABLED_KEY = 'audiosage_apo_enabled';
 export const APO_STORAGE_LAST_APPLIED_KEY = 'audiosage_apo_last_applied';
+export const APO_SPLIT_NOTICE_KEY = 'audiosage_apo_split_notice_v1';
 
 export const getStoredApoConfigPath = (): string => {
   if (typeof window === 'undefined') return APO_DEFAULT_CONFIG_PATH;
-  return localStorage.getItem(APO_STORAGE_PATH_KEY) || APO_DEFAULT_CONFIG_PATH;
+  try {
+    return localStorage.getItem(APO_STORAGE_PATH_KEY) || APO_DEFAULT_CONFIG_PATH;
+  } catch {
+    return APO_DEFAULT_CONFIG_PATH;
+  }
 };
 
 export const setStoredApoConfigPath = (path: string): void => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(APO_STORAGE_PATH_KEY, path.trim());
+  try {
+    localStorage.setItem(APO_STORAGE_PATH_KEY, path.trim());
+  } catch {}
 };
 
 export const getStoredApoEnabled = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return localStorage.getItem(APO_STORAGE_ENABLED_KEY) === 'true';
+  try {
+    return localStorage.getItem(APO_STORAGE_ENABLED_KEY) === 'true';
+  } catch {
+    return false;
+  }
 };
 
 export const setStoredApoEnabled = (enabled: boolean): void => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(APO_STORAGE_ENABLED_KEY, enabled ? 'true' : 'false');
+  try {
+    localStorage.setItem(APO_STORAGE_ENABLED_KEY, enabled ? 'true' : 'false');
+  } catch {}
 };
 
 export const getStoredApoLastApplied = (): string | null => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(APO_STORAGE_LAST_APPLIED_KEY);
+  try {
+    return localStorage.getItem(APO_STORAGE_LAST_APPLIED_KEY);
+  } catch {
+    return null;
+  }
 };
 
 export const setStoredApoLastApplied = (timeStr: string): void => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(APO_STORAGE_LAST_APPLIED_KEY, timeStr);
+  try {
+    localStorage.setItem(APO_STORAGE_LAST_APPLIED_KEY, timeStr);
+  } catch {}
+};
+
+export const shouldShowApoSplitNotice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(APO_STORAGE_ENABLED_KEY) === 'true' && localStorage.getItem(APO_SPLIT_NOTICE_KEY) !== 'dismissed';
+  } catch {
+    return false;
+  }
+};
+
+export const dismissApoSplitNotice = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(APO_SPLIT_NOTICE_KEY, 'dismissed');
+  } catch {}
 };
 
 /**
@@ -42,6 +77,17 @@ export const checkApoBridgeStatus = async (customPath?: string): Promise<ApoBrid
   const path = customPath || getStoredApoConfigPath();
   try {
     const res = await fetch(`/api/apo/status?path=${encodeURIComponent(path)}`);
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return {
+        connected: false,
+        path,
+        exists: false,
+        hasManagedInclude: false,
+        hasBackup: false,
+        error: 'Needs a local run on Windows',
+      };
+    }
     if (res.ok) {
       const data = await res.json();
       return {

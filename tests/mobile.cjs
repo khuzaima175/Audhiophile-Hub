@@ -48,14 +48,21 @@ const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
           .click();
       await page.getByRole('button', { name: 'Presets', exact: true }).click();
       await page.getByRole('button', { name: 'New preset', exact: true }).click();
-      await page.getByLabel('Preset name', { exact: false }).fill(name + ' mobile preset');
       await page.getByLabel('Equalizer type').selectOption('peq');
       await page.getByRole('button', { name: /Add Filter Row/ }).click();
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         name + ' EQ overflow',
       );
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await page.getByRole('button', { name: 'Save preset…', exact: true }).click();
+      const saveDialog = page.getByRole('dialog', { name: 'Save EQ preset', exact: true });
+      await saveDialog.waitFor();
+      assert.ok(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+        name + ' SavePresetDialog overflow ' + JSON.stringify(size),
+      );
+      await saveDialog.getByLabel('Preset name', { exact: true }).fill(name + ' mobile preset');
+      await saveDialog.getByRole('button', { name: 'Save', exact: true }).click();
       if (size.width < 768) await navigate('Graph lab');
       else
         await page

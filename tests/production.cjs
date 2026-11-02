@@ -152,13 +152,25 @@ const { ensurePreviewServer, launchBrowser } = require('./browserEnv.cjs');
 
   await nav('Equalizer');
   await page.getByRole('button', { name: 'New preset', exact: true }).click();
-  await page.getByLabel('Preset name', { exact: false }).fill('Production manual');
+  assert.equal(
+    await page.getByRole('button', { name: 'Apply to Windows', exact: true }).isDisabled(),
+    true,
+    'Apply to Windows must be disabled on static/hosted preview builds',
+  );
+  assert.ok(
+    (await page.locator('.eq-workspace').innerText()).includes('Needs a local run on Windows'),
+    'Static/hosted preview build must explain why Apply to Windows is disabled',
+  );
   await page.getByLabel('Gain at 1000 Hz', { exact: true }).fill('3');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'Save preset…', exact: true }).click();
+  const prodSaveDialog = page.getByRole('dialog', { name: 'Save EQ preset', exact: true });
+  await prodSaveDialog.waitFor();
+  await prodSaveDialog.getByLabel('Preset name', { exact: true }).fill('Production manual');
+  await prodSaveDialog.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(100);
   await page.reload();
   await nav('Equalizer');
-  assert.equal(await page.getByLabel('Preset name', { exact: false }).inputValue(), 'Production manual');
+  assert.equal(await page.getByTestId('active-preset-name').innerText(), 'Production manual');
   assert.equal(await page.getByLabel('Gain at 1000 Hz', { exact: true }).inputValue(), '3');
 
   const download = page.waitForEvent('download');

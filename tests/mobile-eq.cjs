@@ -1,6 +1,7 @@
+const { ensureViteServer, launchBrowser } = require('./browserEnv.cjs');
 const {chromium}=require('playwright');const assert=require('node:assert/strict');
 (async()=>{
- const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_BROWSER_PATH||'/usr/bin/chromium',headless:true});
+ const browser=await launchBrowser(chromium);
  const page=await browser.newPage({viewport:{width:360,height:800},hasTouch:true,deviceScaleFactor:2});
  page.on('dialog',d=>d.accept());const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(process.env.AUDIOSAGE_TEST_URL||'http://127.0.0.1:3000');
@@ -23,7 +24,8 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')).peqFilters.length===2);
  assert.equal(await lab.getByRole('button',{name:/Band \d+,/}).count(),2);
  await lab.getByLabel('Selected filter type',{exact:true}).selectOption('LS');await lab.getByLabel('Selected Q',{exact:true}).fill('.7');
- await lab.getByLabel('Preset name',{exact:false}).fill('Touch EQ');await lab.getByRole('button',{name:'Save',exact:true}).click();
+ await lab.getByRole('button',{name:'Save preset…',exact:true}).click();
+ await lab.getByLabel('Preset name',{exact:true}).fill('Touch EQ');await lab.getByRole('button',{name:'Save',exact:true}).click();
  await page.reload();await lab.getByRole('button',{name:/^Edit EQ/}).click();
  assert.equal(await lab.getByRole('button',{name:/Band \d+,/}).count(),2);
  const collisions=await lab.locator('[data-axis=frequency]').evaluateAll(nodes=>{const boxes=nodes.map(n=>n.getBoundingClientRect()).sort((a,b)=>a.left-b.left);return boxes.slice(1).some((b,i)=>b.left<boxes[i].right+3);});assert.equal(collisions,false);

@@ -52,7 +52,13 @@ import { synthesizeAutoPeq } from '../utils/autoPeqGenerator';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { graphicFilters, safePreamp } from '../utils/biquad';
 import { useLiveTabCapture, isTabAudioSupported } from '../hooks/useLiveTabCapture';
-import { syncApoProfileToServer, getStoredApoEnabled } from '../services/apoBridgeClient';
+import {
+  syncApoProfileToServer,
+  checkApoBridgeStatus,
+  shouldShowApoSplitNotice,
+  dismissApoSplitNotice,
+} from '../services/apoBridgeClient';
+import { SavePresetDialog, SavePresetDialogValues } from './SavePresetDialog';
 import { PlusIcon, TrashIcon, CopyIcon, CheckIcon, EqIcon, WaveformIcon, ActivityIcon } from './Icon';
 import Led from './ui/Led';
 import Engraved from './ui/Engraved';
@@ -109,6 +115,22 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [conversionReport, setConversionReport] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [saveDialogMode, setSaveDialogMode] = useState<'save' | 'copy' | null>(null);
+  const [apoBridgeAvailable, setApoBridgeAvailable] = useState<boolean>(false);
+  const [isApplyingApo, setIsApplyingApo] = useState<boolean>(false);
+  const [appliedApoState, setAppliedApoState] = useState<{ label: string; signature: string } | null>(null);
+  const [showApoSplitNotice, setShowApoSplitNotice] = useState<boolean>(() => shouldShowApoSplitNotice());
+
+  useEffect(() => {
+    let active = true;
+    checkApoBridgeStatus().then((status) => {
+      if (active) setApoBridgeAvailable(!!status.connected);
+    });
+    setShowApoSplitNotice(shouldShowApoSplitNotice());
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Hover Crosshair on Curve
   const [hoveredPoint, setHoveredPoint] = useState<{
@@ -474,9 +496,23 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     setPeqFilters((prev) => prev.map((f) => (f.id === id ? { ...f, ...updates } : f)));
   };
 
-  // Save current EQ preset (with silent Equalizer APO bridge hot push if enabled)
-  const handleSaveProfile = async (copy = false) => {
-    if (!presetName.trim()) return;
+  const currentEditorSignature = useMemo(
+    () =>
+      JSON.stringify({
+        eqMode,
+        peqFilters: eqMode === 'peq' ? peqFilters : [],
+        stereoFilters: eqMode === 'peq' ? draft.stereoFilters : null,
+        isoGains: eqMode === 'peq' ? [] : currentIsoGains,
+        preamp: currentPreamp,
+        sampleRate: draft.sampleRate,
+      }),
+    [eqMode, peqFilters, draft.stereoFilters, currentIsoGains, currentPreamp, draft.sampleRate],
+  );
+
+  // Save current EQ preset to browser library ONLY (never calls Equalizer APO bridge)
+  const handleSaveProfile = (values: SavePresetDialogValues) => {
+    const trimmedName = values.name.trim();
+    if (!trimmedName) return;
 
     let bandsString = '';
     if (eqMode === 'peq') {
@@ -486,19 +522,22 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     }
 
     const preset: EQPreset = {
-      id: (!copy && editingPresetId) || uuidv4(),
-      name: presetName.trim(),
-      hardware: hardwareAssigned.trim() || 'All Hardware',
+      id: (!values.copy && editingPresetId) || uuidv4(),
+      name: trimmedName,
+      hardware: values.hardware.trim() || 'All Hardware',
       type: eqMode === 'peq' ? 'Parametric' : 'Wavelet',
       mode: eqMode,
       bands: bandsString,
       graphicGains: eqMode !== 'peq' ? [...currentIsoGains] : undefined,
       peqFilters: eqMode === 'peq' ? [...peqFilters] : undefined,
-      stereoFilters: eqMode === 'peq' && draft.stereoFilters ? structuredClone(draft.stereoFilters) : undefined, eqChannel: draft.eqChannel,
+      stereoFilters: eqMode === 'peq' && draft.stereoFilters ? structuredClone(draft.stereoFilters) : undefined,
+      eqChannel: draft.eqChannel,
       targetCurveId: selectedTargetId,
       preamp: currentPreamp,
-      gearId: draft.gearId || undefined,
-      measurementRef: draft.measurementRef || undefined, targetMeasurementRef: draft.targetMeasurementRef || undefined, fitLimits: draft.fitLimits,
+      gearId: values.gearId || undefined,
+      measurementRef: draft.measurementRef || undefined,
+      targetMeasurementRef: draft.targetMeasurementRef || undefined,
+      fitLimits: draft.fitLimits,
       requestedPreamp: draft.requestedPreamp,
       preampMode: draft.preampMode,
       sampleRate: draft.sampleRate,
@@ -507,39 +546,59 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     };
 
     let updatedPresets: EQPreset[];
-    if (editingPresetId && !copy) {
+    if (editingPresetId && !values.copy) {
       updatedPresets = presets.map((p) => (p.id === editingPresetId ? preset : p));
     } else {
       updatedPresets = [preset, ...presets];
     }
 
-    try { onSavePresets(updatedPresets); } catch { setImportError('Preset save failed. Your editable draft is preserved. Retry or export a backup.'); return; }
-
-    // Silent hot-push to Equalizer APO if bridge is enabled
-    if (getStoredApoEnabled()) {
-      const apoExport = exportToEqualizerAPO(
-        preset.peqFilters || (eqMode === 'peq' ? peqFilters : []),
-        eqMode === 'peq' ? [] : currentIsoBands,
-        eqMode === 'peq' ? [] : preset.graphicGains || currentIsoGains,
-        preset.preamp ?? currentPreamp,
-        draft.sampleRate,
-        preset.stereoFilters,
-      );
-      try {
-        const syncRes = await syncApoProfileToServer(apoExport);
-        if (syncRes.success) {
-          showToast(`Saved & Hot-Synced to Equalizer APO`);
-        } else {
-          showToast(`Saved preset. (APO Bridge: ${syncRes.error || 'skipped'})`);
-        }
-      } catch (e) {
-        showToast(`Saved "${preset.name}" to EQ Library`);
-      }
-    } else {
-      showToast(`Saved "${preset.name}" to EQ Library`);
+    try {
+      onSavePresets(updatedPresets);
+    } catch {
+      setImportError('Preset save failed. Your editable draft is preserved. Retry or export a backup.');
+      return;
     }
 
-    audioWorkspace.update({ editingPresetId: preset.id, dirty: false }, false);
+    audioWorkspace.update(
+      {
+        presetName: trimmedName,
+        gearId: values.gearId || null,
+        hardwareAssigned: values.hardware.trim(),
+        editingPresetId: preset.id,
+        dirty: false,
+      },
+      false,
+    );
+    setSaveDialogMode(null);
+    showToast(`Saved "${preset.name}" to EQ Library`);
+  };
+
+  // Explicit Apply to Windows action (applies current editor state including unsaved changes with preamp guard)
+  const handleApplyToWindows = async () => {
+    if (!apoBridgeAvailable || isApplyingApo) return;
+    setIsApplyingApo(true);
+    const apoExport = exportToEqualizerAPO(
+      eqMode === 'peq' ? peqFilters : [],
+      eqMode === 'peq' ? [] : currentIsoBands,
+      eqMode === 'peq' ? [] : currentIsoGains,
+      currentPreamp,
+      draft.sampleRate,
+      eqMode === 'peq' ? draft.stereoFilters : null,
+    );
+    try {
+      const syncRes = await syncApoProfileToServer(apoExport);
+      if (syncRes.success) {
+        const label = presetName.trim() || 'Unsaved draft';
+        setAppliedApoState({ label, signature: currentEditorSignature });
+        showToast(`Applied "${label}" to Windows Equalizer APO`);
+      } else {
+        showToast(`Could not apply to Windows: ${syncRes.error || 'APO bridge error'}`);
+      }
+    } catch (e) {
+      showToast(`Could not apply to Windows: ${(e as Error).message}`);
+    } finally {
+      setIsApplyingApo(false);
+    }
   };
 
   // Load preset into workbench for editing / audition
@@ -736,82 +795,134 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   const labelClass = 'text-[10px] font-bold text-audio-accent uppercase tracking-widest font-mono pl-1';
 
   const presetIdentity = (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass} htmlFor="preset-name">
-                Preset name *
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Simgot EW300 Holographic Chill"
-                id="preset-name"
-                value={presetName}
-                onChange={(e) => setPresetName(e.target.value)}
-                className={inputClass}
-                autoFocus={!embeddedInLab}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Assigned gear</label>
-              <select aria-label="Assigned gear" value={draft.gearId || ''} onChange={e => { const g = gear.find(g => g.id === e.target.value); audioWorkspace.update({ gearId: g?.id || null, hardwareAssigned: g?.name || hardwareAssigned }); }} className={inputClass}><option value="">Unlinked / custom hardware</option>{gear.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
-              <label className={labelClass}>Hardware name</label>
-              <input
-                type="text"
-                placeholder="e.g. Simgot EW300, CCA Phoenix..."
-                value={hardwareAssigned}
-                onChange={(e) => setHardwareAssigned(e.target.value)}
-                className={inputClass}
-              />
-            </div>
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-audio-border/70 bg-audio-surface px-3.5 py-2.5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-audio-accent font-bold">
+              {editingPresetId ? 'Active preset' : 'Draft'}
+            </span>
+            <strong className="text-xs font-sans text-audio-text truncate" data-testid="active-preset-name">
+              {presetName.trim() || 'Unsaved EQ draft'}
+            </strong>
+            {(hardwareAssigned.trim() || draft.gearId) && (
+              <span className="text-[10px] font-mono text-audio-muted">
+                · {hardwareAssigned.trim() || gear.find((g) => g.id === draft.gearId)?.name}
+              </span>
+            )}
           </div>
+          <p className="text-[11px] text-audio-muted mt-0.5">
+            {draft.dirty
+              ? 'Edits auto-save to your working draft. Click Save preset… to store in your library.'
+              : editingPresetId
+                ? 'Up to date in your browser EQ library.'
+                : 'Ready to save to your browser EQ library.'}
+          </p>
+        </div>
+      </div>
+
+      {showApoSplitNotice && (
+        <div
+          role="status"
+          className="apo-split-notice flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-audio-accent/60 bg-audio-surface px-3.5 py-2.5 text-xs text-audio-text"
+        >
+          <p className="leading-relaxed">
+            <strong>Save no longer updates Windows automatically.</strong> Saving a preset now writes only to your
+            browser library. Use <strong>Apply to Windows</strong> when you want to push the current EQ to Equalizer
+            APO.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              dismissApoSplitNotice();
+              setShowApoSplitNotice(false);
+            }}
+            className="secondary-button text-[11px]"
+          >
+            Got it
+          </button>
+        </div>
+      )}
+    </div>
   );
   const presetActions = (
-          <div className="eq-save-actions flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-audio-border/60">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleCopyAPO()}
-                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-              >
-                {copiedKey === 'apo-curr' ? '✓ Copied APO' : 'Copy APO'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCopyWavelet()}
-                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-              >
-                {copiedKey === 'wav-curr' ? '✓ Copied Wavelet' : 'Copy Wavelet'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDownloadTxt()}
-                className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-              >
-                Download .txt
-              </button>
-            </div>
+    <div className="eq-save-actions flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-audio-border/60">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => handleCopyAPO()}
+          className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
+        >
+          {copiedKey === 'apo-curr' ? '✓ Copied APO' : 'Copy APO'}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleCopyWavelet()}
+          className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
+        >
+          {copiedKey === 'wav-curr' ? '✓ Copied Wavelet' : 'Copy Wavelet'}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleDownloadTxt()}
+          className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
+        >
+          Download .txt
+        </button>
+        <button
+          type="button"
+          disabled={!apoBridgeAvailable || isApplyingApo}
+          onClick={() => void handleApplyToWindows()}
+          title={
+            apoBridgeAvailable
+              ? 'Write current editor EQ (with preamp headroom guard) to Windows Equalizer APO'
+              : 'Needs a local run on Windows'
+          }
+          className="px-3 py-1.5 rounded-lg border border-audio-signal/50 bg-audio-surface text-[11px] font-mono font-semibold text-audio-signal hover:bg-audio-signal/10 disabled:opacity-45 disabled:cursor-not-allowed"
+        >
+          {isApplyingApo ? 'Applying…' : 'Apply to Windows'}
+        </button>
+        {!apoBridgeAvailable ? (
+          <span className="text-[10px] font-mono text-audio-muted">Needs a local run on Windows</span>
+        ) : (
+          appliedApoState && (
+            <span role="status" className="apo-applied-status text-[10px] font-mono text-audio-signal">
+              {appliedApoState.signature === currentEditorSignature
+                ? `Applied: ${appliedApoState.label}`
+                : `Applied: ${appliedApoState.label} · editor has changed since`}
+            </span>
+          )
+        )}
+      </div>
 
-            <div className="flex items-center gap-2.5">
-              <button className="secondary-button" disabled={!presetName.trim()} onClick={() => void handleSaveProfile(true)}>Save as copy</button>
-              <button
-                type="button"
-                onClick={() => {
-                  setWorkbenchState('IDLE');
-                }}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
-              >
-                Keep draft
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleSaveProfile()}
-                disabled={!presetName.trim()}
-                className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass disabled:opacity-40"
-              >
-                Save
-              </button>
-            </div>
-          </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setWorkbenchState('IDLE');
+          }}
+          className="px-3 py-1.5 rounded-lg text-xs font-mono text-audio-muted hover:text-audio-text"
+        >
+          Back to presets
+        </button>
+        {editingPresetId && (
+          <button
+            type="button"
+            className="secondary-button text-xs"
+            onClick={() => setSaveDialogMode('copy')}
+          >
+            Save as copy…
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setSaveDialogMode('save')}
+          className="px-4 py-1.5 rounded-lg bg-audio-accent text-black font-mono font-bold text-xs hover:bg-audio-accent-bright shadow-glow-brass"
+        >
+          Save preset…
+        </button>
+      </div>
+    </div>
   );
   const policyControls = (
       <div className="audio-policy-controls">
@@ -2014,6 +2125,18 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
           )}
         </div>
       </div>}
+
+      <SavePresetDialog
+        isOpen={saveDialogMode !== null}
+        initialMode={saveDialogMode || 'save'}
+        canOverwriteExisting={!!editingPresetId}
+        initialName={presetName}
+        initialGearId={draft.gearId || null}
+        initialHardware={hardwareAssigned}
+        gear={gear}
+        onClose={() => setSaveDialogMode(null)}
+        onSubmit={handleSaveProfile}
+      />
 
       {/* Toast Feedback */}
       {toastMessage && (
