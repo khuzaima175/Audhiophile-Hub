@@ -818,30 +818,22 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   const labelClass = 'text-[10px] font-bold text-audio-accent uppercase tracking-widest font-mono pl-1';
 
   const presetIdentity = (
-    <div className="space-y-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-audio-border/70 bg-audio-surface px-3.5 py-2.5">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-audio-accent font-bold">
-              {editingPresetId ? 'Active preset' : 'Draft'}
-            </span>
-            <strong className="text-xs font-sans text-audio-text truncate" data-testid="active-preset-name">
-              {presetName.trim() || 'Unsaved EQ draft'}
-            </strong>
-            {(hardwareAssigned.trim() || draft.gearId) && (
-              <span className="text-[10px] font-mono text-audio-muted">
-                · {hardwareAssigned.trim() || gear.find((g) => g.id === draft.gearId)?.name}
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-audio-muted mt-0.5">
-            {draft.dirty
-              ? 'Edits auto-save to your working draft. Click Save preset… to store in your library.'
-              : editingPresetId
-                ? 'Up to date in your browser EQ library.'
-                : 'Ready to save to your browser EQ library.'}
-          </p>
-        </div>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 min-w-0">
+        <span className="px-2 py-0.5 rounded bg-audio-surface border border-audio-accent/40 text-[10px] font-mono uppercase tracking-wider text-audio-accent font-bold">
+          {editingPresetId ? 'Active preset' : 'Draft'}
+        </span>
+        <strong className="text-sm font-sans text-audio-text truncate" data-testid="active-preset-name">
+          {presetName.trim() || 'Unsaved EQ draft'}
+        </strong>
+        {(hardwareAssigned.trim() || draft.gearId) && (
+          <span className="text-[11px] font-mono text-audio-muted">
+            · {hardwareAssigned.trim() || gear.find((g) => g.id === draft.gearId)?.name}
+          </span>
+        )}
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-audio-surface border border-audio-border text-audio-signal">
+          PREAMP: {currentPreamp} dB
+        </span>
       </div>
 
       {showApoSplitNotice && (
@@ -941,8 +933,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         <p className="studio-summary">Export accuracy<InfoHint label="About export accuracy">APO parameter exports preserve supported filters and effective preamp. Wavelet response sampling and Wavelet-to-PEQ fitting are approximations; deep notches and narrow filters may lose detail.</InfoHint></p>
       </div>
   );
+  const ord = (n: number) => (embeddedInLab ? {} : { style: { order: n } });
+  const autoEqActive = workbenchState === 'MEASUREMENT' || !!measurement;
   const graphEditor = (<>
-      {eqMode === 'peq' && <div className="audio-policy-controls">
+      {eqMode === 'peq' && <div {...ord(8)} className="audio-policy-controls">
         <label><input aria-label="Independent stereo EQ" type="checkbox" checked={!!draft.stereoFilters} onChange={e=>{
           if(e.target.checked)audioWorkspace.update({stereoFilters:{left:structuredClone(peqFilters),right:structuredClone(peqFilters)},eqChannel:'left'});
           else if(window.confirm('Use the currently selected bank for both channels? Save a copy first to keep both banks.'))audioWorkspace.update({stereoFilters:null});
@@ -951,7 +945,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
           <button className="secondary-button" onClick={()=>audioWorkspace.update({stereoFilters:{...draft.stereoFilters!,[draft.eqChannel==='left'?'right':'left']:structuredClone(peqFilters)}})}>Copy bank to other channel</button>
           <p>Editing {draft.eqChannel}; playback applies both banks independently. APO exports both channels. Wavelet exports the selected bank. Headroom covers the stronger channel.</p></>}
       </div>}
-      <div className="audio-view-tabs">
+      <div {...ord(2)} className="audio-view-tabs eq-editor-tools !mb-0">
         <button className="secondary-button" onClick={() => { if (eqMode !== 'peq' && draft.dirty && !window.confirm('Add a parametric band and switch from graphic mode? Graphic settings will be kept.')) return; setEqMode('peq'); handleAddPeqFilter(); }}>Add band</button>
         <button className="secondary-button" aria-pressed={addOnGraph} onClick={()=>setAddOnGraph(!addOnGraph)}>{addOnGraph?'Tap graph to place band':'Add band on graph'}</button>
         <button className="secondary-button" onClick={() => setIsBypassed(!isBypassed)}>{isBypassed ? 'Enable EQ' : 'Raw bypass'}</button>
@@ -963,7 +957,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         </MenuButton>
         <GraphControls value={draft.graphSettings} onChange={graphSettings=>audioWorkspace.update({graphSettings},false)}/>
       </div>
-      <div className="eq-graph-layout">
+      <div {...ord(9)} className="eq-graph-layout">
       <details className="selected-band-sheet" open={!!draft.selectedBand}>
         <summary>Selected band</summary>
         {eqMode === 'peq' ? (() => { const f = peqFilters.find(f => f.id === draft.selectedBand); return f ? <div className="audio-policy-controls">
@@ -978,8 +972,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       {/* 4. LIVE SVG CURVE VISUALIZER (Measured Cream, Target Dashed, Corrected Phosphor Teal) */}
       <details className="section-disclosure space-y-3" open={workbenchState !== 'IDLE' || !!measurement}>
         <summary>Frequency response preview</summary>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Engraved size="xs" glow>
               Frequency response preview
             </Engraved>
@@ -1297,8 +1291,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             <span className="text-audio-accent">EQ: Biquad Synthesis (exact)</span>
           </div>
         </div>
-
-        <details className="section-disclosure">
+      </details>
+      </div>
+        <details {...ord(29)} className="section-disclosure">
           <summary>Listen & compare your EQ</summary>
           <p className="text-xs text-audio-muted mb-3">
             Play a local track or test sound, then switch EQ on and off to hear the difference.
@@ -1445,19 +1440,17 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             </div>
           </div>
         </details>
-      </details>
-      </div>
   </>);
 
   return (
-    <div className={`eq-workspace space-y-5 max-w-5xl mx-auto select-none ${embeddedInLab ? 'lab-eq-workbench' : ''} ${className}`}>
+    <div className={`eq-workspace space-y-5 max-w-5xl mx-auto select-none ${embeddedInLab ? 'lab-eq-workbench' : 'eq-page'} ${className}`}>
       {draftError && <div role="alert" className="panel p-3">{draftError}<button onClick={() => audioWorkspace.retry()}>Retry write</button><button onClick={() => { if (window.confirm('Preserve damaged draft as recovery data and start fresh?')) { try { audioWorkspace.recoverFresh(); } catch { setImportError('Recovery write failed. Original draft is preserved. Export a backup before refreshing.'); } } }}>Start fresh</button></div>}
       {importError && <div role="alert" className="panel p-3">{importError}<button onClick={() => { audioWorkspace.update({ measurementRef: null }); setImportError(null); }}>Continue manual EQ</button></div>}
-      {!embeddedInLab && <details className="section-disclosure"><summary>Level, preamp &amp; sample rate · {currentPreamp.toFixed(1)} dB · {draft.sampleRate / 1000} kHz</summary>{policyControls}</details>}
-      <nav className="audio-view-tabs" aria-label="Audio workspace views">
-        {!embeddedInLab && <><button className="secondary-button" onClick={() => setWorkbenchState('ADDING')}>Editor {draft.dirty ? '• Unsaved' : ''}</button>
+      {!embeddedInLab && (workbenchState !== 'IDLE' || !!measurement) && <details {...ord(31)} className="section-disclosure"><summary>Level, preamp &amp; sample rate · {currentPreamp.toFixed(1)} dB · {draft.sampleRate / 1000} kHz</summary>{policyControls}</details>}
+      <nav {...ord(1)} className="audio-view-tabs eq-tabs" aria-label="Audio workspace views">
+        {!embeddedInLab && <><button className="secondary-button" aria-pressed={workbenchState !== 'IDLE'} onClick={() => setWorkbenchState('ADDING')}>Editor {draft.dirty ? '• Unsaved' : ''}</button>
         <button className="secondary-button" onClick={openCompare}>Compare</button>
-        <button className="secondary-button" onClick={() => setWorkbenchState('IDLE')}>Presets</button></>}
+        <button className="secondary-button" aria-pressed={workbenchState === 'IDLE'} onClick={() => setWorkbenchState('IDLE')}>Presets</button></>}
         <button className="secondary-button" disabled={!undoCount} onClick={() => audioWorkspace.undo()}>Undo</button>
         <button className="secondary-button" disabled={!redoCount} onClick={() => audioWorkspace.redo()}>Redo</button>
       </nav>
@@ -1467,8 +1460,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       </section>}
       {embeddedInLab && workbenchState !== 'IDLE' && graphEditor}
       {/* 1. TOP HEADER & WORKBENCH ACTIONS */}
-      <div className="flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-audio-border/60">
-        <div>
+      {(embeddedInLab || workbenchState === 'IDLE' || workbenchState === 'MEASUREMENT' || !!draft.measurementRef) && <div {...ord(2)} className="eq-topbar-actions flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-audio-border/60">
+        {embeddedInLab && <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-audio-accent shadow-glow-brass" />
             <Engraved size="sm" glow>
@@ -1479,7 +1472,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             Start a preset, import an EQ, or upload a measurement.
             <InfoHint label="About the DSP preview">DSP preview: {draft.sampleRate / 1000} kHz. Playback uses the active AudioContext rate. Use a reference target calibrated for your measurement rig; bundled acoustic targets are approximations.</InfoHint>
           </p>
-        </div>
+        </div>}
 
         {/* Action controls in header */}
         <div className="flex items-center gap-2">
@@ -1548,16 +1541,16 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
-      {conversionReport && <p role="status" className="text-xs text-audio-muted">{conversionReport}</p>}
-      {fitEvaluation.error && <p role="alert">Fitting failed: {fitEvaluation.error}</p>}
-      {draft.originalFit && <p className="text-xs text-audio-muted">Original automatic fit: {draft.originalFit.finalRms} dB RMS · {draft.originalFit.evaluatedPoints} evaluated points. Current response follows your editable filters.</p>}
-      <details className="section-disclosure"><summary>More tools: custom target and AutoEQ limits</summary>
+      {conversionReport && <p {...ord(3)} role="status" className="text-xs text-audio-muted">{conversionReport}</p>}
+      {fitEvaluation.error && <p {...ord(3)} role="alert">Fitting failed: {fitEvaluation.error}</p>}
+      {draft.originalFit && <p {...ord(3)} className="text-xs text-audio-muted">Original automatic fit: {draft.originalFit.finalRms} dB RMS · {draft.originalFit.evaluatedPoints} evaluated points. Current response follows your editable filters.</p>}
       <input ref={customTargetInput} aria-label="Import EQ custom target" type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;try{const target=parseMeasurementFile(await f.text(),f.name,'RAW');if(!target||target.isGraphicEQ)throw new Error('Import numeric acoustic target data');const ref=await storeMeasurement(target);audioWorkspace.update({targetMeasurementRef:ref,selectedTargetId:'custom-target-'+ref});}catch(err){setImportError((err as Error).message);}e.target.value='';}}/>
+      {(workbenchState !== 'IDLE' || !!measurement) && <details {...ord(32)} className="section-disclosure"><summary>More tools: custom target and AutoEQ limits</summary>
       <button className="secondary-button" onClick={()=>customTargetInput.current?.click()}>Import custom target</button>
       <FitControls value={draft.fitLimits} onChange={fitLimits=>audioWorkspace.update({fitLimits})}/>
-      </details>
+      </details>}
       {embeddedInLab && workbenchState !== 'IDLE' && <details className="section-disclosure"><summary>Level, sample rate & playback settings</summary>{policyControls}</details>}
       {/* Hidden Measurement File Input */}
       <input
@@ -1573,7 +1566,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         }}
       />
 
-      <details className="section-disclosure" open={workbenchState === 'MEASUREMENT' || !!measurement}>
+      {(workbenchState !== 'IDLE' || !!measurement) && <details {...ord(autoEqActive ? 4 : 30)} className="section-disclosure" open={workbenchState === 'MEASUREMENT' || !!measurement}>
         <ol className="measurement-guide"><li>Import numeric measurement data from your measurement rig.</li><li>Choose a compatible target and analysis smoothing.</li><li>Generate correction, edit filters, then preview and save.</li></ol>
         <summary>Auto EQ from a measurement</summary> {/* 2. MEASUREMENT UPLOAD DROPZONE DRAWER */}
         {(!measurement || workbenchState === 'MEASUREMENT') && (
@@ -1700,10 +1693,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             )}
           </div>
         )}
-      </details>
+      </details>}
       {/* 3. IMPORT AUTOEQ DRAWER */}
       {workbenchState === 'IMPORTING' && (
-        <div className="p-4 md:p-5 bg-audio-surface rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3 space-y-3">
+        <div {...ord(5)} className="p-4 md:p-5 bg-audio-surface rounded-2xl border border-audio-accent/60 shadow-panel animate-in slide-in-from-top-3 space-y-3">
           <div className="flex items-center justify-between">
             <Engraved size="xs" glow>
               PASTE AUTOEQ / EQUALIZER APO / WAVELET TEXT
@@ -1746,30 +1739,26 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
 
       {/* 6. ADDING / EDITING DRAWER (With Form-Level Save & Cancel) */}
       {workbenchState === 'ADDING' && (
-        <div className="p-4 md:p-5 bg-audio-surface rounded-2xl border border-audio-accent/70 shadow-panel animate-in slide-in-from-top-3 space-y-4">
-          <div className="flex items-center justify-between">
-            <Engraved size="xs" glow>
-              {editingPresetId ? 'Edit EQ preset' : 'Create a new EQ preset'}
-            </Engraved>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono text-audio-signal">PREAMP: {currentPreamp} dB</span>
-            </div>
+        <div {...ord(10)} className="p-4 md:p-5 bg-audio-surface rounded-2xl border border-audio-border shadow-panel space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-audio-border/60">
+            {!embeddedInLab ? presetIdentity : (
+              <Engraved size="xs" glow>
+                {editingPresetId ? 'Edit EQ preset' : 'Create a new EQ preset'}
+              </Engraved>
+            )}
+            <label className="control-field w-fit">
+              Equalizer type
+              <select
+                value={eqMode}
+                onChange={(e) => { if (draft.dirty && !window.confirm('Switch EQ mode? Existing mode settings are kept, but only the selected mode plays.')) return; setEqMode(e.target.value as '10-band' | '15-band' | '31-band' | 'peq'); }}
+              >
+                <option value="10-band">10-band · Simple tuning</option>
+                <option value="15-band">15-band · More detail</option>
+                <option value="31-band">31-band · Fine control</option>
+                <option value="peq">Parametric · Individual filters</option>
+              </select>
+            </label>
           </div>
-
-          {!embeddedInLab && presetIdentity}
-
-          <label className="control-field w-fit">
-            Equalizer type
-            <select
-              value={eqMode}
-              onChange={(e) => { if (draft.dirty && !window.confirm('Switch EQ mode? Existing mode settings are kept, but only the selected mode plays.')) return; setEqMode(e.target.value as '10-band' | '15-band' | '31-band' | 'peq'); }}
-            >
-              <option value="10-band">10-band · Simple tuning</option>
-              <option value="15-band">15-band · More detail</option>
-              <option value="31-band">31-band · Fine control</option>
-              <option value="peq">Parametric · Individual filters</option>
-            </select>
-          </label>
           {/* A. GRAPHIC ISO SLIDERS */}
           {eqMode !== 'peq' && (
             <div className="p-3.5 bg-audio-surface rounded-xl border border-audio-border overflow-x-auto scrollbar-thin">
@@ -1962,7 +1951,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         </div>
       )}
 
-      {!embeddedInLab && graphEditor}
+      {!embeddedInLab && (workbenchState !== 'IDLE' || !!measurement) && <div {...ord(9)} className="eq-graph-section space-y-3">{graphEditor}</div>}
 
       {audioError && (
         <p className="text-sm text-audio-warn" role="alert">
@@ -2007,7 +1996,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       )}
 
       {/* 7. SAVED PRESETS RACK */}
-      {(!embeddedInLab || workbenchState === 'IDLE') && <div className="space-y-3 pt-2">
+      {workbenchState === 'IDLE' && <div {...ord(6)} className="space-y-3 pt-2">
         {workbenchState === 'IDLE' && draft.dirty && (
           <div role="region" aria-label="Unsaved draft" className="panel flex flex-wrap items-center justify-between gap-3 p-4">
             <p className="text-sm text-audio-text">Unsaved draft: {draft.presetName.trim() || 'Untitled EQ'}</p>
