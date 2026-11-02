@@ -21,7 +21,7 @@ const { ensureViteServer, ensurePreviewServer } = require('../tests/browserEnv.c
     for (const script of ['typecheck', 'build', 'test:core', 'test:apo', 'test:retrieval']) if (await run(script)) failed.push(script);
     if (failed.includes('build')) throw new Error('Build failed; browser checks require current build');
     dev = await ensureViteServer(); preview = await ensurePreviewServer();
-    for (const script of ['test:ui', 'test:dsp', 'test:mobile', 'test:workspace', 'test:lab', 'test:graph', 'test:mobile-eq', 'test:production', 'test:save-apply', 'test:lab-sample-rate']) if (await run(script)) failed.push(script);
+    for (const script of ['test:ui', 'test:dsp', 'test:mobile', 'test:workspace', 'test:lab', 'test:graph', 'test:mobile-eq', 'test:production', 'test:save-apply', 'test:lab-sample-rate', 'test:studio']) if (await run(script)) failed.push(script);
     print(`\n${failed.length ? `FAILED: ${failed.join(', ')}` : 'ALL LOCAL SUITES PASSED'}\n`);
     print('Live provider/model checks are separate: npm run test:models (requires network/account).\n');
     process.exitCode = failed.length ? 1 : 0;

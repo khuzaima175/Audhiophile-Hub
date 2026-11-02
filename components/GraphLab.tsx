@@ -9,6 +9,7 @@ import { useDismissSurface } from '../hooks/useDismissSurface';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useLabStore, labStore } from '../store/labStore';
 import { LabToolbar } from './lab/LabToolbar';
+import { StudioDock, hasActiveDraft, addStudioBand } from './lab/StudioDock';
 import { MeasurementCatalog } from './lab/MeasurementCatalog';
 import { PerCurveRow } from './lab/PerCurveRow';
 import { BandLabels } from './lab/BandLabels';
@@ -17,9 +18,14 @@ import {
   CRINGRAPH_FREQ_TICKS,
   getInterpolatedTargetGain,
   CurvePoint,
+  ISO_10_BANDS,
+  ISO_15_BANDS,
+  ISO_31_BANDS,
 } from '../constants/targetCurves';
 import {
   calculateAutoRangedYBounds,
+  evaluateCompositeCurve,
+  yToDb,
   freqToX,
   xToFreq,
   dbToY,
@@ -63,6 +69,11 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
       selectedTargetId: labState.targetCurveId, targetMeasurementRef: targetRef, selectedBand: id,
       peqFilters: [{ id, type: 'PK', freq: 1000, gain: 0, q: 1.4, enabled: true }] });
     setPanel('eq');
+  };
+  const startInPlace = () => {
+    if (audioWorkspace.getSnapshot().draft.dirty && !window.confirm('Replace unfinished Audio work?')) return;
+    const currentSampleRate = audioWorkspace.getSnapshot().draft.sampleRate;
+    audioWorkspace.replace({ ...freshDraft(), sampleRate: currentSampleRate, workbenchState: 'ADDING', eqMode: 'peq', selectedTargetId: labState.targetCurveId });
   };
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
@@ -266,6 +277,15 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
 
   const anySolo = useMemo(() => labState.curves.some((c) => c.solo), [labState.curves]);
 
+  // Filter response of the in-progress EQ draft, drawn on the comparison plot while editing.
+  const draftActive = hasActiveDraft(draft);
+  const draftPoints = useMemo<CurvePoint[]>(() => {
+    if (!draftActive) return [];
+    const bands = draft.eqMode === '31-band' ? ISO_31_BANDS : draft.eqMode === '15-band' ? ISO_15_BANDS : ISO_10_BANDS;
+    const gains = draft.eqMode === '31-band' ? draft.gains31 : draft.eqMode === '15-band' ? draft.gains15 : draft.gains10;
+    return evaluateCompositeCurve(SYNTHESIS_FREQUENCIES, draft.eqMode === 'peq' ? [] : bands, draft.eqMode === 'peq' ? [] : gains, draft.eqMode === 'peq' ? draft.peqFilters : [], draft.sampleRate);
+  }, [draftActive, draft.eqMode, draft.gains10, draft.gains15, draft.gains31, draft.peqFilters, draft.sampleRate]);
+
   // Visible points for Auto-Ranging (focuses on solo'd curve + target if solo is active)
   const isTargetInVisible = useMemo(() => {
     return labState.curves.some((c) => c.isTarget && c.visible);
@@ -314,6 +334,17 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
       return { ...c, path: generateSvgPathFromPoints(points, viewport, minY, maxY) };
     });
   }, [displayCurves, viewport, minY, maxY]);
+
+  const draftPath = useMemo(() => draftPoints.length ? generateSvgPathFromPoints(draftPoints.filter(p => p.freq >= viewport.minFreq! && p.freq <= viewport.maxFreq!), viewport, minY, maxY) : '', [draftPoints, viewport, minY, maxY]);
+  const addBandAtPointer = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (viewport.width / rect.width);
+    const y = (e.clientY - rect.top) * (viewport.height / rect.height);
+    if (x < viewport.padding.left || x > viewport.width - viewport.padding.right || y < viewport.padding.top || y > viewport.height - viewport.padding.bottom) return;
+    addStudioBand(xToFreq(x, viewport), Math.max(-18, Math.min(18, yToDb(y, viewport, minY, maxY))));
+  };
 
   // Interactive Hover Point
   const [hoveredPoint, setHoveredPoint] = useState<{
@@ -693,6 +724,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
               role="img"
               onPointerMove={handleMouseMove}
               onPointerDown={handleMouseMove}
+              onDoubleClick={addBandAtPointer}
               onPointerLeave={(e) => {
                 if (e.pointerType === 'mouse') setHoveredPoint(null);
               }}
@@ -780,6 +812,13 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
                   );
                 })}
 
+              {draftPath && <path data-testid="studio-draft-curve" d={draftPath} fill="none" stroke="#5be3b0" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
+              {draftActive && draft.eqMode === 'peq' && draft.peqFilters.filter(f => f.enabled !== false && f.freq >= viewport.minFreq! && f.freq <= viewport.maxFreq!).map(f => {
+                const cx = freqToX(f.freq, viewport);
+                const cy = dbToY(['PK', 'LS', 'HS'].includes(f.type) ? f.gain : 0, viewport, minY, maxY);
+                const index = draft.peqFilters.findIndex(p => p.id === f.id) + 1;
+                return <g key={f.id} data-testid="studio-band-marker" pointerEvents="none"><circle cx={cx} cy={cy} r={draft.selectedBand === f.id ? 10 : 8} fill="#101412" stroke="#5be3b0" strokeWidth={draft.selectedBand === f.id ? 2.5 : 1.5} /><text x={cx} y={cy + 3.5} textAnchor="middle" fill="#edf0ec" fontSize="10" fontFamily="monospace">{index}</text></g>;
+              })}
               {graphSettings.showLabels && renderedPaths.filter(c => c.visible && c.displayPoints.length).slice(0, 10).map((c,i) => <text key={c.id} x={viewport.padding.left + 8} y={viewport.padding.top + 15 + i*17} fill={c.color} fontSize="12">{c.name.slice(0,30)}</text>)}
               {/* Multi-Curve Hover Tooltip */}
               {graphSettings.inspect && hoveredPoint &&
@@ -852,7 +891,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
             </svg>
           </div>
 
-
+          <StudioDock onStart={startInPlace} onFullEditor={openEditor} />
         </main>
       </div>}
 

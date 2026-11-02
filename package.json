@@ -22,6 +22,7 @@
     "test:models": "node tests/verify-models.cjs",
     "test:save-apply": "node tests/save-apply.cjs",
     "test:lab-sample-rate": "node tests/lab-sample-rate.cjs",
+    "test:studio": "node tests/studio-dock.cjs",
     "test:all": "node scripts/verify-all.cjs"
   },
   "dependencies": {
