@@ -2,11 +2,13 @@
 
 Updated 2026-11-02. This tracked plan supersedes the earlier external brain document, whose header and Step 4 instructions were stale.
 
-Steps 1–3 are committed on `studio-merge`; the Step 4 fit-limits bug fix is committed separately as `8b6669b`. Current work finishes Step 3 review and verification. Further state changes, merging, and deployment await user review. No combined Studio screen or store migration has been implemented.
+The release branch `codex/release-steps-1-3` starts at main (`aadaa91`) and cherry-picks only `f934c20`, `372b1be`, `b6d5157`, `84371b8`, and `392bd71`. It excludes the unapproved Step 4 fit-limits change `8b6669b`, which remains on `studio-merge`. All Step 4 work is held until the deployed friend test is complete. No combined Studio screen or store migration has been implemented.
 
 ## Step 3: save and Windows application
 
 Save and Save as copy update only the browser library. Apply to Windows explicitly exports the current draft with its effective preamp, writes the APO sibling file, and enables its managed include. The Settings switch controls that include; it never enables apply-on-save. The old opt-in flag also selects users who see the one-time migration notice.
+
+Before the first successful Apply for each config path, a confirmation explains that it adds an include line to config.txt with a backup, writes audiosage-eq.txt and affects system audio. Cancel performs no sync. Consent is persisted only after success, so a changed path or failed first Apply requires confirmation again.
 
 Persist the last successful applied signature and label. A reload restores this local history and explicitly marks Windows state unverified, because neither browser storage nor the existing bridge proves what Windows currently contains. Without history, show Applied: unknown. Failed Apply must retain the last successful record.
 
@@ -16,7 +18,7 @@ Back to presets preserves the draft. A dirty draft appears in the presets list w
 
 - Keep `targetCurveId` in view state: it is the currently displayed reference. Keep `selectedTargetId` in the draft: it identifies the fitted target. They serve different purposes.
 - Keep viewport ranges, graph settings, display normalization and display smoothing in view state. Name the future internal field `displaySmoothing`; use `fitSmoothing` for the draft fitting field. Explicit persistence adapters retain the existing serialized `smoothing` keys. Current code retains existing names until that migration is reviewed.
-- Fit limits already read from the draft in the Graph Lab UI. Fit smoothing/normalization still differ intentionally between Lab and editor. Preserve these results until behavior changes are approved.
+- Graph Lab and the editor retain their separate fit-limit settings in this release; the draft-owner change is excluded. Fit smoothing/normalization also still differ. Preserve these results until Step 4 is reviewed after the friend test.
 - Undo/redo should cover EQ edits and grouped gestures, excluding view settings and imported curve arrays. Add an explicit draft/delta audition source. These remain future work.
 
 ## Compatibility rules

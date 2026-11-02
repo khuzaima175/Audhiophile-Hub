@@ -1,0 +1,168 @@
+
+$ npm run typecheck
+
+> audiosage---audiophile-research-assistant@0.0.0 typecheck
+> tsc --noEmit
+
+EXIT 0: typecheck
+
+$ npm run build
+
+> audiosage---audiophile-research-assistant@0.0.0 build
+> vite build
+
+vite v6.4.4 building for production...
+transforming...
+✓ 106 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                          0.67 kB │ gzip:   0.40 kB
+dist/assets/index-BujGnzs8.css          84.11 kB │ gzip:  15.77 kB
+dist/assets/GraphLab-gkpmTnqx.js        40.54 kB │ gzip:  13.43 kB
+dist/assets/SettingsModal-vZDT7GyF.js   52.91 kB │ gzip:  15.00 kB
+dist/assets/EQWorkbench-B9wDXF0J.js    103.44 kB │ gzip:  30.99 kB
+dist/assets/ai-sdk-BER3QIUg.js         254.09 kB │ gzip:  50.14 kB
+dist/assets/index-BJBxv-dp.js          363.99 kB │ gzip: 117.21 kB
+✓ built in 3.34s
+EXIT 0: build
+
+$ npm run test:core
+
+> audiosage---audiophile-research-assistant@0.0.0 test:core
+> node tests/core.cjs
+
+PASS DSP anchors, complementary filters, graphic cascade, headroom, measurement parsing, Auto-PEQ consistency and normalization, DEFAULT_PROFILE validation, and golden share/storage/backup fixtures
+EXIT 0: test:core
+
+$ npm run test:apo
+
+> audiosage---audiophile-research-assistant@0.0.0 test:apo
+> node tests/apo.cjs
+
+PASS APO non-destructive probe, backup, idempotent sync, managed disable, path and command validation
+EXIT 0: test:apo
+
+$ npm run test:retrieval
+
+> audiosage---audiophile-research-assistant@0.0.0 test:retrieval
+> node tests/retrieval.cjs
+
+PASS 6 labeled queries; intended passage hits BM25=3, legacy=0; disabled/deleted/stale exclusion, exact identifiers, dedup, budgets, current-chat isolation, adversarial quoting
+EXIT 0: test:retrieval
+
+$ npm run test:ui
+
+> audiosage---audiophile-research-assistant@0.0.0 test:ui
+> node tests/ui-smoke.cjs
+
+PASS overview and scroll position
+PASS multiline composer and analysis dropdown
+PASS profile persistence
+PASS gear creation, dropdowns, search and filtering
+PASS listening notes
+PASS EQ import, save dialog, APO split fetch-spy regression, and clean new preset
+PASS graph import, controls, CSV export and close
+PASS Web Audio filtering, bypass, cleanup and graph share metadata
+PASS disabled filter round-trip, headroom and GraphicEQ export
+PASS backup restore refreshes views and rejects invalid data
+PASS command palette keyboard navigation
+PASS LIFO Escape overlay stack
+PASS mobile navigation and responsive overflow checks
+PASS corrupt saved data is preserved and reported
+ALL UI CHECKS PASSED
+EXIT 0: test:ui
+
+$ npm run test:dsp
+
+> audiosage---audiophile-research-assistant@0.0.0 test:dsp
+> node tests/dsp-browser.cjs
+
+PASS self-verified Web Audio parity DSP response: {
+  maxError: 0.00000571493207957019,
+  cases: 4842,
+  renderMaxError: 0.0000026597945019801728,
+  renderedCases: 6
+}
+EXIT 0: test:dsp
+
+$ npm run test:mobile
+
+> audiosage---audiophile-research-assistant@0.0.0 test:mobile
+> node tests/mobile.cjs
+
+PASS touch chromium 320x640
+PASS touch chromium 390x844
+PASS touch chromium 568x320
+PASS touch chromium 768x1024
+PASS chromium mobile: 320 px, phone portrait, landscape, tablet, PEQ creation and graph zoom
+EXIT 0: test:mobile
+
+$ npm run test:workspace
+
+> audiosage---audiophile-research-assistant@0.0.0 test:workspace
+> node tests/workspace-browser.cjs
+
+PASS measurement -> fitting -> keyboard/drag/cancel/undo -> gear/save/copy -> navigate/refresh/reopen with source links and requested preamp
+PASS complete backup/restore, legacy preservation, unknown-version/numeric/duplicate rejection, missing-link manual recovery, quota and interrupted restore rollback, credential exclusion, Solo visibility
+PASS desktop/mobile portal bounds, keyboard navigation, focus restoration and one-surface Escape
+PASS key source/classification and unknown draft recovery preserves original
+ALL WORKSPACE JOURNEYS PASSED
+EXIT 0: test:workspace
+
+$ npm run test:lab
+
+> audiosage---audiophile-research-assistant@0.0.0 test:lab
+> node tests/lab-editor.cjs
+
+PASS full-size desktop/mobile Lab plots; in-tab create, keyboard/drag/Undo/Redo, save/copy/reload/export; measured correction remains in Lab; shared draft and source links
+EXIT 0: test:lab
+
+$ npm run test:graph
+
+> audiosage---audiophile-research-assistant@0.0.0 test:graph
+> node tests/graph-features.cjs
+
+PASS channel import/pairing, raw-level CSV, baseline, view sharing, catalog variants/missing channel, custom target save/reload/backup, tap band and Q/delete keyboard editing
+EXIT 0: test:graph
+
+$ npm run test:mobile-eq
+
+> audiosage---audiophile-research-assistant@0.0.0 test:mobile-eq
+> node tests/mobile-eq.cjs
+
+PASS 360px touch drag, one-step Undo/Redo, tap band creation, numeric editing, save/reload, non-overlapping labels and 44px handles
+EXIT 0: test:mobile-eq
+
+$ npm run test:production
+
+> audiosage---audiophile-research-assistant@0.0.0 test:production
+> node tests/production.cjs
+
+PASS production lazy loading, browser personal key, mocked streaming/grounding capability, 3.8 -> 3.7 -> 3.5 Flash-Lite fallback preserving selection, per-answer supplied context/model/cited-only sources, disabled-source exclusion, manual save/refresh/export, hosted APO distinction
+EXIT 0: test:production
+
+$ npm run test:save-apply
+
+> audiosage---audiophile-research-assistant@0.0.0 test:save-apply
+> node tests/save-apply.cjs
+
+PASS fetch spy: Save=0 sync calls; Save copy=0 sync calls with APO opted in
+PASS first Apply explains config/include/backup; cancel makes zero sync calls; consent persists after successful Apply
+PASS fetch spy: Apply=1 sync call with guarded EQ export
+PASS applied signature/label survive reload; unknown Windows state is explicit; failed Apply preserves last success
+PASS hidden draft resume after reload, discard cancel/confirm, saved presets preserved
+PASS local permission denial and missing config are distinct from hosted/unavailable bridge
+PASS built static preview disabled Apply at 1920px/390px; dialog at 1920px/390px/320px; screenshots saved
+EXIT 0: test:save-apply
+
+$ npm run test:lab-sample-rate
+
+> audiosage---audiophile-research-assistant@0.0.0 test:lab-sample-rate
+> node tests/lab-sample-rate.cjs
+
+CURRENT GraphLab: {"draftSampleRate":96000,"fitSampleRate":96000}
+PASS GraphLab preserves and fits at 96000 Hz
+EXIT 0: test:lab-sample-rate
+
+ALL LOCAL SUITES PASSED
+Live provider/model checks are separate: npm run test:models (requires network/account).

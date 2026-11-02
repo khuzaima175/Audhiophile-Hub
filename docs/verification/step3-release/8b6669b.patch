@@ -1,0 +1,44 @@
+diff --git a/components/GraphLab.tsx b/components/GraphLab.tsx
+index fc66baf..dd158c5 100644
+--- a/components/GraphLab.tsx
++++ b/components/GraphLab.tsx
+@@ -378,7 +378,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
+     try {
+     // Fit original source arrays; display changes never affect analysis.
+     const peqResult = synthesizeAutoPeq(smoothLogCurve(channelPoints(curveA).map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW'), channelPoints(curveB), {
+-      ...(labState.fitLimits || DEFAULT_FIT_LIMITS), normalize: labState.fitNormalize ?? true,
++      ...audioWorkspace.getSnapshot().draft.fitLimits, normalize: labState.fitNormalize ?? true,
+       sampleRate: audioEngine.audioContext?.sampleRate || draft.sampleRate,
+       smoothing: labState.fitSmoothing || 'RAW',
+       maxFilters: 10,
+@@ -398,7 +398,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
+     } catch (e) { showToast((e as Error).message); }
+   };
+ 
+-  useEffect(() => { setAuditionResult(null); audioEngine.stopAudio(); audioEngine.clearExternalPeq(); }, [labState.curves.map(c => c.id + JSON.stringify(c.points)).join('|'), labState.fitNormalize, labState.fitSmoothing, JSON.stringify(labState.fitLimits), labState.curves.map(c=>c.channel).join('|'), draft.sampleRate]);
++  useEffect(() => { setAuditionResult(null); audioEngine.stopAudio(); audioEngine.clearExternalPeq(); }, [labState.curves.map(c => c.id + JSON.stringify(c.points)).join('|'), labState.fitNormalize, labState.fitSmoothing, JSON.stringify(draft.fitLimits), labState.curves.map(c=>c.channel).join('|'), draft.sampleRate]);
+ 
+   // Auto-PEQ send to Workbench
+   const handleSendAutoPeq = async (curve: LabCurve) => {
+@@ -410,10 +410,10 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
+       const targetRef = target ? target.measurementRef || await storeMeasurement({name:target.name,rawPoints:target.points.map(p=>({...p,rawSpl:p.gain})),smoothedPoints:[],smoothing:'RAW',sampleCount:target.points.length,normOffset:0}) : null;
+       const measured = smoothLogCurve(channelPoints(curve).map(p => ({ ...p, rawSpl: p.gain })), labState.fitSmoothing || 'RAW');
+       const result = synthesizeAutoPeq(measured, activeTarget.points, {
+-        ...(labState.fitLimits || DEFAULT_FIT_LIMITS), normalize: labState.fitNormalize ?? true, sampleRate: currentSampleRate, smoothing: labState.fitSmoothing || 'RAW', maxFilters: 10, targetCurveId: activeTarget.id,
++        ...audioWorkspace.getSnapshot().draft.fitLimits, normalize: labState.fitNormalize ?? true, sampleRate: currentSampleRate, smoothing: labState.fitSmoothing || 'RAW', maxFilters: 10, targetCurveId: activeTarget.id,
+       });
+       const ref = await storeMeasurement({ name: curve.name, rawPoints: channelPoints(curve).map(p => ({ ...p, rawSpl: p.gain })), channels: curve.channels ? {left:curve.channels.left.map(p=>({...p,rawSpl:p.gain})),right:curve.channels.right.map(p=>({...p,rawSpl:p.gain}))} : undefined, smoothedPoints: [], normOffset: 0, sampleCount: curve.points.length, smoothing: 'RAW' });
+-      audioWorkspace.replace({ ...freshDraft(), sampleRate: currentSampleRate, dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, targetMeasurementRef: targetRef, fitLimits: labState.fitLimits || structuredClone(DEFAULT_FIT_LIMITS), workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
++      audioWorkspace.replace({ ...freshDraft(), sampleRate: currentSampleRate, dirty: true, eqMode: 'peq', peqFilters: result.filters, requestedPreamp: result.preamp, presetName: `${curve.name} Auto-PEQ`, hardwareAssigned: curve.name, selectedTargetId: activeTarget.id, measurementRef: ref, targetMeasurementRef: targetRef, fitLimits: structuredClone(audioWorkspace.getSnapshot().draft.fitLimits), workbenchState: 'ADDING', originalFit: result, smoothing: labState.fitSmoothing || 'RAW', normalize: labState.fitNormalize ?? true });
+       setPanel('eq');
+     } catch (e) { showToast((e as Error).message); }
+   };
+@@ -526,7 +526,7 @@ export const GraphLab: React.FC<GraphLabProps> = ({ presets, gear, onSavePresets
+           <input ref={targetInputRef} type="file" accept=".txt,.csv,.tsv" className="hidden" onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; void handleProcessFiles(files, true); }} />
+           <MeasurementCatalog onImport={(files, context) => handleProcessFiles(files, false, context)} />
+           <GraphControls value={graphSettings} onChange={value => labStore.setGraphSettings(value)} />
+-          <FitControls value={labState.fitLimits || DEFAULT_FIT_LIMITS} onChange={value => labStore.setFitLimits(value)} />
++          <FitControls value={draft.fitLimits} onChange={fitLimits => audioWorkspace.update({ fitLimits, dirty: draft.dirty }, false)} />
+           <div className="graph-action-row">{(['png','svg'] as const).map(format => <button key={format} className="secondary-button" onClick={() => { if (svgRef.current) void exportPlot(svgRef.current, 'audiosage-graph', format, `AudioSage • ${labState.normalizationMode || 'frequency'} normalization • ${labState.smoothing} • ${labState.normHz} Hz • ${labState.curves.filter(c=>c.visible).map(c=>c.name+' ('+c.provenance+')').join('; ')}`).catch(error => showToast(error.message)); }}>Export {format.toUpperCase()}</button>)}</div>
+           {/* Drag & Drop Box */}
+           <div

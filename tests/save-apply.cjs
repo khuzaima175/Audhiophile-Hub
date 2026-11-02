@@ -57,12 +57,25 @@ const { ensureViteServer, ensurePreviewServer, launchBrowser } = require('./brow
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('audiosage_profile_v1')).eqLibrary.filter(p => p.name === 'Review EQ').length), 2);
     console.log('PASS fetch spy: Save=0 sync calls; Save copy=0 sync calls with APO opted in');
     await page.evaluate(() => localStorage.setItem('audiosage_apo_enabled', 'false'));
+    page.once('dialog', async dialog => {
+      assert.match(dialog.message(), /Adds one include line to config.txt, with a backup/);
+      await dialog.dismiss();
+    });
+    await apply.click();
+    assert.equal(syncs.length, 0, 'Cancelling first Apply must never sync');
+    assert.equal(await page.evaluate(() => localStorage.getItem('audiosage_apo_apply_consent_v1')), null);
+    page.once('dialog', async dialog => {
+      assert.match(dialog.message(), /affects system audio/);
+      await dialog.accept();
+    });
     await apply.click();
     await page.waitForFunction(() => document.querySelector('.apo-applied-status')?.textContent === 'Applied: Review EQ');
     assert.equal(syncs.length, 1, 'Apply must sync exactly once');
     assert.match(syncs[0].eqContent, /Preamp: -[\d.]+ dB/);
     assert.match(syncs[0].eqContent, /Filter/);
     assert.equal(await page.evaluate(() => localStorage.getItem('audiosage_apo_enabled')), 'true', 'Successful Apply must reflect the enabled managed include in Settings');
+    assert.ok(await page.evaluate(() => localStorage.getItem('audiosage_apo_apply_consent_v1')));
+    console.log('PASS first Apply explains config/include/backup; cancel makes zero sync calls; consent persists after successful Apply');
     console.log('PASS fetch spy: Apply=1 sync call with guarded EQ export');
     const applied = await page.evaluate(() => localStorage.getItem('audiosage_apo_applied_state_v1'));
     assert.ok(JSON.parse(applied).signature);

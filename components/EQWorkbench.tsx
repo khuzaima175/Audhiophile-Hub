@@ -60,6 +60,9 @@ import {
   testApoWrite,
   getStoredAppliedApoState,
   setStoredAppliedApoState,
+  getStoredApoConfigPath,
+  hasStoredApoApplyConsent,
+  setStoredApoApplyConsent,
 } from '../services/apoBridgeClient';
 import { SavePresetDialog, SavePresetDialogValues } from './SavePresetDialog';
 import { PlusIcon, TrashIcon, CopyIcon, CheckIcon, EqIcon, WaveformIcon, ActivityIcon } from './Icon';
@@ -587,6 +590,10 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   // Explicit Apply to Windows action (applies current editor state including unsaved changes with preamp guard)
   const handleApplyToWindows = async () => {
     if (!apoBridgeAvailable || isApplyingApo) return;
+    const configPath = getStoredApoConfigPath();
+    if (!hasStoredApoApplyConsent(configPath) && !window.confirm(
+      `Apply this EQ to Windows?\n\nAdds one include line to config.txt, with a backup. Writes the current EQ to audiosage-eq.txt and affects system audio.\n\nConfig: ${configPath}`,
+    )) return;
     setIsApplyingApo(true);
     const apoExport = exportToEqualizerAPO(
       eqMode === 'peq' ? peqFilters : [],
@@ -597,8 +604,9 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       eqMode === 'peq' ? draft.stereoFilters : null,
     );
     try {
-      const syncRes = await syncApoProfileToServer(apoExport);
+      const syncRes = await syncApoProfileToServer(apoExport, configPath);
       if (syncRes.success) {
+        setStoredApoApplyConsent(configPath);
         const label = presetName.trim() || 'Unsaved draft';
         const applied = { label, signature: currentEditorSignature };
         setAppliedApoState(applied);

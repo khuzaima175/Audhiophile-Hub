@@ -6,7 +6,16 @@ export const APO_STORAGE_ENABLED_KEY = 'audiosage_apo_enabled';
 export const APO_STORAGE_LAST_APPLIED_KEY = 'audiosage_apo_last_applied';
 export const APO_SPLIT_NOTICE_KEY = 'audiosage_apo_split_notice_v1';
 const APO_APPLIED_STATE_KEY = 'audiosage_apo_applied_state_v1';
+const APO_APPLY_CONSENT_KEY = 'audiosage_apo_apply_consent_v1';
 export interface AppliedApoState { label: string; signature: string; }
+
+export const hasStoredApoApplyConsent = (path: string): boolean => {
+  try { return localStorage.getItem(APO_APPLY_CONSENT_KEY) === path; } catch { return false; }
+};
+
+export const setStoredApoApplyConsent = (path: string): void => {
+  try { localStorage.setItem(APO_APPLY_CONSENT_KEY, path); } catch {}
+};
 
 export const getStoredAppliedApoState = (): AppliedApoState | null => {
   try {
