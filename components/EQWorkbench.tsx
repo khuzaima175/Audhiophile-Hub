@@ -966,7 +966,22 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
           {gainApplies(f.type) && <label>Gain (dB)<input aria-label="Selected gain" type="number" min="-18" max="18" step="0.5" value={f.gain} onChange={e => handleUpdatePeqFilter(f.id, { gain: Math.max(-18,Math.min(18,Number(e.target.value) || 0)) })} /></label>}
           <label>Q<input aria-label="Selected Q" type="number" min="0.1" max="20" step="0.1" value={f.q} onChange={e => handleUpdatePeqFilter(f.id, { q: Math.max(.1,Math.min(20,Number(e.target.value) || 1)) })} /></label>
           <button className="secondary-button" onClick={()=>audioWorkspace.update({peqFilters:peqFilters.filter(p=>p.id!==f.id),selectedBand:null})}>Remove selected band</button>
-          <label><input type="checkbox" checked={f.enabled !== false} onChange={e => handleUpdatePeqFilter(f.id, { enabled: e.target.checked })} />Enabled</label>
+          <label
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md cursor-pointer select-none text-[11px] font-mono font-bold transition-all border ${
+              f.enabled !== false
+                ? 'bg-audio-signal/15 border-audio-signal/40 text-audio-signal shadow-glow-teal/15'
+                : 'bg-audio-surface border-audio-border text-audio-muted/40 hover:text-audio-muted'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={f.enabled !== false}
+              onChange={e => handleUpdatePeqFilter(f.id, { enabled: e.target.checked })}
+              className="sr-only"
+            />
+            <span className={`w-1.5 h-1.5 rounded-full transition-colors ${f.enabled !== false ? 'bg-audio-signal shadow-glow-teal' : 'bg-audio-muted/40'}`} />
+            <span>{f.enabled !== false ? 'ENABLED' : 'BYPASSED'}</span>
+          </label>
         </div> : <p>Select a numbered graph handle.</p>; })() : <div className="audio-policy-controls"><label>Graphic gain (dB)<input aria-label="Selected graphic gain" type="number" min="-12" max="12" step="0.5" value={currentIsoGains[Number(draft.selectedBand?.replace('graphic-',''))||0]||0} onChange={e=>handleSliderChange(Number(draft.selectedBand?.replace('graphic-',''))||0,Math.max(-12,Math.min(12,Number(e.target.value)||0)))}/></label><p>Fixed frequency: {currentIsoBands[Number(draft.selectedBand?.replace('graphic-',''))||0]} Hz</p></div>}
       </details>
       {/* 4. LIVE SVG CURVE VISUALIZER (Measured Cream, Target Dashed, Corrected Phosphor Teal) */}
@@ -1848,17 +1863,28 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
               {peqFilters.map((filter, fIdx) => (
                 <div
                   key={filter.id}
-                  className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-audio-surface border border-audio-border"
+                  className={`flex flex-wrap items-center gap-2 p-2 rounded-lg bg-audio-surface border border-audio-border transition-opacity ${
+                    filter.enabled === false ? 'opacity-55' : ''
+                  }`}
                 >
                   <span className="text-[10px] font-mono text-audio-accent font-bold w-6">#{fIdx + 1}</span>
-                  <label className="flex items-center gap-1 text-xs !mb-0">
+                  <label
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded cursor-pointer select-none text-[10px] font-mono font-bold tracking-wide transition-all border ${
+                      filter.enabled !== false
+                        ? 'bg-audio-signal/15 border-audio-signal/40 text-audio-signal shadow-glow-teal/15'
+                        : 'bg-audio-surface border-audio-border/70 text-audio-muted/40 hover:text-audio-muted'
+                    }`}
+                    title={filter.enabled !== false ? `Filter ${fIdx + 1} enabled (click to bypass)` : `Filter ${fIdx + 1} bypassed (click to enable)`}
+                  >
                     <input
                       type="checkbox"
                       aria-label={`Enable filter ${fIdx + 1}`}
                       checked={filter.enabled !== false}
                       onChange={(e) => handleUpdatePeqFilter(filter.id, { enabled: e.target.checked })}
+                      className="sr-only"
                     />
-                    On
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors ${filter.enabled !== false ? 'bg-audio-signal shadow-glow-teal' : 'bg-audio-muted/40'}`} />
+                    <span>{filter.enabled !== false ? 'ON' : 'BYP'}</span>
                   </label>
 
                   <select

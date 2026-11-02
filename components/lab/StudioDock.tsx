@@ -59,7 +59,20 @@ export const StudioDock: React.FC<StudioDockProps> = ({ onStart, onFullEditor })
             <label>Hz<input aria-label={`Band ${index + 1} frequency`} type="number" min="20" max="20000" value={f.freq} onChange={e => update(f.id, { freq: clamp(Number(e.target.value), 20, 20000, 20) })} /></label>
             {gainApplies(f.type) && <label>dB<input aria-label={`Band ${index + 1} gain`} type="number" min="-18" max="18" step="0.5" value={f.gain} onChange={e => update(f.id, { gain: clamp(Number(e.target.value), -18, 18, 0) })} /></label>}
             <label>Q<input aria-label={`Band ${index + 1} Q`} type="number" min="0.1" max="20" step="0.1" value={f.q} onChange={e => update(f.id, { q: clamp(Number(e.target.value), 0.1, 20, 1) })} /></label>
-            <label className="studio-band-on"><input aria-label={`Band ${index + 1} enabled`} type="checkbox" checked={f.enabled !== false} onChange={e => update(f.id, { enabled: e.target.checked })} />On</label>
+            <label
+              className={`studio-band-on ${f.enabled !== false ? 'active' : 'bypassed'}`}
+              title={f.enabled !== false ? `Band ${index + 1} enabled (click to bypass)` : `Band ${index + 1} bypassed (click to enable)`}
+            >
+              <input
+                aria-label={`Band ${index + 1} enabled`}
+                type="checkbox"
+                checked={f.enabled !== false}
+                onChange={e => update(f.id, { enabled: e.target.checked })}
+                className="sr-only"
+              />
+              <span className={`w-1.5 h-1.5 rounded-full transition-colors ${f.enabled !== false ? 'bg-audio-signal shadow-glow-teal' : 'bg-audio-muted/40'}`} />
+              <span>{f.enabled !== false ? 'ON' : 'BYP'}</span>
+            </label>
             <button type="button" className="secondary-button" aria-label={`Remove band ${index + 1}`} onClick={() => audioWorkspace.update({ peqFilters: draft.peqFilters.filter(p => p.id !== f.id), selectedBand: null })}>✕</button>
           </li>
         ))}
