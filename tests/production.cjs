@@ -174,7 +174,7 @@ const { ensurePreviewServer, launchBrowser } = require('./browserEnv.cjs');
   assert.equal(await page.getByLabel('Gain at 1000 Hz', { exact: true }).inputValue(), '3');
 
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download .txt', exact: true }).click();
+  await page.getByRole('button', { name: /^Export/ }).click(); await page.getByRole('menuitem', { name: 'Download .txt', exact: true }).click();
   const file = await download;
   const text = Buffer.concat(await (await file.createReadStream()).toArray()).toString();
   assert.match(text, /intended sample rate 48000/);

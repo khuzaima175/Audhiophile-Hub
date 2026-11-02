@@ -69,7 +69,7 @@ const fs = require('node:fs');
   assert.equal(await lab.getByTestId('active-preset-name').innerText(), 'Lab desktop EQ');
   const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')));
   assert.deepEqual(restored.peqFilters, original.peqFilters);
-  const download = page.waitForEvent('download'); await lab.getByRole('button', { name: 'Download .txt', exact: true }).click();
+  const download = page.waitForEvent('download'); await lab.getByRole('button', { name: /^Export/ }).click(); await lab.getByRole('menuitem', { name: 'Download .txt', exact: true }).click();
   const file = await download; const text = Buffer.concat(await(await file.createReadStream()).toArray()).toString();
   assert.match(text, /Filter 1: ON PK/);
   await lab.getByRole('button', { name: 'Compare these curves', exact: true }).click();

@@ -65,6 +65,7 @@ import {
   setStoredApoApplyConsent,
 } from '../services/apoBridgeClient';
 import { SavePresetDialog, SavePresetDialogValues } from './SavePresetDialog';
+import { InfoHint, MenuButton } from './InfoHint';
 import { PlusIcon, TrashIcon, CopyIcon, CheckIcon, EqIcon, WaveformIcon, ActivityIcon } from './Icon';
 import Led from './ui/Led';
 import Engraved from './ui/Engraved';
@@ -872,27 +873,6 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => handleCopyAPO()}
-          className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-        >
-          {copiedKey === 'apo-curr' ? '✓ Copied APO' : 'Copy APO'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleCopyWavelet()}
-          className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-        >
-          {copiedKey === 'wav-curr' ? '✓ Copied Wavelet' : 'Copy Wavelet'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDownloadTxt()}
-          className="px-2.5 py-1.5 rounded-lg border border-audio-border text-[11px] font-mono text-audio-muted hover:text-audio-text hover:bg-audio-surface"
-        >
-          Download .txt
-        </button>
-        <button
-          type="button"
           disabled={!apoBridgeAvailable || isApplyingApo}
           onClick={() => void handleApplyToWindows()}
           title={
@@ -904,16 +884,19 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
         >
           {isApplyingApo ? 'Applying…' : 'Apply to Windows'}
         </button>
-        {!apoBridgeAvailable ? (
-          <span role="status" className="text-[10px] font-mono text-audio-muted">{apoBridgeMessage}</span>
-        ) : null}
-            <span role="status" className="apo-applied-status text-[10px] font-mono text-audio-signal">
-              {appliedApoState ? appliedApoState.signature === currentEditorSignature
-                ? `Applied: ${appliedApoState.label}`
-                : `Applied: ${appliedApoState.label} · editor has changed since`
-                : 'Applied: unknown'}
-              {appliedApoState && !appliedThisSession && ' · Windows state unverified after reload'}
-            </span>
+        <MenuButton label="Export">
+          <button type="button" role="menuitem" onClick={() => handleCopyAPO()}>{copiedKey === 'apo-curr' ? '✓ Copied APO' : 'Copy APO'}</button>
+          <button type="button" role="menuitem" onClick={() => handleCopyWavelet()}>{copiedKey === 'wav-curr' ? '✓ Copied Wavelet' : 'Copy Wavelet'}</button>
+          <button type="button" role="menuitem" onClick={() => handleDownloadTxt()}>Download .txt</button>
+        </MenuButton>
+        {!apoBridgeAvailable ? <span role="status" className="text-[10px] font-mono text-audio-muted">{apoBridgeMessage}</span> : null}
+        <span role="status" className="apo-applied-status text-[10px] font-mono text-audio-signal">
+          {appliedApoState ? appliedApoState.signature === currentEditorSignature
+            ? `Applied: ${appliedApoState.label}`
+            : `Applied: ${appliedApoState.label} · editor has changed since`
+            : 'Applied: unknown'}
+          {appliedApoState && !appliedThisSession && ' · Windows state unverified after reload'}
+        </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -947,15 +930,15 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
   );
   const policyControls = (
       <div className="audio-policy-controls">
-        <label><input type="checkbox" checked={draft.normalize} onChange={e => audioWorkspace.update({ normalize: e.target.checked })} />Normalize source and target at 1 kHz for fitting / shape display</label>
+        <label><input type="checkbox" checked={draft.normalize} onChange={e => audioWorkspace.update({ normalize: e.target.checked })} />Match source and target at 1 kHz<InfoHint label="About matching at 1 kHz">Normalizes the source and target at 1 kHz for fitting and shape display.</InfoHint></label>
         <label>Post-EQ response level<select value={draft.responseLevel} onChange={e => audioWorkspace.update({ responseLevel: e.target.value as 'absolute' | 'shape' })}><option value="absolute">Includes effective attenuation</option><option value="shape">Response shape (excludes preamp)</option></select></label>
         <label>Preamp mode<select value={draft.preampMode} onChange={e => audioWorkspace.update({ preampMode: e.target.value as 'automatic' | 'manual' })}><option value="automatic">Automatic headroom</option><option value="manual">Manual preamp</option></select></label>
         <label>Requested preamp (dB)<input aria-label="Requested preamp" type="number" min="-36" max="36" step="0.1" value={draft.requestedPreamp} onChange={e => audioWorkspace.update({ requestedPreamp: Math.max(-36, Math.min(36, Number(e.target.value) || 0)) })} /></label>
         <label>Intended rate<select disabled={!!audioContext} value={draft.sampleRate} onChange={e => audioWorkspace.update({ sampleRate: Number(e.target.value) })}>{[44100,48000,96000].map(rate => <option key={rate} value={rate}>{rate / 1000} kHz</option>)}</select></label>
-        <p>Effective attenuation: {currentPreamp.toFixed(2)} dB. {draft.preampMode === 'manual' && currentPreamp < draft.requestedPreamp ? 'Adjusted to leave response-based headroom.' : ''} This is response-based attenuation, not a true-peak limiter.</p>
-        <label><input type="checkbox" checked={levelMatched} onChange={e => setLevelMatched(e.target.checked)} />Level-matched file comparison (first 10 seconds, all-channel RMS, dry attenuation capped at 24 dB)</label>
-        {levelMatched && <p>{matchDb === null ? 'Matching unavailable or recalculating. Bypass currently uses raw audio.' : `Bypass matching attenuation: ${matchDb.toFixed(2)} dB. ${matchDb === -24 ? 'Attenuation limit reached; the bypass may remain louder.' : ''}`}</p>}
-        <p>APO parameter exports preserve supported filters and effective preamp. Wavelet response sampling and Wavelet-to-PEQ fitting are approximations; deep notches and narrow filters may lose detail.</p>
+        <p className="studio-summary">Effective attenuation: {currentPreamp.toFixed(2)} dB<InfoHint label="About attenuation">{draft.preampMode === 'manual' && currentPreamp < draft.requestedPreamp ? 'Adjusted to leave response-based headroom. ' : ''}This is response-based attenuation, not a true-peak limiter.</InfoHint></p>
+        <label><input type="checkbox" checked={levelMatched} onChange={e => setLevelMatched(e.target.checked)} />Level-matched comparison<InfoHint label="About level matching">Uses the first 10 seconds of the file, all-channel RMS, with dry attenuation capped at 24 dB.</InfoHint></label>
+        {levelMatched && <p className="studio-summary">{matchDb === null ? 'Matching unavailable or recalculating. Bypass currently uses raw audio.' : `Bypass matching attenuation: ${matchDb.toFixed(2)} dB. ${matchDb === -24 ? 'Attenuation limit reached; the bypass may remain louder.' : ''}`}</p>}
+        <p className="studio-summary">Export accuracy<InfoHint label="About export accuracy">APO parameter exports preserve supported filters and effective preamp. Wavelet response sampling and Wavelet-to-PEQ fitting are approximations; deep notches and narrow filters may lose detail.</InfoHint></p>
       </div>
   );
   const graphEditor = (<>
@@ -970,14 +953,14 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       </div>}
       <div className="audio-view-tabs">
         <button className="secondary-button" onClick={() => { if (eqMode !== 'peq' && draft.dirty && !window.confirm('Add a parametric band and switch from graphic mode? Graphic settings will be kept.')) return; setEqMode('peq'); handleAddPeqFilter(); }}>Add band</button>
-        <button className="secondary-button" onClick={() => { audioWorkspace.update({ gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0), peqFilters: peqFilters.map(f => ({ ...f, gain: 0 })) }); }}>Reset gains</button>
-        <button className="secondary-button" onClick={() => setIsBypassed(!isBypassed)}>{isBypassed ? 'Enable EQ' : 'Raw bypass'}</button>
-      </div>
-      <div className="eq-graph-actions">
         <button className="secondary-button" aria-pressed={addOnGraph} onClick={()=>setAddOnGraph(!addOnGraph)}>{addOnGraph?'Tap graph to place band':'Add band on graph'}</button>
-        <button disabled={eqMode !== 'peq'} className="secondary-button" onClick={()=>audioWorkspace.update({peqFilters:[...peqFilters].sort((a,b)=>a.freq-b.freq)})}>Sort bands</button>
-        <button disabled={eqMode !== 'peq'} className="secondary-button" onClick={()=>audioWorkspace.update({peqFilters:peqFilters.map(f=>({...f,enabled:!peqFilters.some(f=>f.enabled!==false)}))})}>{peqFilters.some(f=>f.enabled!==false)?'Disable all bands':'Enable all bands'}</button>
-        <button className="secondary-button" onClick={()=>{if(svgRef.current)exportPlot(svgRef.current,'audiosage-eq','png',`${presetName||'Audio draft'} · ${draft.sampleRate} Hz · effective preamp ${currentPreamp} dB`).catch(e=>showToast(e.message));}}>Save graph PNG</button>
+        <button className="secondary-button" onClick={() => setIsBypassed(!isBypassed)}>{isBypassed ? 'Enable EQ' : 'Raw bypass'}</button>
+        <MenuButton label="More">
+          <button type="button" role="menuitem" onClick={() => { audioWorkspace.update({ gains10: Array(10).fill(0), gains15: Array(15).fill(0), gains31: Array(31).fill(0), peqFilters: peqFilters.map(f => ({ ...f, gain: 0 })) }); }}>Reset gains</button>
+          <button type="button" role="menuitem" disabled={eqMode !== 'peq'} onClick={()=>audioWorkspace.update({peqFilters:[...peqFilters].sort((a,b)=>a.freq-b.freq)})}>Sort bands</button>
+          <button type="button" role="menuitem" disabled={eqMode !== 'peq'} onClick={()=>audioWorkspace.update({peqFilters:peqFilters.map(f=>({...f,enabled:!peqFilters.some(f=>f.enabled!==false)}))})}>{peqFilters.some(f=>f.enabled!==false)?'Disable all bands':'Enable all bands'}</button>
+          <button type="button" role="menuitem" onClick={()=>{if(svgRef.current)exportPlot(svgRef.current,'audiosage-eq','png',`${presetName||'Audio draft'} · ${draft.sampleRate} Hz · effective preamp ${currentPreamp} dB`).catch(e=>showToast(e.message));}}>Save graph PNG</button>
+        </MenuButton>
         <GraphControls value={draft.graphSettings} onChange={graphSettings=>audioWorkspace.update({graphSettings},false)}/>
       </div>
       <div className="eq-graph-layout">
@@ -1470,7 +1453,7 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
     <div className={`eq-workspace space-y-5 max-w-5xl mx-auto select-none ${embeddedInLab ? 'lab-eq-workbench' : ''} ${className}`}>
       {draftError && <div role="alert" className="panel p-3">{draftError}<button onClick={() => audioWorkspace.retry()}>Retry write</button><button onClick={() => { if (window.confirm('Preserve damaged draft as recovery data and start fresh?')) { try { audioWorkspace.recoverFresh(); } catch { setImportError('Recovery write failed. Original draft is preserved. Export a backup before refreshing.'); } } }}>Start fresh</button></div>}
       {importError && <div role="alert" className="panel p-3">{importError}<button onClick={() => { audioWorkspace.update({ measurementRef: null }); setImportError(null); }}>Continue manual EQ</button></div>}
-      {!embeddedInLab && policyControls}
+      {!embeddedInLab && <details className="section-disclosure"><summary>Level, preamp &amp; sample rate · {currentPreamp.toFixed(1)} dB · {draft.sampleRate / 1000} kHz</summary>{policyControls}</details>}
       <nav className="audio-view-tabs" aria-label="Audio workspace views">
         {!embeddedInLab && <><button className="secondary-button" onClick={() => setWorkbenchState('ADDING')}>Editor {draft.dirty ? '• Unsaved' : ''}</button>
         <button className="secondary-button" onClick={openCompare}>Compare</button>
@@ -1493,11 +1476,8 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
             </Engraved>
           </div>
           <p className="text-xs text-audio-muted mt-0.5 font-sans">
-            Start with a new preset, import an EQ, or upload a frequency response measurement.
-          </p>
-          <p className="text-xs text-audio-muted mt-2">
-            DSP preview: {draft.sampleRate / 1000} kHz. Playback uses the active AudioContext rate. Use a reference target calibrated for your measurement rig; bundled acoustic
-            targets are approximations.
+            Start a preset, import an EQ, or upload a measurement.
+            <InfoHint label="About the DSP preview">DSP preview: {draft.sampleRate / 1000} kHz. Playback uses the active AudioContext rate. Use a reference target calibrated for your measurement rig; bundled acoustic targets are approximations.</InfoHint>
           </p>
         </div>
 
@@ -1573,9 +1553,11 @@ export const EQWorkbench: React.FC<EQWorkbenchProps> = ({ presets = [], gear = [
       {conversionReport && <p role="status" className="text-xs text-audio-muted">{conversionReport}</p>}
       {fitEvaluation.error && <p role="alert">Fitting failed: {fitEvaluation.error}</p>}
       {draft.originalFit && <p className="text-xs text-audio-muted">Original automatic fit: {draft.originalFit.finalRms} dB RMS · {draft.originalFit.evaluatedPoints} evaluated points. Current response follows your editable filters.</p>}
+      <details className="section-disclosure"><summary>More tools: custom target and AutoEQ limits</summary>
       <input ref={customTargetInput} aria-label="Import EQ custom target" type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;try{const target=parseMeasurementFile(await f.text(),f.name,'RAW');if(!target||target.isGraphicEQ)throw new Error('Import numeric acoustic target data');const ref=await storeMeasurement(target);audioWorkspace.update({targetMeasurementRef:ref,selectedTargetId:'custom-target-'+ref});}catch(err){setImportError((err as Error).message);}e.target.value='';}}/>
       <button className="secondary-button" onClick={()=>customTargetInput.current?.click()}>Import custom target</button>
       <FitControls value={draft.fitLimits} onChange={fitLimits=>audioWorkspace.update({fitLimits})}/>
+      </details>
       {embeddedInLab && workbenchState !== 'IDLE' && <details className="section-disclosure"><summary>Level, sample rate & playback settings</summary>{policyControls}</details>}
       {/* Hidden Measurement File Input */}
       <input

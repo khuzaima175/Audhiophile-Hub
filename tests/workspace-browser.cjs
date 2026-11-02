@@ -28,7 +28,7 @@ const fs=require('node:fs');
   await page.evaluate(async()=>{(await import('/store/audioWorkspace.ts')).audioWorkspace.undo();});assert.deepEqual((await draft()).draft.peqFilters,edited.draft.peqFilters);
   await handle.scrollIntoViewIfNeeded();
   const b2=await handle.boundingBox();await page.mouse.move(b2.x+b2.width/2,b2.y+b2.height/2);await page.mouse.down();await page.mouse.move(b2.x+b2.width/2+30,b2.y+b2.height/2-20);await page.keyboard.press('Escape');await page.mouse.up();assert.deepEqual((await draft()).draft.peqFilters,edited.draft.peqFilters);
-  await page.getByLabel('Preamp mode',{exact:false}).selectOption('manual');await page.getByLabel('Requested preamp',{exact:true}).fill('-12');
+  await page.locator('summary',{hasText:/^Level, preamp/}).click();await page.getByLabel('Preamp mode',{exact:false}).selectOption('manual');await page.getByLabel('Requested preamp',{exact:true}).fill('-12');
   await page.getByRole('button',{name:'Save preset…',exact:true}).click();
   await page.getByLabel('Preset name',{exact:true}).fill('Measurement journey');
   await page.getByLabel('Assigned gear',{exact:true}).selectOption('qa-gear');

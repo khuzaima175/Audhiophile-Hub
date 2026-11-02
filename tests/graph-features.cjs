@@ -116,7 +116,7 @@ const assert = require('node:assert/strict');
   await lab.getByLabel('Tone frequency',{exact:true}).fill('500');await lab.getByRole('button',{name:'Stop tone',exact:true}).click();
   const stereoDraft=await page.evaluate(()=>JSON.parse(localStorage.getItem('audiosage_audio_draft_v2')));
   assert.equal(stereoDraft.stereoFilters.left.at(-1).gain,6);assert.equal(stereoDraft.stereoFilters.right.at(-1).gain,-3);
-  filePromise=page.waitForEvent('download');await lab.getByRole('button',{name:'Download .txt',exact:true}).click();
+  filePromise=page.waitForEvent('download');await lab.getByRole('button',{name:/^Export/}).click();await lab.getByRole('menuitem',{name:'Download .txt',exact:true}).click();
   downloaded=await filePromise;text=Buffer.concat(await(await downloaded.createReadStream()).toArray()).toString();assert.match(text,/Channel: L/);assert.match(text,/Channel: R/);
   await page.reload();await lab.getByRole('button',{name:/^Edit EQ/}).click();
   assert.equal(await lab.getByRole('checkbox',{name:'Independent stereo EQ',exact:true}).isChecked(),true);

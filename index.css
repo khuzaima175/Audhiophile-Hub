@@ -2085,3 +2085,15 @@ summary::-webkit-details-marker {
   width: 18px;
   height: 18px;
 }
+
+/* Studio UI: info hints and grouped menus */
+.info-hint { position: relative; display: inline-flex; vertical-align: middle; margin-left: .35rem; }
+.info-hint-button { width: 1.25rem; height: 1.25rem; border-radius: 9999px; border: 1px solid var(--color-audio-border, #3a3f3c); background: transparent; color: inherit; font: italic 700 .7rem serif; line-height: 1; cursor: pointer; opacity: .75; }
+.info-hint-button:hover, .info-hint-button[aria-expanded="true"] { opacity: 1; }
+.info-hint-popover { position: absolute; z-index: 40; top: 1.6rem; left: 0; width: min(20rem, 80vw); padding: .65rem .8rem; border-radius: .6rem; border: 1px solid var(--color-audio-border, #3a3f3c); background: #151816; color: inherit; font: 400 .72rem/1.45 system-ui, sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,.5); text-align: left; }
+.menu-button { position: relative; display: inline-block; }
+.menu-button-list { position: absolute; z-index: 40; top: calc(100% + .25rem); right: 0; min-width: 11rem; display: flex; flex-direction: column; gap: .15rem; padding: .35rem; border-radius: .6rem; border: 1px solid var(--color-audio-border, #3a3f3c); background: #151816; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.menu-button-list button { min-height: 44px; text-align: left; padding: .4rem .7rem; border-radius: .4rem; background: transparent; border: 0; color: inherit; font: 500 .75rem monospace; cursor: pointer; }
+.menu-button-list button:hover:not(:disabled) { background: rgba(255,255,255,.07); }
+.menu-button-list button:disabled { opacity: .45; cursor: not-allowed; }
+.studio-summary { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; font: 500 .72rem monospace; opacity: .85; }
